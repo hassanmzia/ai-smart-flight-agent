@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
@@ -17,6 +17,31 @@ from .serializers import (
     PriceAlertSerializer,
     PriceAlertCreateSerializer
 )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_flights(request):
+    """
+    Simple flight search endpoint that accepts GET parameters.
+    This is a simplified interface for frontend compatibility.
+    """
+    # Get query parameters
+    origin = request.query_params.get('origin')
+    destination = request.query_params.get('destination')
+    departure_date = request.query_params.get('departureDate')
+    passengers = request.query_params.get('passengers', '1')
+    travel_class = request.query_params.get('class', 'economy')
+
+    # For now, return mock data since we need SerpAPI integration
+    # TODO: Integrate with SerpAPI Google Flights
+    mock_flights = []
+
+    return Response({
+        'count': len(mock_flights),
+        'results': mock_flights,
+        'message': 'Flight search requires SERP_API_KEY to be configured. Add your API key to .env file and restart the backend.'
+    })
 
 
 class FlightViewSet(viewsets.ModelViewSet):
