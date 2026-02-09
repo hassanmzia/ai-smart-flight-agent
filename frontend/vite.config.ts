@@ -15,11 +15,11 @@ export default defineConfig({
     port: 3090,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:8000',
+        target: process.env.VITE_API_URL || 'http://172.168.1.95:8109',
         changeOrigin: true,
       },
       '/ws': {
-        target: process.env.VITE_WS_URL || 'ws://localhost:8000',
+        target: process.env.VITE_WS_URL || 'ws://172.168.1.95:8109',
         ws: true,
       },
     },
