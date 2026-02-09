@@ -17,7 +17,7 @@ help:
 	@echo "  make test           - Run backend tests"
 
 build:
-	docker-compose build
+	docker compose build
 
 up:
 	./start.sh
@@ -26,43 +26,43 @@ down:
 	./stop.sh
 
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 clean:
-	docker-compose down -v
+	docker compose down -v
 	rm -rf backend/staticfiles/*
 	rm -rf backend/media/*
 	rm -rf frontend/node_modules
 	rm -rf frontend/dist
 
 restart:
-	docker-compose restart
+	docker compose restart
 
 shell-backend:
-	docker-compose exec backend /bin/bash
+	docker compose exec backend /bin/bash
 
 shell-frontend:
-	docker-compose exec frontend /bin/sh
+	docker compose exec frontend /bin/sh
 
 migrate:
-	docker-compose exec backend python manage.py migrate
+	docker compose exec backend python manage.py migrate
 
 createsuperuser:
-	docker-compose exec backend python manage.py createsuperuser
+	docker compose exec backend python manage.py createsuperuser
 
 test:
-	docker-compose exec backend pytest
+	docker compose exec backend pytest
 
 collectstatic:
-	docker-compose exec backend python manage.py collectstatic --noinput
+	docker compose exec backend python manage.py collectstatic --noinput
 
 db-reset:
-	docker-compose down
+	docker compose down
 	docker volume rm ai-smart-flight-agent_postgres_data
-	docker-compose up -d postgres
+	docker compose up -d postgres
 	@echo "Waiting for database to be ready..."
 	@sleep 10
-	docker-compose up -d backend
+	docker compose up -d backend
 	@sleep 5
 	make migrate
 	@echo "Database reset complete!"

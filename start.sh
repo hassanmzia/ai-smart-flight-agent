@@ -38,11 +38,11 @@ mkdir -p frontend/node_modules
 
 echo ""
 echo "Building Docker images..."
-docker-compose build
+docker compose build
 
 echo ""
 echo "Starting services..."
-docker-compose up -d
+docker compose up -d
 
 echo ""
 echo "Waiting for services to be ready..."
@@ -53,14 +53,14 @@ echo ""
 echo "Checking service health..."
 
 # Check PostgreSQL
-if docker-compose exec -T postgres pg_isready -U travel_admin > /dev/null 2>&1; then
+if docker compose exec -T postgres pg_isready -U travel_admin > /dev/null 2>&1; then
     echo "✓ PostgreSQL is ready"
 else
     echo "✗ PostgreSQL is not ready"
 fi
 
 # Check Redis
-if docker-compose exec -T redis redis-cli -p 6380 -a redis_secure_pass_2026 ping > /dev/null 2>&1; then
+if docker compose exec -T redis redis-cli -p 6380 -a redis_secure_pass_2026 ping > /dev/null 2>&1; then
     echo "✓ Redis is ready"
 else
     echo "✗ Redis is not ready"
@@ -103,7 +103,7 @@ echo ""
 echo "Credentials:"
 echo "  RabbitMQ: travel_mq / mq_secure_pass_2026"
 echo ""
-echo "To view logs: docker-compose logs -f [service-name]"
+echo "To view logs: docker compose logs -f [service-name]"
 echo "To stop:      ./stop.sh"
 echo ""
 echo "Note: It may take a few minutes for all services to be fully ready."

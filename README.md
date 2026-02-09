@@ -224,16 +224,16 @@ npm run dev  # Starts on port 3090
 
 ```bash
 # Start
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f backend
+docker compose logs -f backend
 
 # Execute commands
-docker-compose exec backend python manage.py migrate
+docker compose exec backend python manage.py migrate
 
 # Stop
-docker-compose down
+docker compose down
 ```
 
 ## 📊 Service Health
