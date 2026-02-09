@@ -1,8 +1,9 @@
-import { useRequireAuth } from '@/hooks/useAuth';
+import { useAuth, useRequireAuth } from '@/hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common';
 
 const ProfilePage = () => {
-  const { user } = useRequireAuth();
+  useRequireAuth(); // Ensure user is authenticated
+  const { user } = useAuth();
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
