@@ -37,15 +37,6 @@ class UserAdmin(BaseUserAdmin):
         return super().get_inline_instances(request, obj)
 
 
-class TravelHistoryInline(admin.TabularInline):
-    """Inline admin for TravelHistory."""
-
-    model = TravelHistory
-    extra = 0
-    fields = ['origin_city', 'destination_city', 'departure_date', 'return_date', 'trip_type']
-    readonly_fields = ['created_at']
-
-
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
     """Admin interface for UserProfile model."""
@@ -57,7 +48,6 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_filter = ['preferred_currency', 'preferred_language', 'preferred_travel_class']
     search_fields = ['user__email', 'user__first_name', 'user__last_name', 'nationality']
     readonly_fields = ['total_trips', 'total_flights', 'total_hotel_nights', 'created_at', 'updated_at']
-    inlines = [TravelHistoryInline]
 
     fieldsets = (
         ('User', {'fields': ('user',)}),
