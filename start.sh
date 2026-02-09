@@ -67,7 +67,7 @@ else
 fi
 
 # Check Backend
-if curl -sf http://localhost:8001/api/health > /dev/null 2>&1; then
+if curl -sf http://localhost:8109/api/health > /dev/null 2>&1; then
     echo "✓ Backend API is ready"
 else
     echo "⚠  Backend API is starting..."
@@ -94,9 +94,9 @@ echo "========================================="
 echo ""
 echo "Access points:"
 echo "  🌐 Main Application:    http://172.168.1.95:3090"
-echo "  🔧 Backend API:         http://172.168.1.95:8001/api"
-echo "  📚 API Documentation:   http://172.168.1.95:8001/api/docs"
-echo "  👤 Django Admin:        http://172.168.1.95:8001/admin"
+echo "  🔧 Backend API:         http://172.168.1.95:8109/api"
+echo "  📚 API Documentation:   http://172.168.1.95:8109/api/docs"
+echo "  👤 Django Admin:        http://172.168.1.95:8109/admin"
 echo "  🤖 MCP Server:          http://172.168.1.95:8107"
 echo "  📊 RabbitMQ Management: http://172.168.1.95:15673"
 echo ""

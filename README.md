@@ -65,7 +65,7 @@ This application implements a sophisticated multi-agent AI system for travel pla
 ┌───────────┐    ┌────────────────┐    ┌────────────────┐
 │ Frontend  │    │    Backend     │    │   MCP Server   │
 │ React+TS  │    │    Django      │    │    FastAPI     │
-│ Port 3090 │    │   Port 8001    │    │   Port 8107    │
+│ Port 3090 │    │   Port 8109    │    │   Port 8107    │
 └───────────┘    └────────────────┘    └────────────────┘
                          │
     ┌────────────────────┼────────────────────┐
@@ -97,7 +97,7 @@ This application implements a sophisticated multi-agent AI system for travel pla
 ### Infrastructure
 - Docker + Docker Compose
 - Nginx
-- Non-default ports (3090, 8001, 8107, 5438, 6384, 5673)
+- Non-default ports (3090, 8109, 8107, 5438, 6384, 5673)
 
 ## 🚀 Getting Started
 
@@ -124,8 +124,8 @@ chmod +x start.sh stop.sh
 
 # 4. Access application
 # Main App: http://172.168.1.95:3090
-# API Docs: http://172.168.1.95:8001/api/docs
-# Admin:    http://172.168.1.95:8001/admin
+# API Docs: http://172.168.1.95:8109/api/docs
+# Admin:    http://172.168.1.95:8109/admin
 ```
 
 ### Using Make
@@ -141,8 +141,8 @@ make migrate       # Run migrations
 ## 📚 API Documentation
 
 Interactive API documentation available at:
-- Swagger UI: http://172.168.1.95:8001/api/docs
-- ReDoc: http://172.168.1.95:8001/api/redoc
+- Swagger UI: http://172.168.1.95:8109/api/docs
+- ReDoc: http://172.168.1.95:8109/api/redoc
 
 ### Key Endpoints
 
@@ -196,7 +196,7 @@ SERP_API_KEY=...
 STRIPE_SECRET_KEY=sk_test_...
 
 # Frontend
-REACT_APP_API_URL=http://172.168.1.95:8001
+REACT_APP_API_URL=http://172.168.1.95:8109
 ```
 
 ## 💻 Development
@@ -209,7 +209,7 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py runserver 0.0.0.0:8001
+python manage.py runserver 0.0.0.0:8109
 ```
 
 ### Frontend
@@ -238,7 +238,7 @@ docker compose down
 
 ## 📊 Service Health
 
-- Backend: http://172.168.1.95:8001/api/health
+- Backend: http://172.168.1.95:8109/api/health
 - MCP Server: http://172.168.1.95:8107/health
 - RabbitMQ: http://172.168.1.95:15673
 

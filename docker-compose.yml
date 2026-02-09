@@ -70,13 +70,13 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn travel_agent.wsgi:application --bind 0.0.0.0:8001 --workers 4 --timeout 120"
+             gunicorn travel_agent.wsgi:application --bind 0.0.0.0:8109 --workers 4 --timeout 120"
     volumes:
       - ./backend:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     ports:
-      - "8001:8001"  # Non-default port
+      - "8109:8109"  # Non-default port
     environment:
       DEBUG: "False"
       SECRET_KEY: "django-insecure-travel-agent-key-change-in-production"
@@ -168,8 +168,8 @@ services:
       - "3090:3090"  # Main site port as requested
     environment:
       NODE_ENV: "production"
-      REACT_APP_API_URL: "http://172.168.1.95:8001"
-      REACT_APP_WS_URL: "ws://172.168.1.95:8001/ws"
+      REACT_APP_API_URL: "http://172.168.1.95:8109"
+      REACT_APP_WS_URL: "ws://172.168.1.95:8109/ws"
       REACT_APP_MCP_URL: "http://172.168.1.95:8107"
       PORT: "3090"
     volumes:

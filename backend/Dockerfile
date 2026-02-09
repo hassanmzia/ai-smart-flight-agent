@@ -32,7 +32,7 @@ RUN mkdir -p /app/staticfiles /app/media /app/logs
 
 # Run migrations will be done in docker-compose command
 
-EXPOSE 8001
+EXPOSE 8109
 
 # Default command (can be overridden in docker-compose)
-CMD ["gunicorn", "travel_agent.wsgi:application", "--bind", "0.0.0.0:8001", "--workers", "4", "--timeout", "120"]
+CMD ["gunicorn", "travel_agent.wsgi:application", "--bind", "0.0.0.0:8109", "--workers", "4", "--timeout", "120"]
