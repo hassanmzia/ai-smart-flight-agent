@@ -162,7 +162,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            'hosts': [os.environ.get('REDIS_URL', 'redis://:redis_secure_pass_2026@localhost:6380/1')],
+            'hosts': [os.environ.get('REDIS_URL', 'redis://:redis_secure_pass_2026@localhost:6384/1')],
         },
     },
 }
@@ -181,7 +181,7 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.environ.get('REDIS_URL', 'redis://:redis_secure_pass_2026@localhost:6380/0'),
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://:redis_secure_pass_2026@localhost:6384/0'),
         'OPTIONS': {
             'db': '0',
             'parser_class': 'redis.connection.PythonParser',

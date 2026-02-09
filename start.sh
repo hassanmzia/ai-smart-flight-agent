@@ -60,7 +60,7 @@ else
 fi
 
 # Check Redis
-if docker compose exec -T redis redis-cli -p 6380 -a redis_secure_pass_2026 ping > /dev/null 2>&1; then
+if docker compose exec -T redis redis-cli -p 6384 -a redis_secure_pass_2026 ping > /dev/null 2>&1; then
     echo "✓ Redis is ready"
 else
     echo "✗ Redis is not ready"

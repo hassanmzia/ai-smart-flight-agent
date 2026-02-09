@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6380/1')
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6384/1')
 MCP_PORT = int(os.getenv('MCP_PORT', '8002'))
 
 # Initialize FastAPI app

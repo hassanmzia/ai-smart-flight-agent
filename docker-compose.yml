@@ -26,15 +26,15 @@ services:
   redis:
     image: redis:7-alpine
     container_name: travel-agent-redis
-    command: redis-server --requirepass redis_secure_pass_2026 --port 6380
+    command: redis-server --requirepass redis_secure_pass_2026 --port 6384
     ports:
-      - "6380:6380"  # Non-default port
+      - "6384:6384"  # Non-default port
     networks:
       - travel-network
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "6380", "-a", "redis_secure_pass_2026", "ping"]
+      test: ["CMD", "redis-cli", "-p", "6384", "-a", "redis_secure_pass_2026", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -81,7 +81,7 @@ services:
       DEBUG: "False"
       SECRET_KEY: "django-insecure-travel-agent-key-change-in-production"
       DATABASE_URL: "postgresql://travel_admin:travel_secure_pass_2026@postgres:5432/travel_agent_db"
-      REDIS_URL: "redis://:redis_secure_pass_2026@redis:6380/0"
+      REDIS_URL: "redis://:redis_secure_pass_2026@redis:6384/0"
       RABBITMQ_URL: "amqp://travel_mq:mq_secure_pass_2026@rabbitmq:5673/"
       CELERY_BROKER_URL: "amqp://travel_mq:mq_secure_pass_2026@rabbitmq:5673/"
       ALLOWED_HOSTS: "172.168.1.95,localhost,backend"
@@ -108,7 +108,7 @@ services:
       - ./backend:/app
     environment:
       DATABASE_URL: "postgresql://travel_admin:travel_secure_pass_2026@postgres:5432/travel_agent_db"
-      REDIS_URL: "redis://:redis_secure_pass_2026@redis:6380/0"
+      REDIS_URL: "redis://:redis_secure_pass_2026@redis:6384/0"
       CELERY_BROKER_URL: "amqp://travel_mq:mq_secure_pass_2026@rabbitmq:5673/"
     depends_on:
       - postgres
@@ -130,7 +130,7 @@ services:
       - ./backend:/app
     environment:
       DATABASE_URL: "postgresql://travel_admin:travel_secure_pass_2026@postgres:5432/travel_agent_db"
-      REDIS_URL: "redis://:redis_secure_pass_2026@redis:6380/0"
+      REDIS_URL: "redis://:redis_secure_pass_2026@redis:6384/0"
       CELERY_BROKER_URL: "amqp://travel_mq:mq_secure_pass_2026@rabbitmq:5673/"
     depends_on:
       - postgres
@@ -151,7 +151,7 @@ services:
       - "8002:8002"  # Non-default port
     environment:
       MCP_PORT: "8002"
-      REDIS_URL: "redis://:redis_secure_pass_2026@redis:6380/1"
+      REDIS_URL: "redis://:redis_secure_pass_2026@redis:6384/1"
     depends_on:
       - redis
     networks:

@@ -73,7 +73,7 @@ This application implements a sophisticated multi-agent AI system for travel pla
     ▼                    ▼                    ▼
 ┌───────────┐    ┌──────────────┐    ┌───────────────┐
 │PostgreSQL │    │    Redis     │    │   RabbitMQ    │
-│Port 5433  │    │  Port 6380   │    │   Port 5673   │
+│Port 5433  │    │  Port 6384   │    │   Port 5673   │
 └───────────┘    └──────────────┘    └───────────────┘
 ```
 
@@ -97,7 +97,7 @@ This application implements a sophisticated multi-agent AI system for travel pla
 ### Infrastructure
 - Docker + Docker Compose
 - Nginx
-- Non-default ports (3090, 8001, 8002, 5433, 6380, 5673)
+- Non-default ports (3090, 8001, 8002, 5433, 6384, 5673)
 
 ## 🚀 Getting Started
 
