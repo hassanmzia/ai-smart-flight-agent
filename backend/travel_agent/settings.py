@@ -206,7 +206,7 @@ AGENT_CONFIG = {
 }
 
 # MCP Server Configuration
-MCP_SERVER_URL = os.environ.get('MCP_SERVER_URL', 'http://localhost:8002')
+MCP_SERVER_URL = os.environ.get('MCP_SERVER_URL', 'http://localhost:8107')
 
 # Email Configuration
 EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
