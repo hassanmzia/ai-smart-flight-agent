@@ -68,7 +68,8 @@ services:
       dockerfile: Dockerfile
     container_name: travel-agent-backend
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "python manage.py makemigrations --noinput &&
+             python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              gunicorn travel_agent.wsgi:application --bind 0.0.0.0:8109 --workers 4 --timeout 120"
     volumes:
