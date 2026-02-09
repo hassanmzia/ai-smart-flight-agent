@@ -20,8 +20,10 @@ from .serializers import (
 )
 
 
-def transform_serp_flight(flight_data, idx):
+def transform_serp_flight(flight_data, idx, departure_date=None):
     """Transform SERP API flight data to match frontend Flight interface."""
+    from datetime import datetime, timedelta
+
     # Get first flight segment for departure info
     first_leg = flight_data['flights'][0] if 'flights' in flight_data else {}
     last_leg = flight_data['flights'][-1] if 'flights' in flight_data else {}
@@ -43,14 +45,69 @@ def transform_serp_flight(flight_data, idx):
             'timezone': airport_data.get('timezone', 'UTC')
         }
 
+    # Format departure and arrival times as ISO datetime strings
+    dep_time_str = first_leg.get('departure_time', '')
+    arr_time_str = last_leg.get('arrival_time', '')
+
+    # Try to create ISO datetime strings if we have the departure date
+    if departure_date and dep_time_str:
+        try:
+            # Parse time string (handle both 12-hour and 24-hour formats)
+            # SERP API returns times like "10:30 AM" or "22:30"
+            if 'AM' in dep_time_str or 'PM' in dep_time_str:
+                # 12-hour format
+                time_obj = datetime.strptime(dep_time_str, '%I:%M %p').time()
+            else:
+                # 24-hour format
+                time_obj = datetime.strptime(dep_time_str, '%H:%M').time()
+
+            # Combine date with parsed time
+            dep_dt = datetime.fromisoformat(departure_date).replace(
+                hour=time_obj.hour,
+                minute=time_obj.minute,
+                second=0
+            )
+            dep_datetime = dep_dt.isoformat()
+
+            # Calculate arrival datetime based on duration
+            if duration_mins:
+                arr_dt = dep_dt + timedelta(minutes=duration_mins)
+                arr_datetime = arr_dt.isoformat()
+            elif arr_time_str:
+                # Try to parse arrival time
+                if 'AM' in arr_time_str or 'PM' in arr_time_str:
+                    arr_time_obj = datetime.strptime(arr_time_str, '%I:%M %p').time()
+                else:
+                    arr_time_obj = datetime.strptime(arr_time_str, '%H:%M').time()
+                arr_dt = datetime.fromisoformat(departure_date).replace(
+                    hour=arr_time_obj.hour,
+                    minute=arr_time_obj.minute,
+                    second=0
+                )
+                # Handle overnight flights (arrival next day)
+                if arr_time_obj.hour < time_obj.hour:
+                    arr_dt = arr_dt + timedelta(days=1)
+                arr_datetime = arr_dt.isoformat()
+            else:
+                arr_datetime = dep_datetime
+        except Exception as e:
+            # Fallback: if parsing fails, just use the date
+            print(f"Error parsing times: {e}")
+            dep_datetime = f"{departure_date}T12:00:00"
+            arr_datetime = f"{departure_date}T14:00:00"
+    else:
+        # No date available, use placeholder
+        dep_datetime = f"2026-01-01T12:00:00"
+        arr_datetime = f"2026-01-01T14:00:00"
+
     return {
         'id': f"SERP_{idx}_{flight_data.get('departure_token', '')}",
         'airline': first_leg.get('airline', 'Unknown'),
         'flightNumber': first_leg.get('flight_number', 'N/A'),
         'origin': make_airport_from_serp(first_leg.get('departure_airport', {})),
         'destination': make_airport_from_serp(last_leg.get('arrival_airport', {})),
-        'departureTime': first_leg.get('departure_time', ''),
-        'arrivalTime': last_leg.get('arrival_time', ''),
+        'departureTime': dep_datetime,
+        'arrivalTime': arr_datetime,
         'duration': duration_mins,
         'price': flight_data.get('price', 0),
         'currency': 'USD',
@@ -129,7 +186,7 @@ def search_flights(request):
 
                 for idx, flight_data in enumerate(all_flights[:10]):  # Limit to 10 flights
                     try:
-                        flights.append(transform_serp_flight(flight_data, idx))
+                        flights.append(transform_serp_flight(flight_data, idx, departure_date))
                     except Exception as e:
                         print(f"Error transforming flight {idx}: {e}")
                         continue
