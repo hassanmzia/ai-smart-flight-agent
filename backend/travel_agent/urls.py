@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -29,14 +30,21 @@ def health_check(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-    """User registration endpoint."""
+    """User registration endpoint with automatic login."""
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        return Response(
-            UserDetailSerializer(user).data,
-            status=status.HTTP_201_CREATED
-        )
+
+        # Generate tokens for automatic login
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'user': UserDetailSerializer(user).data,
+            'tokens': {
+                'accessToken': str(refresh.access_token),
+                'refreshToken': str(refresh),
+            }
+        }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 urlpatterns = [
