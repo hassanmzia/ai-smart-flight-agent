@@ -9,7 +9,7 @@ import { formatCurrency, formatDate } from '@/utils/formatters';
 const DashboardPage = () => {
   useRequireAuth();
 
-  const { data: bookingsData, isLoading } = useQuery({
+  const { data: bookingsData, isLoading, error } = useQuery({
     queryKey: QUERY_KEYS.BOOKINGS,
     queryFn: () => getBookings(),
   });
@@ -22,7 +22,22 @@ const DashboardPage = () => {
     );
   }
 
-  const bookings = bookingsData?.items || [];
+  // Handle different response structures and errors
+  let bookings: any[] = [];
+  if (bookingsData) {
+    // Check if it has items property (paginated response)
+    if (Array.isArray(bookingsData.items)) {
+      bookings = bookingsData.items;
+    }
+    // Check if it's directly an array
+    else if (Array.isArray(bookingsData)) {
+      bookings = bookingsData;
+    }
+    // Check if it has results property
+    else if (Array.isArray(bookingsData.results)) {
+      bookings = bookingsData.results;
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

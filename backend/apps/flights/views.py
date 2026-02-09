@@ -137,7 +137,9 @@ def search_flights(request):
 
     return Response({
         'count': len(mock_flights),
-        'results': mock_flights,
+        'total': len(mock_flights),
+        'items': mock_flights,  # Frontend expects 'items' for PaginatedResponse
+        'results': mock_flights,  # Keep for backward compatibility
         'message': 'Showing mock flight data for testing. Add SERP_API_KEY to .env for real flight data.' if not serp_api_key or serp_api_key == 'your_serpapi_key_here' else 'Real flight data coming soon!'
     })
 

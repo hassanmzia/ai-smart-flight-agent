@@ -58,13 +58,17 @@ const FlightResultsPage = () => {
 
       {/* Flights List */}
       <div className="space-y-4">
-        {data?.items && data.items.length > 0 ? (
-          data.items.map((flight) => <FlightCard key={flight.id} flight={flight} />)
-        ) : (
-          <p className="text-center text-gray-600 dark:text-gray-400 py-12">
-            No flights found for your search criteria.
-          </p>
-        )}
+        {(() => {
+          // Handle different response structures
+          const flights = data?.items || data?.results || [];
+          return flights.length > 0 ? (
+            flights.map((flight: any) => <FlightCard key={flight.id} flight={flight} />)
+          ) : (
+            <p className="text-center text-gray-600 dark:text-gray-400 py-12">
+              No flights found for your search criteria.
+            </p>
+          );
+        })()}
       </div>
     </div>
   );
