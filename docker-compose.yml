@@ -78,6 +78,8 @@ services:
       - media_volume:/app/media
     ports:
       - "8109:8109"  # Non-default port
+    env_file:
+      - .env
     environment:
       DEBUG: "True"
       SECRET_KEY: "django-insecure-travel-agent-key-change-in-production"
@@ -113,6 +115,8 @@ services:
     command: celery -A travel_agent worker -l info --concurrency=4
     volumes:
       - ./backend:/app
+    env_file:
+      - .env
     environment:
       DATABASE_URL: "postgresql://travel_admin:travel_secure_pass_2026@postgres:5432/travel_agent_db"
       REDIS_URL: "redis://:redis_secure_pass_2026@redis:6384/0"
@@ -139,6 +143,8 @@ services:
     command: celery -A travel_agent beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - ./backend:/app
+    env_file:
+      - .env
     environment:
       DATABASE_URL: "postgresql://travel_admin:travel_secure_pass_2026@postgres:5432/travel_agent_db"
       REDIS_URL: "redis://:redis_secure_pass_2026@redis:6384/0"
