@@ -13,6 +13,15 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install && npm install --
 # Copy source code
 COPY . .
 
+# Set environment variables for build
+ARG REACT_APP_API_URL=http://172.168.1.95:8109
+ARG REACT_APP_WS_URL=ws://172.168.1.95:8109/ws
+ARG REACT_APP_MCP_URL=http://172.168.1.95:8107
+
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ENV REACT_APP_WS_URL=$REACT_APP_WS_URL
+ENV REACT_APP_MCP_URL=$REACT_APP_MCP_URL
+
 # Build the application
 RUN npm run build
 

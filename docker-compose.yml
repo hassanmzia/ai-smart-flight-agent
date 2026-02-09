@@ -178,6 +178,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: "http://172.168.1.95:8109"
+        REACT_APP_WS_URL: "ws://172.168.1.95:8109/ws"
+        REACT_APP_MCP_URL: "http://172.168.1.95:8107"
     container_name: travel-agent-frontend
     ports:
       - "3090:3090"  # Main site port as requested
