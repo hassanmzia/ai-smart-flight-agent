@@ -26,21 +26,119 @@ def search_flights(request):
     Simple flight search endpoint that accepts GET parameters.
     This is a simplified interface for frontend compatibility.
     """
+    import os
+    from datetime import datetime, timedelta
+
     # Get query parameters
-    origin = request.query_params.get('origin')
-    destination = request.query_params.get('destination')
+    origin = request.query_params.get('origin', 'NYC')
+    destination = request.query_params.get('destination', 'LAX')
     departure_date = request.query_params.get('departureDate')
     passengers = request.query_params.get('passengers', '1')
     travel_class = request.query_params.get('class', 'economy')
 
-    # For now, return mock data since we need SerpAPI integration
-    # TODO: Integrate with SerpAPI Google Flights
-    mock_flights = []
+    # Check if SERP_API_KEY is configured
+    serp_api_key = os.getenv('SERP_API_KEY', '')
+
+    if serp_api_key and serp_api_key != 'your_serpapi_key_here':
+        # TODO: Integrate with SerpAPI Google Flights
+        # For now, return mock data even with API key
+        pass
+
+    # Generate mock flight data for testing
+    if not departure_date:
+        departure_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+
+    mock_flights = [
+        {
+            'id': 'FL001',
+            'airline': 'American Airlines',
+            'airline_code': 'AA',
+            'flight_number': 'AA 1234',
+            'origin': origin,
+            'origin_airport': f'{origin} Airport',
+            'destination': destination,
+            'destination_airport': f'{destination} Airport',
+            'departure_time': f'{departure_date}T08:00:00Z',
+            'arrival_time': f'{departure_date}T11:30:00Z',
+            'duration': '3h 30m',
+            'duration_minutes': 210,
+            'stops': 0,
+            'is_direct': True,
+            'price': 299,
+            'currency': 'USD',
+            'travel_class': travel_class,
+            'available_seats': 12,
+            'baggage': '1 checked bag included',
+        },
+        {
+            'id': 'FL002',
+            'airline': 'Delta Airlines',
+            'airline_code': 'DL',
+            'flight_number': 'DL 5678',
+            'origin': origin,
+            'origin_airport': f'{origin} Airport',
+            'destination': destination,
+            'destination_airport': f'{destination} Airport',
+            'departure_time': f'{departure_date}T10:30:00Z',
+            'arrival_time': f'{departure_date}T14:15:00Z',
+            'duration': '3h 45m',
+            'duration_minutes': 225,
+            'stops': 0,
+            'is_direct': True,
+            'price': 349,
+            'currency': 'USD',
+            'travel_class': travel_class,
+            'available_seats': 8,
+            'baggage': '1 checked bag included',
+        },
+        {
+            'id': 'FL003',
+            'airline': 'United Airlines',
+            'airline_code': 'UA',
+            'flight_number': 'UA 9012',
+            'origin': origin,
+            'origin_airport': f'{origin} Airport',
+            'destination': destination,
+            'destination_airport': f'{destination} Airport',
+            'departure_time': f'{departure_date}T14:00:00Z',
+            'arrival_time': f'{departure_date}T17:45:00Z',
+            'duration': '3h 45m',
+            'duration_minutes': 225,
+            'stops': 0,
+            'is_direct': True,
+            'price': 275,
+            'currency': 'USD',
+            'travel_class': travel_class,
+            'available_seats': 15,
+            'baggage': '1 checked bag included',
+        },
+        {
+            'id': 'FL004',
+            'airline': 'Southwest Airlines',
+            'airline_code': 'WN',
+            'flight_number': 'WN 3456',
+            'origin': origin,
+            'origin_airport': f'{origin} Airport',
+            'destination': destination,
+            'destination_airport': f'{destination} Airport',
+            'departure_time': f'{departure_date}T16:30:00Z',
+            'arrival_time': f'{departure_date}T21:00:00Z',
+            'duration': '4h 30m',
+            'duration_minutes': 270,
+            'stops': 1,
+            'is_direct': False,
+            'price': 199,
+            'currency': 'USD',
+            'travel_class': travel_class,
+            'available_seats': 20,
+            'baggage': '2 checked bags included',
+        },
+    ]
 
     return Response({
         'count': len(mock_flights),
         'results': mock_flights,
-        'message': 'Flight search requires SERP_API_KEY to be configured. Add your API key to .env file and restart the backend.'
+        'message': 'Showing mock flight data for testing. Add SERP_API_KEY to .env for real flight data.' if not serp_api_key or serp_api_key == 'your_serpapi_key_here' else 'Real flight data coming soon!'
     })
 
 
