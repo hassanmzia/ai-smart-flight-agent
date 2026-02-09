@@ -13,7 +13,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"  # Non-default port to avoid conflicts
+      - "5438:5432"  # Non-default port to avoid conflicts
     networks:
       - travel-network
     healthcheck:

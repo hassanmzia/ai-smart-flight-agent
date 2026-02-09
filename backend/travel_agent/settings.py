@@ -86,7 +86,7 @@ ASGI_APPLICATION = 'travel_agent.asgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL',
-            'postgresql://travel_admin:travel_secure_pass_2026@localhost:5433/travel_agent_db'),
+            'postgresql://travel_admin:travel_secure_pass_2026@localhost:5438/travel_agent_db'),
         conn_max_age=600
     )
 }
