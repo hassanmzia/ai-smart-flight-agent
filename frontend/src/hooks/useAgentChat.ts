@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import * as agentService from '@/services/agentService';
 import type { ChatMessage, AgentContext } from '@/types';
@@ -11,29 +11,22 @@ export const useAgentChat = (sessionId?: string) => {
   const [context, setContext] = useState<Partial<AgentContext>>({});
 
   // Fetch chat history
-  const { isLoading: isLoadingHistory } = useQuery({
+  const { data: historyData, isPending: isLoadingHistory } = useQuery({
     queryKey: ['chat-history', sessionId],
     queryFn: () => agentService.getChatHistory(sessionId),
-    onSuccess: (data) => {
-      setMessages(data);
-    },
     enabled: !!sessionId,
   });
+
+  // Update messages when history loads
+  useEffect(() => {
+    if (historyData) {
+      setMessages(historyData);
+    }
+  }, [historyData]);
 
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: (message: string) => agentService.sendChatMessage(message, context),
-    onSuccess: (data) => {
-      // Add user message and agent response to chat
-      const userMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'user',
-        content: data.response.content,
-        timestamp: new Date().toISOString(),
-      };
-
-      setMessages((prev) => [...prev, userMessage, data.response]);
-    },
   });
 
   const sendMessage = useCallback(
@@ -67,7 +60,7 @@ export const useAgentChat = (sessionId?: string) => {
     sendMessage,
     clearMessages,
     updateContext,
-    isLoading: sendMessageMutation.isLoading || isLoadingHistory,
+    isLoading: sendMessageMutation.isPending || isLoadingHistory,
     error: sendMessageMutation.error,
   };
 };
