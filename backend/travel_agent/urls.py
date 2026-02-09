@@ -29,6 +29,37 @@ def health_check(request):
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+def login(request):
+    """User login endpoint that returns user data and JWT tokens."""
+    email = request.data.get('email')
+    password = request.data.get('password')
+
+    if not email or not password:
+        return Response({
+            'error': 'Email and password are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    from django.contrib.auth import authenticate
+    user = authenticate(request, username=email, password=password)
+
+    if user is None:
+        return Response({
+            'error': 'Invalid email or password'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Generate tokens
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        'user': UserDetailSerializer(user).data,
+        'tokens': {
+            'accessToken': str(refresh.access_token),
+            'refreshToken': str(refresh),
+        }
+    }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def register(request):
     """User registration endpoint with automatic login."""
     serializer = UserRegistrationSerializer(data=request.data)
@@ -47,6 +78,54 @@ def register(request):
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['POST'])
+def logout(request):
+    """User logout endpoint (client-side token removal)."""
+    return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+
+@api_view(['GET', 'PUT', 'PATCH'])
+def current_user(request):
+    """Get or update current authenticated user."""
+    # Check authentication
+    if not request.user.is_authenticated:
+        return Response({
+            'error': 'Authentication required'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
+    if request.method == 'GET':
+        serializer = UserDetailSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    # Handle PUT/PATCH for updating user
+    from apps.users.serializers import UserUpdateSerializer
+    serializer = UserUpdateSerializer(request.user, data=request.data, partial=(request.method == 'PATCH'))
+    if serializer.is_valid():
+        serializer.save()
+        return Response(UserDetailSerializer(request.user).data, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def refresh_token(request):
+    """Refresh access token using refresh token."""
+    refresh_token = request.data.get('refreshToken')
+
+    if not refresh_token:
+        return Response({
+            'error': 'Refresh token is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        refresh = RefreshToken(refresh_token)
+        return Response({
+            'accessToken': str(refresh.access_token),
+            'refreshToken': str(refresh),
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'error': 'Invalid or expired refresh token'
+        }, status=status.HTTP_401_UNAUTHORIZED)
+
 urlpatterns = [
     # Health check
     path('api/health', health_check, name='health_check'),
@@ -60,7 +139,11 @@ urlpatterns = [
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
     # Authentication
+    path('api/auth/login', login, name='login'),
     path('api/auth/register', register, name='register'),
+    path('api/auth/logout', logout, name='logout'),
+    path('api/auth/refresh', refresh_token, name='refresh_token'),
+    path('api/auth/me', current_user, name='current_user'),
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
