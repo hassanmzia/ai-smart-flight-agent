@@ -255,3 +255,120 @@ class AgentLogViewSet(viewsets.ReadOnlyModelViewSet):
         logs = self.get_queryset().filter(session=session)
         serializer = self.get_serializer(logs, many=True)
         return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def plan_travel(request):
+    """
+    Main endpoint to run the multi-agent travel planning system.
+    
+    Request body:
+    {
+        "query": "I want to travel from Paris to Berlin",
+        "origin": "CDG",
+        "destination": "BER", 
+        "departure_date": "2025-10-10",
+        "return_date": "2025-10-15",
+        "passengers": 2,
+        "budget": 500.0
+    }
+    """
+    try:
+        # Get request data
+        query = request.data.get('query', 'Plan my travel')
+        origin = request.data.get('origin')
+        destination = request.data.get('destination')
+        departure_date = request.data.get('departure_date')
+        return_date = request.data.get('return_date')
+        passengers = request.data.get('passengers', 1)
+        budget = request.data.get('budget')
+
+        # Validate required fields
+        if not all([origin, destination, departure_date]):
+            return Response({
+                'success': False,
+                'error': 'origin, destination, and departure_date are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get the travel system
+        from .multi_agent_system import get_travel_system
+        travel_system = get_travel_system()
+
+        # Run the multi-agent system
+        result = travel_system.run(
+            user_query=query,
+            origin=origin,
+            destination=destination,
+            departure_date=departure_date,
+            return_date=return_date,
+            passengers=passengers,
+            budget=budget
+        )
+
+        # Create session record if user is authenticated
+        if request.user.is_authenticated:
+            try:
+                session = AgentSession.objects.create(
+                    user=request.user,
+                    session_id=f"session_{uuid.uuid4().hex[:16]}",
+                    user_intent=query,
+                    context_data={
+                        'origin': origin,
+                        'destination': destination,
+                        'departure_date': departure_date,
+                        'return_date': return_date,
+                        'passengers': passengers,
+                        'budget': budget
+                    },
+                    status='completed' if result.get('success') else 'failed'
+                )
+                result['session_id'] = session.session_id
+            except Exception as e:
+                # Don't fail the request if session creation fails
+                print(f"Session creation error: {e}")
+
+        return Response(result, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def chat(request):
+    """
+    Chat endpoint for conversational travel planning.
+    
+    Request body:
+    {
+        "message": "I need a cheap flight to Berlin next month",
+        "session_id": "session_abc123" (optional, for continuing a conversation)
+    }
+    """
+    try:
+        message = request.data.get('message')
+        session_id = request.data.get('session_id')
+
+        if not message:
+            return Response({
+                'success': False,
+                'error': 'message is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # TODO: Implement NLP to extract travel parameters from message
+        # For now, return a helpful response
+        return Response({
+            'success': True,
+            'message': 'Chat interface coming soon! Please use the search form for now.',
+            'suggestion': 'Use the /api/agents/plan endpoint with specific origin, destination, and dates.'
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({
+            'success': False,
+            'error': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
