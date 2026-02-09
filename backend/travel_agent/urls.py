@@ -11,15 +11,33 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
     TokenVerifyView,
 )
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from apps.users.serializers import UserRegistrationSerializer, UserDetailSerializer
 
 def health_check(request):
     """Simple health check endpoint for Docker health checks."""
     return JsonResponse({'status': 'healthy', 'message': 'AI Travel Agent API is running'})
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register(request):
+    """User registration endpoint."""
+    serializer = UserRegistrationSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        return Response(
+            UserDetailSerializer(user).data,
+            status=status.HTTP_201_CREATED
+        )
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 urlpatterns = [
     # Health check
@@ -34,6 +52,7 @@ urlpatterns = [
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
     # Authentication
+    path('api/auth/register', register, name='register'),
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
