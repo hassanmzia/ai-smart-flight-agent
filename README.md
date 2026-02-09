@@ -65,7 +65,7 @@ This application implements a sophisticated multi-agent AI system for travel pla
 ┌───────────┐    ┌────────────────┐    ┌────────────────┐
 │ Frontend  │    │    Backend     │    │   MCP Server   │
 │ React+TS  │    │    Django      │    │    FastAPI     │
-│ Port 3090 │    │   Port 8001    │    │   Port 8002    │
+│ Port 3090 │    │   Port 8001    │    │   Port 8107    │
 └───────────┘    └────────────────┘    └────────────────┘
                          │
     ┌────────────────────┼────────────────────┐
@@ -97,7 +97,7 @@ This application implements a sophisticated multi-agent AI system for travel pla
 ### Infrastructure
 - Docker + Docker Compose
 - Nginx
-- Non-default ports (3090, 8001, 8002, 5438, 6384, 5673)
+- Non-default ports (3090, 8001, 8107, 5438, 6384, 5673)
 
 ## 🚀 Getting Started
 
@@ -239,7 +239,7 @@ docker compose down
 ## 📊 Service Health
 
 - Backend: http://172.168.1.95:8001/api/health
-- MCP Server: http://172.168.1.95:8002/health
+- MCP Server: http://172.168.1.95:8107/health
 - RabbitMQ: http://172.168.1.95:15673
 
 ## 🚢 Deployment

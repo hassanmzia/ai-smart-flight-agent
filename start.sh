@@ -81,7 +81,7 @@ else
 fi
 
 # Check MCP Server
-if curl -sf http://localhost:8002/health > /dev/null 2>&1; then
+if curl -sf http://localhost:8107/health > /dev/null 2>&1; then
     echo "✓ MCP Server is ready"
 else
     echo "⚠  MCP Server is starting..."
@@ -97,7 +97,7 @@ echo "  🌐 Main Application:    http://172.168.1.95:3090"
 echo "  🔧 Backend API:         http://172.168.1.95:8001/api"
 echo "  📚 API Documentation:   http://172.168.1.95:8001/api/docs"
 echo "  👤 Django Admin:        http://172.168.1.95:8001/admin"
-echo "  🤖 MCP Server:          http://172.168.1.95:8002"
+echo "  🤖 MCP Server:          http://172.168.1.95:8107"
 echo "  📊 RabbitMQ Management: http://172.168.1.95:15673"
 echo ""
 echo "Credentials:"
