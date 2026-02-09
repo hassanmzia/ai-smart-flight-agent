@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as notificationService from '@/services/notificationService';
 import useNotificationStore from '@/store/notificationStore';
@@ -14,16 +14,19 @@ export const useNotifications = () => {
     useNotificationStore();
 
   // Fetch notifications
-  const { isLoading } = useQuery({
+  const { data: notificationsData, isPending: isLoading } = useQuery({
     queryKey: QUERY_KEYS.NOTIFICATIONS,
     queryFn: () => notificationService.getNotifications(),
-    onSuccess: (data) => {
-      // Sync with store
-      data.items.forEach((notification) => {
+  });
+
+  // Sync with store when data loads
+  useEffect(() => {
+    if (notificationsData?.items) {
+      notificationsData.items.forEach((notification: any) => {
         useNotificationStore.getState().addNotification(notification);
       });
-    },
-  });
+    }
+  }, [notificationsData]);
 
   // Fetch unread count
   useQuery({
@@ -35,60 +38,54 @@ export const useNotifications = () => {
   // Mark as read mutation
   const markAsReadMutation = useMutation({
     mutationFn: notificationService.markAsRead,
-    onSuccess: (_, notificationId) => {
-      markAsRead(notificationId);
-      queryClient.invalidateQueries(QUERY_KEYS.NOTIFICATIONS);
-    },
   });
 
   // Mark all as read mutation
   const markAllAsReadMutation = useMutation({
     mutationFn: notificationService.markAllAsRead,
-    onSuccess: () => {
-      markAllAsRead();
-      queryClient.invalidateQueries(QUERY_KEYS.NOTIFICATIONS);
-    },
   });
 
   // Delete notification mutation
   const deleteNotificationMutation = useMutation({
     mutationFn: notificationService.deleteNotification,
-    onSuccess: (_, notificationId) => {
-      removeNotification(notificationId);
-      queryClient.invalidateQueries(QUERY_KEYS.NOTIFICATIONS);
-    },
   });
 
   const handleMarkAsRead = useCallback(
     async (notificationId: string) => {
       try {
         await markAsReadMutation.mutateAsync(notificationId);
+        markAsRead(notificationId);
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
       } catch (error) {
         toast.error('Failed to mark notification as read');
       }
     },
-    [markAsReadMutation]
+    [markAsReadMutation, markAsRead, queryClient]
   );
 
   const handleMarkAllAsRead = useCallback(async () => {
     try {
       await markAllAsReadMutation.mutateAsync();
+      markAllAsRead();
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
       toast.success('All notifications marked as read');
     } catch (error) {
       toast.error('Failed to mark all notifications as read');
     }
-  }, [markAllAsReadMutation]);
+  }, [markAllAsReadMutation, markAllAsRead, queryClient]);
 
   const handleDeleteNotification = useCallback(
     async (notificationId: string) => {
       try {
         await deleteNotificationMutation.mutateAsync(notificationId);
+        removeNotification(notificationId);
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
         toast.success('Notification deleted');
       } catch (error) {
         toast.error('Failed to delete notification');
       }
     },
-    [deleteNotificationMutation]
+    [deleteNotificationMutation, removeNotification, queryClient]
   );
 
   return {
