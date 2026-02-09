@@ -5,7 +5,8 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count, Avg, Min
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
+import os
 
 from .models import Flight, FlightSearch, PriceAlert
 from .serializers import (
@@ -17,6 +18,48 @@ from .serializers import (
     PriceAlertSerializer,
     PriceAlertCreateSerializer
 )
+
+
+def transform_serp_flight(flight_data, idx):
+    """Transform SERP API flight data to match frontend Flight interface."""
+    # Get first flight segment for departure info
+    first_leg = flight_data['flights'][0] if 'flights' in flight_data else {}
+    last_leg = flight_data['flights'][-1] if 'flights' in flight_data else {}
+
+    # Extract layovers/stops
+    layovers = flight_data.get('layovers', [])
+    stops = len(layovers)
+
+    # Calculate total duration in minutes
+    duration_mins = flight_data.get('total_duration', 0)
+
+    # Helper to create airport object
+    def make_airport_from_serp(airport_data):
+        return {
+            'code': airport_data.get('id', airport_data.get('code', 'N/A')),
+            'name': airport_data.get('name', 'Unknown Airport'),
+            'city': airport_data.get('city', airport_data.get('name', 'Unknown')),
+            'country': airport_data.get('country', 'Unknown'),
+            'timezone': airport_data.get('timezone', 'UTC')
+        }
+
+    return {
+        'id': f"SERP_{idx}_{flight_data.get('departure_token', '')}",
+        'airline': first_leg.get('airline', 'Unknown'),
+        'flightNumber': first_leg.get('flight_number', 'N/A'),
+        'origin': make_airport_from_serp(first_leg.get('departure_airport', {})),
+        'destination': make_airport_from_serp(last_leg.get('arrival_airport', {})),
+        'departureTime': first_leg.get('departure_time', ''),
+        'arrivalTime': last_leg.get('arrival_time', ''),
+        'duration': duration_mins,
+        'price': flight_data.get('price', 0),
+        'currency': 'USD',
+        'class': flight_data.get('type', 'economy'),
+        'stops': stops,
+        'availableSeats': 9,  # SERP API doesn't provide this
+        'aircraft': first_leg.get('airplane', 'Unknown'),
+        'amenities': flight_data.get('extensions', [])
+    }
 
 
 @api_view(['GET'])
@@ -39,12 +82,69 @@ def search_flights(request):
     # Check if SERP_API_KEY is configured
     serp_api_key = os.getenv('SERP_API_KEY', '')
 
-    if serp_api_key and serp_api_key != 'your_serpapi_key_here':
-        # TODO: Integrate with SerpAPI Google Flights
-        # For now, return mock data even with API key
-        pass
+    # Try to fetch real flight data if API key is configured
+    if serp_api_key and serp_api_key not in ['your_serpapi_key_here', 'YOUR_ACTUAL_SERPAPI_KEY_HERE']:
+        try:
+            from serpapi import GoogleSearch
 
-    # Generate mock flight data for testing
+            # Set default departure date if not provided
+            if not departure_date:
+                departure_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+
+            # Map travel class to SERP API format
+            class_map = {
+                'economy': '1',
+                'premium_economy': '2',
+                'business': '3',
+                'first': '4'
+            }
+
+            # Build SERP API search parameters
+            params = {
+                "engine": "google_flights",
+                "departure_id": origin,
+                "arrival_id": destination,
+                "outbound_date": departure_date,
+                "currency": "USD",
+                "hl": "en",
+                "api_key": serp_api_key,
+                "type": "1",  # 1=one-way
+                "travel_class": class_map.get(travel_class, '1'),
+                "adults": passengers
+            }
+
+            # Make API request
+            search = GoogleSearch(params)
+            results = search.get_dict()
+
+            # Transform SERP API response to our Flight format
+            if 'best_flights' in results or 'other_flights' in results:
+                flights = []
+                all_flights = results.get('best_flights', []) + results.get('other_flights', [])
+
+                for idx, flight_data in enumerate(all_flights[:10]):  # Limit to 10 flights
+                    try:
+                        flights.append(transform_serp_flight(flight_data, idx))
+                    except Exception as e:
+                        print(f"Error transforming flight {idx}: {e}")
+                        continue
+
+                if flights:
+                    return Response({
+                        'count': len(flights),
+                        'total': len(flights),
+                        'items': flights,
+                        'results': flights,
+                        'message': f'Found {len(flights)} real flights from {origin} to {destination} on {departure_date}'
+                    })
+
+        except ImportError:
+            print("serpapi package not installed. Using mock data.")
+        except Exception as e:
+            print(f"SERP API error: {e}")
+            # Fall through to mock data on error
+
+    # Generate mock flight data for testing (fallback)
     if not departure_date:
         departure_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
 
