@@ -338,6 +338,7 @@ export interface ApiResponse<T> {
 
 export interface PaginatedResponse<T> {
   items: T[];
+  results?: T[];  // Alternative field name for backward compatibility
   total: number;
   page: number;
   pageSize: number;
