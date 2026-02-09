@@ -79,7 +79,7 @@ services:
     ports:
       - "8109:8109"  # Non-default port
     environment:
-      DEBUG: "False"
+      DEBUG: "True"
       SECRET_KEY: "django-insecure-travel-agent-key-change-in-production"
       DATABASE_URL: "postgresql://travel_admin:travel_secure_pass_2026@postgres:5432/travel_agent_db"
       REDIS_URL: "redis://:redis_secure_pass_2026@redis:6384/0"
