@@ -58,6 +58,8 @@ const ItineraryDetailPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted with data:', formData);
+    console.log('id:', id);
+    console.log('isNewItinerary:', isNewItinerary);
 
     setLoading(true);
     setError(null);
