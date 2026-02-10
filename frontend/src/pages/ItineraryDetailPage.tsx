@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { Card, Button } from '@/components/common';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { createItinerary, getItinerary, updateItinerary } from '@/services/itineraryService';
+import toast from 'react-hot-toast';
 
 const ItineraryDetailPage = () => {
   const { user } = useRequireAuth();
@@ -21,15 +23,62 @@ const ItineraryDetailPage = () => {
     currency: 'USD',
   });
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isNewItinerary && id) {
+      // Load existing itinerary for editing
+      loadItinerary(id);
+    }
+  }, [id, isNewItinerary]);
+
+  const loadItinerary = async (itineraryId: string) => {
+    try {
+      setLoading(true);
+      const data = await getItinerary(itineraryId);
+      setFormData({
+        title: data.title,
+        destination: data.destination,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        description: data.description || '',
+        number_of_travelers: data.number_of_travelers,
+        estimated_budget: data.estimated_budget || '',
+        currency: data.currency || 'USD',
+      });
+    } catch (err) {
+      console.error('Failed to load itinerary:', err);
+      toast.error('Failed to load itinerary');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-    // TODO: Implement API call to create/update itinerary
-    console.log('Creating itinerary:', formData);
-
-    // For now, just navigate back to the list
-    alert('Itinerary creation is coming soon! This feature is under development.');
-    navigate('/itinerary');
+    try {
+      if (isNewItinerary) {
+        // Create new itinerary
+        await createItinerary(formData);
+        toast.success('Itinerary created successfully!');
+      } else if (id) {
+        // Update existing itinerary
+        await updateItinerary(id, formData);
+        toast.success('Itinerary updated successfully!');
+      }
+      navigate('/itinerary');
+    } catch (err: any) {
+      console.error('Failed to save itinerary:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to save itinerary';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -57,9 +106,21 @@ const ItineraryDetailPage = () => {
         </h1>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-red-800 dark:text-red-200">{error}</p>
+        </div>
+      )}
+
       {/* Form */}
       <Card>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {loading && !formData.title ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -197,14 +258,16 @@ const ItineraryDetailPage = () => {
               type="button"
               variant="secondary"
               onClick={() => navigate('/itinerary')}
+              disabled={loading}
             >
               Cancel
             </Button>
-            <Button type="submit">
-              {isNewItinerary ? 'Create Itinerary' : 'Save Changes'}
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : (isNewItinerary ? 'Create Itinerary' : 'Save Changes')}
             </Button>
           </div>
         </form>
+        )}
       </Card>
     </div>
   );
