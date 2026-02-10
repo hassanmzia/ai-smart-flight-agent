@@ -323,14 +323,19 @@ class HotelSearchTool:
             raw_images = hotel_data.get('images', [])
             if raw_images:
                 for img in raw_images:
-                    if isinstance(img, dict):
-                        # Prefer original_image for better quality, fallback to thumbnail
-                        image_url = img.get('original_image') or img.get('thumbnail')
-                        if image_url:
-                            images.append(image_url)
-                    elif isinstance(img, str):
-                        # Handle case where images might already be strings
-                        images.append(img)
+                    try:
+                        if isinstance(img, dict):
+                            # Prefer original_image for better quality, fallback to thumbnail
+                            image_url = img.get('original_image') or img.get('thumbnail')
+                            if image_url and isinstance(image_url, str) and image_url.startswith('http'):
+                                images.append(image_url)
+                        elif isinstance(img, str) and img.startswith('http'):
+                            # Handle case where images might already be strings
+                            images.append(img)
+                    except Exception as e:
+                        # Skip invalid images
+                        logger.warning(f"Failed to parse image: {e}")
+                        continue
 
             # Parse link - might be a string or object
             link = hotel_data.get('link', '')

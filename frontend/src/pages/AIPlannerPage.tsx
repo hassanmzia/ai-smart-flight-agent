@@ -343,6 +343,10 @@ const AIPlannerPage = () => {
                         src={result.recommendation.recommended_hotel.images[0]}
                         alt={result.recommendation.recommended_hotel.name || result.recommendation.recommended_hotel.hotel_name}
                         className="w-full md:w-64 h-48 object-cover rounded-lg"
+                        onError={(e) => {
+                          // Hide image if it fails to load
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
                       />
                     )}
 
@@ -500,6 +504,10 @@ const AIPlannerPage = () => {
                           src={hotel.images[0]}
                           alt={hotel.name || hotel.hotel_name}
                           className="w-24 h-24 object-cover rounded"
+                          onError={(e) => {
+                            // Hide image if it fails to load
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
                         />
                       )}
 
