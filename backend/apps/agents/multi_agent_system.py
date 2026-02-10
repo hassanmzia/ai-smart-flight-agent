@@ -125,11 +125,16 @@ Focus on hotels near the destination airport or city center.
     def execute(self, state: TravelAgentState) -> TravelAgentState:
         """Execute hotel search"""
         try:
-            logger.info(f"HotelAgent executing for destination: {state.get('destination')}")
+            destination = state.get('destination', 'Berlin')
+            logger.info(f"HotelAgent executing for destination: {destination}")
+
+            # Convert airport code to city name for better hotel search
+            location_query = self._get_hotel_search_location(destination)
+            logger.info(f"Hotel search location: {location_query}")
 
             # Search for hotels
             hotel_results = self.tool.search_hotels(
-                location=state.get('destination', 'Berlin'),
+                location=location_query,
                 check_in_date=state.get('departure_date', '2025-10-10'),
                 check_out_date=state.get('return_date', '2025-10-12'),
                 adults=state.get('passengers', 2)
@@ -146,6 +151,38 @@ Focus on hotels near the destination airport or city center.
             state['error'] = str(e)
             state['current_agent'] = 'error'
             return state
+
+    def _get_hotel_search_location(self, destination: str) -> str:
+        """Convert airport code to city/location for hotel search"""
+        # Common airport code to city mappings
+        airport_to_city = {
+            'LAX': 'Los Angeles Airport',
+            'JFK': 'New York JFK Airport',
+            'LGA': 'New York LaGuardia Airport',
+            'EWR': 'Newark Airport',
+            'ORD': 'Chicago O\'Hare Airport',
+            'SFO': 'San Francisco Airport',
+            'MIA': 'Miami Airport',
+            'DFW': 'Dallas Fort Worth Airport',
+            'SEA': 'Seattle Airport',
+            'BOS': 'Boston Airport',
+            'ATL': 'Atlanta Airport',
+            'DEN': 'Denver Airport',
+            'IAD': 'Washington DC Dulles Airport',
+            'DCA': 'Washington DC Reagan Airport',
+            'LAS': 'Las Vegas Airport',
+            'PHX': 'Phoenix Airport',
+            'IAH': 'Houston Airport',
+            'MCO': 'Orlando Airport',
+            'CDG': 'Paris Charles de Gaulle Airport',
+            'LHR': 'London Heathrow Airport',
+            'BER': 'Berlin Airport',
+            'FCO': 'Rome Fiumicino Airport',
+            'NRT': 'Tokyo Narita Airport',
+        }
+
+        # Return mapped city or use destination as-is
+        return airport_to_city.get(destination.upper(), f"{destination} Airport")
 
 
 class GoalBasedAgent:

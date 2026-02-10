@@ -290,12 +290,40 @@ class HotelSearchTool:
     def _parse_hotel(hotel_data: Dict) -> Dict[str, Any]:
         """Parse individual hotel data"""
         try:
+            # Extract price - try multiple possible locations in the response
+            price_per_night = '0'
+            total_rate = '0'
+
+            # Try rate_per_night.lowest
+            if 'rate_per_night' in hotel_data and hotel_data['rate_per_night']:
+                if isinstance(hotel_data['rate_per_night'], dict):
+                    price_per_night = str(hotel_data['rate_per_night'].get('lowest', '0'))
+                else:
+                    price_per_night = str(hotel_data['rate_per_night'])
+
+            # Try total_rate.lowest
+            if 'total_rate' in hotel_data and hotel_data['total_rate']:
+                if isinstance(hotel_data['total_rate'], dict):
+                    total_rate = str(hotel_data['total_rate'].get('lowest', '0'))
+                else:
+                    total_rate = str(hotel_data['total_rate'])
+
+            # If rate_per_night is 0 but total_rate exists, try to calculate per night
+            if price_per_night == '0' and total_rate != '0':
+                try:
+                    # Extract numeric value from total_rate
+                    total_val = float(str(total_rate).replace('$', '').replace(',', ''))
+                    # Assume average 2-night stay if not specified
+                    price_per_night = str(int(total_val / 2))
+                except:
+                    pass
+
             return {
                 "hotel_name": hotel_data.get('name', 'Unknown'),
                 "star_rating": hotel_data.get('overall_rating', 0),
                 "guest_rating": hotel_data.get('reviews', 0),
-                "price_per_night": hotel_data.get('rate_per_night', {}).get('lowest', '0'),
-                "total_rate": hotel_data.get('total_rate', {}).get('lowest', '0'),
+                "price_per_night": price_per_night,
+                "total_rate": total_rate,
                 "currency": "USD",
                 "address": hotel_data.get('description', ''),
                 "distance_from_center": hotel_data.get('nearby_places', [{}])[0].get('distance', '') if hotel_data.get('nearby_places') else '',
@@ -307,7 +335,7 @@ class HotelSearchTool:
                 "check_out_time": hotel_data.get('check_out_time', ''),
             }
         except Exception as e:
-            logger.error(f"Error parsing hotel: {str(e)}")
+            logger.error(f"Error parsing hotel: {str(e)}", exc_info=True)
             return {}
 
 
