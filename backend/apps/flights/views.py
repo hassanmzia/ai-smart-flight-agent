@@ -196,9 +196,9 @@ def search_flights(request):
 
                 print(f"\n=== SERP API returned {len(all_flights)} total flights ===")
                 print(f"best_flights: {len(results.get('best_flights', []))}, other_flights: {len(results.get('other_flights', []))}")
-                print(f"Processing first {min(10, len(all_flights))} flights...")
+                print(f"Processing first {min(20, len(all_flights))} flights...")
 
-                for idx, flight_data in enumerate(all_flights[:10]):  # Limit to 10 flights
+                for idx, flight_data in enumerate(all_flights[:20]):  # Limit to 20 flights
                     try:
                         transformed = transform_serp_flight(flight_data, idx, departure_date)
                         flights.append(transformed)
@@ -209,7 +209,7 @@ def search_flights(request):
                         traceback.print_exc()
                         continue
 
-                print(f"\n=== Successfully transformed {len(flights)} out of {min(10, len(all_flights))} flights ===\n")
+                print(f"\n=== Successfully transformed {len(flights)} out of {min(20, len(all_flights))} flights ===\n")
 
                 if flights:
                     return Response({
