@@ -130,20 +130,49 @@ export interface Hotel {
   address: string;
   city: string;
   country: string;
-  coordinates: {
+  description?: string;
+  coordinates?: {
     lat: number;
     lng: number;
   };
+  gps_coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   rating: number;
   stars: number;
+  star_rating?: number;
+  star_rating_display?: string;
+  guest_rating?: number;
+  location_rating?: number;
+  review_count?: number;
+  property_type?: string;
+  hotel_class?: string;
   pricePerNight: number;
+  price_range_min?: number;
+  price_range_max?: number;
+  extracted_price?: any;
+  total_rate?: any;
   currency: string;
+  primary_image?: string;
   images: string[];
   amenities: string[];
-  roomTypes: RoomType[];
-  distanceFromCenter: number; // in km
+  amenity_count?: number;
+  essential_info?: string[];
+  nearby_places?: NearbyPlace[];
+  check_in_time?: string;
+  check_out_time?: string;
+  link?: string;
+  property_token?: string;
+  roomTypes?: RoomType[];
+  distanceFromCenter?: number; // in km
   utilityScore?: UtilityScore;
   reviews?: HotelReview[];
+}
+
+export interface NearbyPlace {
+  name: string;
+  transportations: any[];
 }
 
 export interface RoomType {

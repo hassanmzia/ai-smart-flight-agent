@@ -1,9 +1,12 @@
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Avg, Q
+import logging
+
+logger = logging.getLogger(__name__)
 
 from .models import Hotel, HotelAmenity, HotelSearch
 from .serializers import (
@@ -221,21 +224,51 @@ def search_hotels(request):
                         else:
                             amenities = []
 
-                        # Build hotel object
+                        # Extract additional details
+                        extracted_price = hotel_data.get('extracted_price', {})
+                        total_rate = hotel_data.get('total_rate', {})
+                        nearby_places = hotel_data.get('nearby_places', [])
+                        essential_info = hotel_data.get('essential_info', [])
+
+                        # Extract location rating
+                        location_rating = hotel_data.get('location_rating', 0)
+
+                        # Extract check-in/out times
+                        check_in_time = hotel_data.get('check_in_time', '')
+                        check_out_time = hotel_data.get('check_out_time', '')
+
+                        # Extract description
+                        description = hotel_data.get('description', '')
+
+                        # Format nearby places
+                        nearby_formatted = []
+                        if isinstance(nearby_places, list):
+                            for place in nearby_places[:5]:
+                                if isinstance(place, dict):
+                                    nearby_formatted.append({
+                                        'name': place.get('name', ''),
+                                        'transportations': place.get('transportations', [])
+                                    })
+
+                        # Build hotel object with maximum details
                         hotel = {
                             'id': f"serp_{idx}",
                             'name': hotel_data.get('name', 'Unknown Hotel'),
                             'city': destination.split(',')[0].strip() if ',' in destination else destination,
                             'country': 'USA',
                             'address': hotel_data.get('link', ''),
+                            'description': description,
                             'star_rating': star_rating,
                             'star_rating_display': f"{star_rating} Star",
                             'guest_rating': float(overall_rating) if overall_rating else 0.0,
+                            'location_rating': float(location_rating) if location_rating else 0.0,
                             'review_count': hotel_data.get('reviews', 0),
                             'property_type': hotel_data.get('type', 'hotel'),
                             'primary_image': primary_image,
                             'price_range_min': price,
                             'price_range_max': price * 1.5,
+                            'extracted_price': extracted_price,
+                            'total_rate': total_rate,
                             'currency': 'USD',
                             'amenity_count': len(amenities),
                             'stars': star_rating,
@@ -243,13 +276,18 @@ def search_hotels(request):
                             'pricePerNight': price,
                             'images': image_urls,
                             'amenities': amenities,
-                            'distanceFromCenter': 2.5
+                            'nearby_places': nearby_formatted,
+                            'essential_info': essential_info if isinstance(essential_info, list) else [],
+                            'check_in_time': check_in_time,
+                            'check_out_time': check_out_time,
+                            'hotel_class': hotel_data.get('hotel_class', ''),
+                            'gps_coordinates': hotel_data.get('gps_coordinates', {}),
+                            'link': hotel_data.get('link', ''),
+                            'property_token': hotel_data.get('property_token', '')
                         }
                         hotels.append(hotel)
                     except Exception as e:
-                        print(f"Error transforming hotel {idx}: {e}")
-                        import traceback
-                        traceback.print_exc()
+                        logger.error(f"Error transforming hotel {idx}: {e}", exc_info=True)
                         continue
 
                 if hotels:
@@ -260,47 +298,52 @@ def search_hotels(request):
                         'results': hotels,
                         'message': f'Found {len(hotels)} real hotels in {destination} from {check_in_date} to {check_out_date}'
                     })
+                else:
+                    # No hotels after transformation
+                    return Response({
+                        'count': 0,
+                        'total': 0,
+                        'items': [],
+                        'results': [],
+                        'message': f'No hotels available in {destination} for selected dates'
+                    })
+            else:
+                # No properties in SERP API response
+                return Response({
+                    'count': 0,
+                    'total': 0,
+                    'items': [],
+                    'results': [],
+                    'message': f'No hotels found in {destination}. Please try a different location or dates.'
+                })
 
         except ImportError:
-            print("serpapi package not installed. Using database hotels.")
+            logger.error("serpapi package not installed.")
+            return Response({
+                'count': 0,
+                'total': 0,
+                'items': [],
+                'results': [],
+                'message': 'Hotel search unavailable. Please contact support.',
+                'error': 'SERP API package not installed'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
-            print(f"SERP API error for hotels: {e}")
-            # Fall through to database hotels on error
+            logger.error(f"SERP API error for hotels: {e}", exc_info=True)
+            return Response({
+                'count': 0,
+                'total': 0,
+                'items': [],
+                'results': [],
+                'message': f'Unable to search hotels at this time. Please try again later.',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # Fallback to database hotels if SERP API is not available
-    queryset = Hotel.objects.filter(is_active=True)
-
-    # Filter by destination (city or country)
-    if destination:
-        queryset = queryset.filter(
-            Q(city__icontains=destination) |
-            Q(country__icontains=destination) |
-            Q(name__icontains=destination)
-        )
-
-    # Apply additional filters if provided
-    min_rating = request.query_params.get('minRating')
-    if min_rating:
-        queryset = queryset.filter(guest_rating__gte=min_rating)
-
-    max_price = request.query_params.get('maxPrice')
-    if max_price:
-        queryset = queryset.filter(price_range_min__lte=max_price)
-
-    star_rating = request.query_params.get('starRating')
-    if star_rating:
-        queryset = queryset.filter(star_rating__gte=star_rating)
-
-    # Order by rating
-    queryset = queryset.order_by('-guest_rating', '-star_rating')[:20]  # Limit to 20 hotels
-
-    # Serialize results
-    serializer = HotelListSerializer(queryset, many=True)
-
+    # No API key configured
     return Response({
-        'count': queryset.count(),
-        'total': queryset.count(),
-        'items': serializer.data,
-        'results': serializer.data,
-        'message': f'Found {queryset.count()} database hotels in {destination}' if destination else f'Found {queryset.count()} database hotels'
-    })
+        'count': 0,
+        'total': 0,
+        'items': [],
+        'results': [],
+        'message': 'Hotel search requires SERP API key configuration.',
+        'error': 'API key not configured'
+    }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
