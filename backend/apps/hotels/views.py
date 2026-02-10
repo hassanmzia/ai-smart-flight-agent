@@ -135,8 +135,11 @@ class HotelSearchViewSet(viewsets.ModelViewSet):
 def search_hotels(request):
     """
     Simple hotel search endpoint that accepts GET parameters.
-    This is a simplified interface for frontend compatibility.
+    Uses SERP API for real hotel data from Google Hotels.
     """
+    import os
+    from datetime import datetime, timedelta
+
     # Get query parameters
     destination = request.query_params.get('destination', '')
     check_in_date = request.query_params.get('checkInDate')
@@ -144,7 +147,87 @@ def search_hotels(request):
     guests = request.query_params.get('guests', '1')
     rooms = request.query_params.get('rooms', '1')
 
-    # Start with active hotels
+    # Check if SERP_API_KEY is configured
+    serp_api_key = os.getenv('SERP_API_KEY', '')
+
+    # Try to fetch real hotel data if API key is configured
+    if serp_api_key and serp_api_key not in ['your_serpapi_key_here', 'YOUR_ACTUAL_SERPAPI_KEY_HERE']:
+        try:
+            from serpapi import GoogleSearch
+
+            # Set default dates if not provided
+            if not check_in_date:
+                check_in_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+            if not check_out_date:
+                check_out_date = (datetime.now() + timedelta(days=9)).strftime('%Y-%m-%d')
+
+            # Build SERP API search parameters for Google Hotels
+            params = {
+                "engine": "google_hotels",
+                "q": destination,
+                "check_in_date": check_in_date,
+                "check_out_date": check_out_date,
+                "adults": guests,
+                "currency": "USD",
+                "gl": "us",
+                "hl": "en",
+                "api_key": serp_api_key
+            }
+
+            # Make API request
+            search = GoogleSearch(params)
+            results = search.get_dict()
+
+            # Transform SERP API response to our Hotel format
+            if 'properties' in results and len(results['properties']) > 0:
+                hotels = []
+                for idx, hotel_data in enumerate(results['properties'][:20]):  # Limit to 20
+                    try:
+                        # Extract hotel info
+                        hotel = {
+                            'id': f"serp_{idx}",
+                            'name': hotel_data.get('name', 'Unknown Hotel'),
+                            'city': destination.split(',')[0].strip() if ',' in destination else destination,
+                            'country': 'USA',
+                            'address': hotel_data.get('description', ''),
+                            'star_rating': int(hotel_data.get('hotel_class', 3)),
+                            'star_rating_display': f"{int(hotel_data.get('hotel_class', 3))} Star",
+                            'guest_rating': float(hotel_data.get('overall_rating', 8.0)),
+                            'review_count': hotel_data.get('reviews', 0),
+                            'property_type': hotel_data.get('type', 'hotel'),
+                            'primary_image': hotel_data.get('images', [{}])[0].get('thumbnail', '') if hotel_data.get('images') else '',
+                            'price_range_min': float(hotel_data.get('rate_per_night', {}).get('lowest', 150)),
+                            'price_range_max': float(hotel_data.get('rate_per_night', {}).get('lowest', 150)) * 1.5,
+                            'currency': 'USD',
+                            'amenity_count': len(hotel_data.get('amenities', [])),
+                            'stars': int(hotel_data.get('hotel_class', 3)),
+                            'rating': float(hotel_data.get('overall_rating', 8.0)),
+                            'pricePerNight': float(hotel_data.get('rate_per_night', {}).get('lowest', 150)),
+                            'images': [img.get('thumbnail', '') for img in hotel_data.get('images', [])[:5]],
+                            'amenities': hotel_data.get('amenities', [])[:5],
+                            'distanceFromCenter': 2.5  # SERP API doesn't always provide this
+                        }
+                        hotels.append(hotel)
+                    except Exception as e:
+                        print(f"Error transforming hotel {idx}: {e}")
+                        continue
+
+                if hotels:
+                    return Response({
+                        'count': len(hotels),
+                        'total': len(hotels),
+                        'items': hotels,
+                        'results': hotels,
+                        'message': f'Found {len(hotels)} real hotels in {destination} from {check_in_date} to {check_out_date}'
+                    })
+
+        except ImportError:
+            print("serpapi package not installed. Using database hotels.")
+        except Exception as e:
+            print(f"SERP API error for hotels: {e}")
+            # Fall through to database hotels on error
+
+    # Fallback to database hotels if SERP API is not available
     queryset = Hotel.objects.filter(is_active=True)
 
     # Filter by destination (city or country)
@@ -179,5 +262,5 @@ def search_hotels(request):
         'total': queryset.count(),
         'items': serializer.data,
         'results': serializer.data,
-        'message': f'Found {queryset.count()} hotels in {destination}' if destination else f'Found {queryset.count()} hotels'
+        'message': f'Found {queryset.count()} database hotels in {destination}' if destination else f'Found {queryset.count()} database hotels'
     })
