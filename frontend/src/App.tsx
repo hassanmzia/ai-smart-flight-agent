@@ -16,6 +16,8 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 const FlightResultsPage = lazy(() => import('./pages/FlightResultsPage'));
 const HotelResultsPage = lazy(() => import('./pages/HotelResultsPage'));
 const BookingPage = lazy(() => import('./pages/BookingPage'));
+const FlightBookingPage = lazy(() => import('./pages/FlightBookingPage'));
+const HotelBookingPage = lazy(() => import('./pages/HotelBookingPage'));
 const PaymentPage = lazy(() => import('./pages/PaymentPage'));
 const ItineraryPage = lazy(() => import('./pages/ItineraryPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
@@ -55,6 +57,8 @@ function App() {
                 <Route path={ROUTES.SEARCH} element={<SearchPage />} />
                 <Route path={ROUTES.FLIGHT_RESULTS} element={<FlightResultsPage />} />
                 <Route path={ROUTES.HOTEL_RESULTS} element={<HotelResultsPage />} />
+                <Route path="/booking/flight" element={<FlightBookingPage />} />
+                <Route path="/booking/hotel" element={<HotelBookingPage />} />
                 <Route path={ROUTES.BOOKING} element={<BookingPage />} />
                 <Route path="/booking/:type/:id" element={<BookingPage />} />
                 <Route path={ROUTES.PAYMENT} element={<PaymentPage />} />

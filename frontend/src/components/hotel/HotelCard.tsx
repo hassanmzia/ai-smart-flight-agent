@@ -25,7 +25,9 @@ const HotelCard = ({ hotel, onSelect }: HotelCardProps) => {
     if (onSelect) {
       onSelect(hotel);
     } else {
-      navigate(`/booking/hotel/${hotel.id}`);
+      // Store hotel data in session storage for booking page
+      sessionStorage.setItem('selectedHotel', JSON.stringify(hotel));
+      navigate('/booking/hotel');
     }
   };
 

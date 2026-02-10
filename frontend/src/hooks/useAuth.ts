@@ -26,7 +26,7 @@ export const useAuth = () => {
  */
 export const useRequireAuth = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -39,7 +39,7 @@ export const useRequireAuth = () => {
     }
   }, [isAuthenticated, isLoading, navigate]);
 
-  return { isAuthenticated, isLoading };
+  return { user, isAuthenticated, isLoading };
 };
 
 /**

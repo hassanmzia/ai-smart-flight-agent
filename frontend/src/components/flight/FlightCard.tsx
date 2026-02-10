@@ -24,7 +24,9 @@ const FlightCard = ({ flight, onSelect }: FlightCardProps) => {
     if (onSelect) {
       onSelect(flight);
     } else {
-      navigate(`/booking/flight/${flight.id}`);
+      // Store flight data in session storage for booking page
+      sessionStorage.setItem('selectedFlight', JSON.stringify(flight));
+      navigate('/booking/flight');
     }
   };
 
