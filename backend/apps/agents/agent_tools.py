@@ -318,6 +318,26 @@ class HotelSearchTool:
                 else:
                     total_rate = hotel_data['total_rate']
 
+            # Parse images - SerpAPI returns array of objects with 'thumbnail' and 'original_image'
+            images = []
+            raw_images = hotel_data.get('images', [])
+            if raw_images:
+                for img in raw_images:
+                    if isinstance(img, dict):
+                        # Prefer original_image for better quality, fallback to thumbnail
+                        image_url = img.get('original_image') or img.get('thumbnail')
+                        if image_url:
+                            images.append(image_url)
+                    elif isinstance(img, str):
+                        # Handle case where images might already be strings
+                        images.append(img)
+
+            # Parse link - might be a string or object
+            link = hotel_data.get('link', '')
+            if isinstance(link, dict):
+                # If link is an object, try to extract URL from common properties
+                link = link.get('url') or link.get('href') or link.get('link') or ''
+
             return {
                 "hotel_name": hotel_data.get('name', 'Unknown'),
                 "star_rating": hotel_data.get('overall_rating', 0),
@@ -328,8 +348,8 @@ class HotelSearchTool:
                 "address": hotel_data.get('description', ''),
                 "distance_from_center": hotel_data.get('nearby_places', [{}])[0].get('distance', '') if hotel_data.get('nearby_places') else '',
                 "amenities": hotel_data.get('amenities', []),
-                "images": hotel_data.get('images', []),
-                "link": hotel_data.get('link', ''),
+                "images": images,  # Now properly extracted URLs
+                "link": link,  # Now properly extracted string URL
                 "hotel_id": hotel_data.get('property_token', ''),
                 "check_in_time": hotel_data.get('check_in_time', ''),
                 "check_out_time": hotel_data.get('check_out_time', ''),
