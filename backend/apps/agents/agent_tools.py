@@ -44,6 +44,15 @@ class FlightSearchTool:
             Dict containing flight results
         """
         try:
+            # Validate and normalize travel_class
+            valid_classes = ['economy', 'premium_economy', 'business', 'first']
+            if not travel_class or not isinstance(travel_class, str):
+                travel_class = "economy"
+            travel_class = travel_class.lower().strip()
+            if travel_class not in valid_classes:
+                logger.warning(f"Invalid travel_class '{travel_class}', defaulting to 'economy'")
+                travel_class = "economy"
+
             params = {
                 "api_key": settings.SERP_API_KEY,
                 "engine": "google_flights",
@@ -55,7 +64,7 @@ class FlightSearchTool:
                 "type": trip_type,
                 "currency": "USD",
                 "adults": passengers,
-                "travel_class": travel_class.lower()
+                "travel_class": travel_class  # Already validated and lowercased
             }
 
             if trip_type == 1 and return_date:
