@@ -337,14 +337,39 @@ Your responsibilities:
             utility_eval = state.get('utility_evaluation', {})
 
             # Compile final recommendation
+            # Merge flight with its goal evaluation scores
+            recommended_flight = None
+            if goal_eval and goal_eval.get('cheapest flight'):
+                cheapest = goal_eval['cheapest flight']
+                if cheapest.get('flight'):
+                    recommended_flight = dict(cheapest['flight'])
+                    recommended_flight.update({
+                        'goal_score': cheapest.get('score', 0),
+                        'budget_status': cheapest.get('status', ''),
+                        'savings': cheapest.get('savings', 0),
+                        'budget_difference': cheapest.get('difference', 0)
+                    })
+
+            alternative_flight = None
+            if goal_eval and goal_eval.get('most expensive flight'):
+                expensive = goal_eval['most expensive flight']
+                if expensive.get('flight'):
+                    alternative_flight = dict(expensive['flight'])
+                    alternative_flight.update({
+                        'goal_score': expensive.get('score', 0),
+                        'budget_status': expensive.get('status', ''),
+                        'savings': expensive.get('savings', 0),
+                        'budget_difference': expensive.get('difference', 0)
+                    })
+
             final_recommendation = {
                 "summary": {
                     "flights_found": len(flights),
                     "hotels_found": len(hotels),
                     "budget": state.get('budget', 'Not specified')
                 },
-                "recommended_flight": goal_eval.get('cheapest flight', {}).get('flight') if goal_eval else None,
-                "alternative_flight": goal_eval.get('most expensive flight', {}).get('flight') if goal_eval else None,
+                "recommended_flight": recommended_flight,
+                "alternative_flight": alternative_flight,
                 "recommended_hotel": utility_eval.get('top_recommendation') if utility_eval else None,
                 "top_5_hotels": utility_eval.get('ranked_hotels', [])[:5] if utility_eval else [],
                 "budget_analysis": goal_eval,

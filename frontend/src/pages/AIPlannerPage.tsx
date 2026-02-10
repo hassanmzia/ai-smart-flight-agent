@@ -219,6 +219,24 @@ const AIPlannerPage = () => {
                         ${result.recommendation.recommended_flight.price}
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400">per person</p>
+                      {result.recommendation.recommended_flight.goal_score !== undefined && (
+                        <div className="mt-2 text-xs">
+                          <p className={`font-medium ${
+                            result.recommendation.recommended_flight.budget_status === 'within budget'
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-orange-600 dark:text-orange-400'
+                          }`}>
+                            {result.recommendation.recommended_flight.budget_status === 'within budget'
+                              ? `✓ Within budget (saves $${result.recommendation.recommended_flight.savings})`
+                              : `! Over budget by $${result.recommendation.recommended_flight.budget_difference}`
+                            }
+                          </p>
+                          <p className="text-gray-600 dark:text-gray-400">
+                            Goal Score: {result.recommendation.recommended_flight.goal_score > 0 ? '+' : ''}
+                            {result.recommendation.recommended_flight.goal_score}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -346,40 +364,86 @@ const AIPlannerPage = () => {
                         </div>
                       </div>
 
-                      {/* Price */}
-                      <div className="bg-primary-50 dark:bg-primary-900/20 p-3 rounded-lg">
-                        <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                          ${result.recommendation.recommended_hotel.price || result.recommendation.recommended_hotel.price_per_night}
-                          <span className="text-sm font-normal text-gray-600 dark:text-gray-400">/night</span>
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          Utility Score: {result.recommendation.recommended_hotel.utility_score || result.recommendation.recommended_hotel.combined_utility_score}
+                      {/* Price and Rates */}
+                      <div className="bg-primary-50 dark:bg-primary-900/20 p-4 rounded-lg space-y-2">
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                            ${result.recommendation.recommended_hotel.price || result.recommendation.recommended_hotel.price_per_night}
+                          </p>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">/night</span>
+                        </div>
+                        {result.recommendation.recommended_hotel.total_rate && result.recommendation.recommended_hotel.total_rate > 0 && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Total stay: <span className="font-medium">${result.recommendation.recommended_hotel.total_rate}</span>
+                          </p>
+                        )}
+                        <div className="pt-2 border-t border-primary-200 dark:border-primary-800">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Utility Score: <span className="font-medium">{result.recommendation.recommended_hotel.utility_score || result.recommendation.recommended_hotel.combined_utility_score}</span>
+                          </p>
                           {result.recommendation.recommended_hotel.recommendation && (
-                            <span className="ml-2 text-xs">• {result.recommendation.recommended_hotel.recommendation}</span>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              {result.recommendation.recommended_hotel.recommendation}
+                            </p>
                           )}
-                        </p>
+                        </div>
+                      </div>
+
+                      {/* Hotel Details Grid */}
+                      <div className="grid grid-cols-2 gap-3 text-sm border-t border-gray-200 dark:border-gray-700 pt-3">
+                        {result.recommendation.recommended_hotel.check_in_time && (
+                          <div>
+                            <p className="text-gray-600 dark:text-gray-400">Check-in</p>
+                            <p className="font-medium">{result.recommendation.recommended_hotel.check_in_time}</p>
+                          </div>
+                        )}
+                        {result.recommendation.recommended_hotel.check_out_time && (
+                          <div>
+                            <p className="text-gray-600 dark:text-gray-400">Check-out</p>
+                            <p className="font-medium">{result.recommendation.recommended_hotel.check_out_time}</p>
+                          </div>
+                        )}
+                        {result.recommendation.recommended_hotel.distance_from_center && (
+                          <div>
+                            <p className="text-gray-600 dark:text-gray-400">Location</p>
+                            <p className="font-medium">{result.recommendation.recommended_hotel.distance_from_center}</p>
+                          </div>
+                        )}
+                        {result.recommendation.recommended_hotel.guest_rating > 0 && (
+                          <div>
+                            <p className="text-gray-600 dark:text-gray-400">Guest Rating</p>
+                            <p className="font-medium">{result.recommendation.recommended_hotel.guest_rating} reviews</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Address */}
                       {result.recommendation.recommended_hotel.address && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          📍 {result.recommendation.recommended_hotel.address}
-                        </p>
+                        <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            📍 {result.recommendation.recommended_hotel.address}
+                          </p>
+                        </div>
                       )}
 
                       {/* Amenities */}
                       {result.recommendation.recommended_hotel.amenities && result.recommendation.recommended_hotel.amenities.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium mb-1">Amenities:</p>
+                        <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                          <p className="text-sm font-medium mb-2">Amenities & Features:</p>
                           <div className="flex flex-wrap gap-2">
-                            {result.recommendation.recommended_hotel.amenities.slice(0, 6).map((amenity: string, idx: number) => (
+                            {result.recommendation.recommended_hotel.amenities.slice(0, 12).map((amenity: string, idx: number) => (
                               <span
                                 key={idx}
-                                className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded"
+                                className="text-xs bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-full"
                               >
                                 {amenity}
                               </span>
                             ))}
+                            {result.recommendation.recommended_hotel.amenities.length > 12 && (
+                              <span className="text-xs text-gray-600 dark:text-gray-400 px-3 py-1.5">
+                                +{result.recommendation.recommended_hotel.amenities.length - 12} more
+                              </span>
+                            )}
                           </div>
                         </div>
                       )}
