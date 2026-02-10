@@ -47,8 +47,8 @@ const DashboardPage = () => {
   if (itinerariesData) {
     if (Array.isArray(itinerariesData)) {
       itineraries = itinerariesData;
-    } else if (Array.isArray(itinerariesData.results)) {
-      itineraries = itinerariesData.results;
+    } else if (Array.isArray((itinerariesData as any).results)) {
+      itineraries = (itinerariesData as any).results;
     }
   }
 
