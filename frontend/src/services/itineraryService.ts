@@ -11,7 +11,7 @@ export const getItineraries = async (status?: string): Promise<Itinerary[]> => {
     url += `?status=${status}`;
   }
   const response = await api.get(url);
-  const data = handleApiResponse(response);
+  const data = handleApiResponse(response) as any;
 
   // Debug logging
   console.log('Itineraries API response:', data);
