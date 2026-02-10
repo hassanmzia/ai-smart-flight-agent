@@ -57,23 +57,32 @@ const ItineraryDetailPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted with data:', formData);
+
     setLoading(true);
     setError(null);
 
     try {
       if (isNewItinerary) {
         // Create new itinerary
-        await createItinerary(formData);
+        console.log('Creating new itinerary...');
+        const result = await createItinerary(formData);
+        console.log('Itinerary created:', result);
         toast.success('Itinerary created successfully!');
       } else if (id) {
         // Update existing itinerary
-        await updateItinerary(id, formData);
+        console.log('Updating itinerary...', id);
+        const result = await updateItinerary(id, formData);
+        console.log('Itinerary updated:', result);
         toast.success('Itinerary updated successfully!');
       }
+      console.log('Navigating to /itinerary');
       navigate('/itinerary');
     } catch (err: any) {
-      console.error('Failed to save itinerary:', err);
-      const errorMessage = err.response?.data?.message || 'Failed to save itinerary';
+      console.error('Failed to save itinerary - Full error:', err);
+      console.error('Error response:', err.response);
+      console.error('Error data:', err.response?.data);
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to save itinerary';
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {

@@ -59,8 +59,17 @@ export const createItinerary = async (data: {
   estimated_budget?: string;
   currency?: string;
 }): Promise<Itinerary> => {
+  console.log('Creating itinerary with data:', data);
+  console.log('POST URL:', `${API_ENDPOINTS.ITINERARY.CREATE}/`);
+
   const response = await api.post(`${API_ENDPOINTS.ITINERARY.CREATE}/`, data);
-  return handleApiResponse(response);
+
+  console.log('Create itinerary response:', response);
+
+  const result = handleApiResponse(response);
+  console.log('Create itinerary result:', result);
+
+  return result;
 };
 
 /**
