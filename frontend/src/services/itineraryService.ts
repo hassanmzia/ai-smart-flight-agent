@@ -6,12 +6,14 @@ import type { Itinerary, Activity } from '@/types';
  * Get all itineraries
  */
 export const getItineraries = async (status?: string): Promise<Itinerary[]> => {
-  let url = API_ENDPOINTS.ITINERARY.LIST;
+  let url = `${API_ENDPOINTS.ITINERARY.LIST}/`;
   if (status) {
     url += `?status=${status}`;
   }
   const response = await api.get(url);
-  return handleApiResponse(response);
+  const data = handleApiResponse(response);
+  // Handle both paginated and non-paginated responses
+  return Array.isArray(data) ? data : (data.results || data.items || []);
 };
 
 /**
