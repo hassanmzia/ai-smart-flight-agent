@@ -42,7 +42,7 @@ export const getItineraries = async (status?: string): Promise<Itinerary[]> => {
  * Get itinerary by ID
  */
 export const getItinerary = async (itineraryId: string): Promise<Itinerary> => {
-  const response = await api.get(`${API_ENDPOINTS.ITINERARY.LIST}/${itineraryId}`);
+  const response = await api.get(`${API_ENDPOINTS.ITINERARY.LIST}/${itineraryId}/`);
   return handleApiResponse(response);
 };
 
@@ -50,13 +50,16 @@ export const getItinerary = async (itineraryId: string): Promise<Itinerary> => {
  * Create itinerary
  */
 export const createItinerary = async (data: {
-  name: string;
+  title: string;
   destination: string;
-  startDate: string;
-  endDate: string;
-  notes?: string;
+  start_date: string;
+  end_date: string;
+  description?: string;
+  number_of_travelers?: number;
+  estimated_budget?: string;
+  currency?: string;
 }): Promise<Itinerary> => {
-  const response = await api.post(API_ENDPOINTS.ITINERARY.CREATE, data);
+  const response = await api.post(`${API_ENDPOINTS.ITINERARY.CREATE}/`, data);
   return handleApiResponse(response);
 };
 
@@ -65,10 +68,10 @@ export const createItinerary = async (data: {
  */
 export const updateItinerary = async (
   itineraryId: string,
-  data: Partial<Itinerary>
+  data: any
 ): Promise<Itinerary> => {
   const response = await api.put(
-    `${API_ENDPOINTS.ITINERARY.UPDATE}/${itineraryId}`,
+    `${API_ENDPOINTS.ITINERARY.UPDATE}/${itineraryId}/`,
     data
   );
   return handleApiResponse(response);
@@ -78,7 +81,7 @@ export const updateItinerary = async (
  * Delete itinerary
  */
 export const deleteItinerary = async (itineraryId: string): Promise<void> => {
-  const response = await api.delete(`${API_ENDPOINTS.ITINERARY.DELETE}/${itineraryId}`);
+  const response = await api.delete(`${API_ENDPOINTS.ITINERARY.DELETE}/${itineraryId}/`);
   return handleApiResponse(response);
 };
 
