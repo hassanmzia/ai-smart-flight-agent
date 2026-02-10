@@ -270,108 +270,55 @@ def search_flights(request):
                         'results': flights,
                         'message': f'Found {len(flights)} real flights from {origin} to {destination} on {departure_date}'
                     })
+                else:
+                    # No flights after transformation
+                    return Response({
+                        'count': 0,
+                        'total': 0,
+                        'items': [],
+                        'results': [],
+                        'message': f'No flights available for {origin} to {destination} on {departure_date}'
+                    })
             else:
                 logger.warning(f"SERP API response has no 'best_flights' or 'other_flights'. Keys: {results.keys()}")
+                return Response({
+                    'count': 0,
+                    'total': 0,
+                    'items': [],
+                    'results': [],
+                    'message': f'No flights found for {origin} to {destination} on {departure_date}. Please try different dates or routes.'
+                })
 
         except ImportError:
-            logger.warning("serpapi package not installed. Using mock data.")
+            logger.error("serpapi package not installed.")
+            return Response({
+                'count': 0,
+                'total': 0,
+                'items': [],
+                'results': [],
+                'message': 'Flight search unavailable. Please contact support.',
+                'error': 'SERP API package not installed'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"SERP API error: {e}", exc_info=True)
-            logger.info("Falling back to mock data...")
-            # Fall through to mock data on error
+            return Response({
+                'count': 0,
+                'total': 0,
+                'items': [],
+                'results': [],
+                'message': f'Unable to search flights at this time. Please try again later.',
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # Generate mock flight data for testing (fallback)
-    if not departure_date:
-        departure_date = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
-
-    # Helper to create airport object matching frontend Airport interface
-    def make_airport(code, city):
-        return {
-            'code': code,
-            'name': f'{code} Airport',
-            'city': city,
-            'country': 'USA',
-            'timezone': 'America/New_York'
-        }
-
-    mock_flights = [
-        {
-            'id': 'FL001',
-            'airline': 'American Airlines',
-            'flightNumber': 'AA 1234',
-            'origin': make_airport(origin, origin),
-            'destination': make_airport(destination, destination),
-            'departureTime': f'{departure_date}T08:00:00-05:00',
-            'arrivalTime': f'{departure_date}T11:30:00-08:00',
-            'duration': 210,  # minutes
-            'price': 299,
-            'currency': 'USD',
-            'class': travel_class,
-            'stops': 0,
-            'availableSeats': 12,
-            'aircraft': 'Boeing 737',
-            'amenities': ['WiFi', 'In-flight entertainment']
-        },
-        {
-            'id': 'FL002',
-            'airline': 'Delta Airlines',
-            'flightNumber': 'DL 5678',
-            'origin': make_airport(origin, origin),
-            'destination': make_airport(destination, destination),
-            'departureTime': f'{departure_date}T10:30:00-05:00',
-            'arrivalTime': f'{departure_date}T14:15:00-08:00',
-            'duration': 225,  # minutes
-            'price': 349,
-            'currency': 'USD',
-            'class': travel_class,
-            'stops': 0,
-            'availableSeats': 8,
-            'aircraft': 'Airbus A320',
-            'amenities': ['WiFi', 'Power outlets', 'Snacks']
-        },
-        {
-            'id': 'FL003',
-            'airline': 'United Airlines',
-            'flightNumber': 'UA 9012',
-            'origin': make_airport(origin, origin),
-            'destination': make_airport(destination, destination),
-            'departureTime': f'{departure_date}T14:00:00-05:00',
-            'arrivalTime': f'{departure_date}T17:45:00-08:00',
-            'duration': 225,  # minutes
-            'price': 275,
-            'currency': 'USD',
-            'class': travel_class,
-            'stops': 0,
-            'availableSeats': 15,
-            'aircraft': 'Boeing 787',
-            'amenities': ['WiFi', 'Power outlets', 'Meals included']
-        },
-        {
-            'id': 'FL004',
-            'airline': 'Southwest Airlines',
-            'flightNumber': 'WN 3456',
-            'origin': make_airport(origin, origin),
-            'destination': make_airport(destination, destination),
-            'departureTime': f'{departure_date}T16:30:00-05:00',
-            'arrivalTime': f'{departure_date}T21:00:00-08:00',
-            'duration': 270,  # minutes
-            'price': 199,
-            'currency': 'USD',
-            'class': travel_class,
-            'stops': 1,
-            'availableSeats': 20,
-            'aircraft': 'Boeing 737',
-            'amenities': ['2 checked bags included']
-        },
-    ]
-
+    # No API key configured
     return Response({
-        'count': len(mock_flights),
-        'total': len(mock_flights),
-        'items': mock_flights,  # Frontend expects 'items' for PaginatedResponse
-        'results': mock_flights,  # Keep for backward compatibility
-        'message': 'Showing mock flight data for testing. Add SERP_API_KEY to .env for real flight data.' if not serp_api_key or serp_api_key == 'your_serpapi_key_here' else 'Real flight data coming soon!'
-    })
+        'count': 0,
+        'total': 0,
+        'items': [],
+        'results': [],
+        'message': 'Flight search requires SERP API key configuration.',
+        'error': 'API key not configured'
+    }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class FlightViewSet(viewsets.ModelViewSet):
