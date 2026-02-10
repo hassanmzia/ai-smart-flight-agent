@@ -194,14 +194,22 @@ def search_flights(request):
                 flights = []
                 all_flights = results.get('best_flights', []) + results.get('other_flights', [])
 
+                print(f"\n=== SERP API returned {len(all_flights)} total flights ===")
+                print(f"best_flights: {len(results.get('best_flights', []))}, other_flights: {len(results.get('other_flights', []))}")
+                print(f"Processing first {min(10, len(all_flights))} flights...")
+
                 for idx, flight_data in enumerate(all_flights[:10]):  # Limit to 10 flights
                     try:
-                        flights.append(transform_serp_flight(flight_data, idx, departure_date))
+                        transformed = transform_serp_flight(flight_data, idx, departure_date)
+                        flights.append(transformed)
+                        print(f"✓ Flight {idx}: {transformed.get('airline')} - ${transformed.get('price')}")
                     except Exception as e:
-                        print(f"Error transforming flight {idx}: {e}")
+                        print(f"✗ Error transforming flight {idx}: {e}")
                         import traceback
                         traceback.print_exc()
                         continue
+
+                print(f"\n=== Successfully transformed {len(flights)} out of {min(10, len(all_flights))} flights ===\n")
 
                 if flights:
                     return Response({
