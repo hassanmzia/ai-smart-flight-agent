@@ -152,6 +152,7 @@ def search_flights(request):
 
     # Try to fetch real flight data if API key is configured
     if serp_api_key and serp_api_key not in ['your_serpapi_key_here', 'YOUR_ACTUAL_SERPAPI_KEY_HERE']:
+        print(f"\n=== Using SERP API for flight search: {origin} → {destination} on {departure_date} ===")
         try:
             from serpapi import GoogleSearch
 
@@ -224,6 +225,9 @@ def search_flights(request):
             print("serpapi package not installed. Using mock data.")
         except Exception as e:
             print(f"SERP API error: {e}")
+            import traceback
+            traceback.print_exc()
+            print("Falling back to mock data...")
             # Fall through to mock data on error
 
     # Generate mock flight data for testing (fallback)
