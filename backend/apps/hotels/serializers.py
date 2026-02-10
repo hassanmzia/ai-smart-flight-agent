@@ -54,6 +54,7 @@ class HotelListSerializer(serializers.ModelSerializer):
     # Frontend compatibility fields
     stars = serializers.IntegerField(source='star_rating', read_only=True)
     rating = serializers.FloatField(source='guest_rating', read_only=True)
+    pricePerNight = serializers.FloatField(source='price_range_min', read_only=True)
     amenities = serializers.SerializerMethodField()
     distanceFromCenter = serializers.SerializerMethodField()
 
@@ -63,7 +64,7 @@ class HotelListSerializer(serializers.ModelSerializer):
             'id', 'name', 'city', 'country', 'address', 'star_rating', 'star_rating_display',
             'guest_rating', 'review_count', 'property_type', 'primary_image',
             'price_range_min', 'price_range_max', 'currency', 'amenity_count',
-            'stars', 'rating', 'images', 'amenities', 'distanceFromCenter'
+            'stars', 'rating', 'pricePerNight', 'images', 'amenities', 'distanceFromCenter'
         ]
 
     def get_amenity_count(self, obj):
