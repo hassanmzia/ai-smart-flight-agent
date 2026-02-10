@@ -7,6 +7,9 @@ from django.db.models import Q, Count, Avg, Min
 from django.utils import timezone
 from datetime import timedelta, datetime
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 from .models import Flight, FlightSearch, PriceAlert
 from .serializers import (
@@ -92,7 +95,7 @@ def transform_serp_flight(flight_data, idx, departure_date=None):
                 arr_datetime = dep_datetime
         except Exception as e:
             # Fallback: if parsing fails, just use the date
-            print(f"Error parsing times: {e}")
+            logger.warning(f"Error parsing times: {e}")
             dep_datetime = f"{departure_date}T12:00:00"
             arr_datetime = f"{departure_date}T14:00:00"
     else:
@@ -152,7 +155,7 @@ def search_flights(request):
 
     # Try to fetch real flight data if API key is configured
     if serp_api_key and serp_api_key not in ['your_serpapi_key_here', 'YOUR_ACTUAL_SERPAPI_KEY_HERE']:
-        print(f"\n=== Using SERP API for flight search: {origin} → {destination} on {departure_date} ===")
+        logger.info(f"=== Using SERP API for flight search: {origin} → {destination} on {departure_date} ===")
         try:
             from serpapi import GoogleSearch
 
@@ -195,22 +198,20 @@ def search_flights(request):
                 flights = []
                 all_flights = results.get('best_flights', []) + results.get('other_flights', [])
 
-                print(f"\n=== SERP API returned {len(all_flights)} total flights ===")
-                print(f"best_flights: {len(results.get('best_flights', []))}, other_flights: {len(results.get('other_flights', []))}")
-                print(f"Processing first {min(20, len(all_flights))} flights...")
+                logger.info(f"=== SERP API returned {len(all_flights)} total flights ===")
+                logger.info(f"best_flights: {len(results.get('best_flights', []))}, other_flights: {len(results.get('other_flights', []))}")
+                logger.info(f"Processing first {min(20, len(all_flights))} flights...")
 
                 for idx, flight_data in enumerate(all_flights[:20]):  # Limit to 20 flights
                     try:
                         transformed = transform_serp_flight(flight_data, idx, departure_date)
                         flights.append(transformed)
-                        print(f"✓ Flight {idx}: {transformed.get('airline')} - ${transformed.get('price')}")
+                        logger.info(f"✓ Flight {idx}: {transformed.get('airline')} - ${transformed.get('price')}")
                     except Exception as e:
-                        print(f"✗ Error transforming flight {idx}: {e}")
-                        import traceback
-                        traceback.print_exc()
+                        logger.error(f"✗ Error transforming flight {idx}: {e}", exc_info=True)
                         continue
 
-                print(f"\n=== Successfully transformed {len(flights)} out of {min(20, len(all_flights))} flights ===\n")
+                logger.info(f"=== Successfully transformed {len(flights)} out of {min(20, len(all_flights))} flights ===")
 
                 if flights:
                     return Response({
@@ -222,12 +223,10 @@ def search_flights(request):
                     })
 
         except ImportError:
-            print("serpapi package not installed. Using mock data.")
+            logger.warning("serpapi package not installed. Using mock data.")
         except Exception as e:
-            print(f"SERP API error: {e}")
-            import traceback
-            traceback.print_exc()
-            print("Falling back to mock data...")
+            logger.error(f"SERP API error: {e}", exc_info=True)
+            logger.info("Falling back to mock data...")
             # Fall through to mock data on error
 
     # Generate mock flight data for testing (fallback)
