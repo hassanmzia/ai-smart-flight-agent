@@ -13,6 +13,7 @@ import { getTheme, setTheme } from './utils/helpers';
 // Lazy load pages
 const HomePage = lazy(() => import('./pages/HomePage'));
 const SearchPage = lazy(() => import('./pages/SearchPage'));
+const AIPlannerPage = lazy(() => import('./pages/AIPlannerPage'));
 const FlightResultsPage = lazy(() => import('./pages/FlightResultsPage'));
 const HotelResultsPage = lazy(() => import('./pages/HotelResultsPage'));
 const BookingPage = lazy(() => import('./pages/BookingPage'));
@@ -56,6 +57,7 @@ function App() {
               <Routes>
                 <Route path={ROUTES.HOME} element={<HomePage />} />
                 <Route path={ROUTES.SEARCH} element={<SearchPage />} />
+                <Route path={ROUTES.AI_PLANNER} element={<AIPlannerPage />} />
                 <Route path={ROUTES.FLIGHT_RESULTS} element={<FlightResultsPage />} />
                 <Route path={ROUTES.HOTEL_RESULTS} element={<HotelResultsPage />} />
                 <Route path="/booking/flight" element={<FlightBookingPage />} />

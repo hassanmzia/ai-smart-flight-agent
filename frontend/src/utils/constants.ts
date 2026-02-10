@@ -9,6 +9,7 @@ export const APP_VERSION = import.meta.env.VITE_APP_VERSION || '1.0.0';
 export const ROUTES = {
   HOME: '/',
   SEARCH: '/search',
+  AI_PLANNER: '/ai-planner',
   FLIGHT_RESULTS: '/flights',
   HOTEL_RESULTS: '/hotels',
   BOOKING: '/booking',
