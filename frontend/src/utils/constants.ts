@@ -70,10 +70,10 @@ export const API_ENDPOINTS = {
     DELETE: '/api/price-alerts',
   },
   ITINERARY: {
-    LIST: '/api/itineraries',
-    CREATE: '/api/itineraries',
-    UPDATE: '/api/itineraries',
-    DELETE: '/api/itineraries',
+    LIST: '/api/itineraries/itineraries',
+    CREATE: '/api/itineraries/itineraries',
+    UPDATE: '/api/itineraries/itineraries',
+    DELETE: '/api/itineraries/itineraries',
   },
   NOTIFICATIONS: {
     LIST: '/api/notifications',
