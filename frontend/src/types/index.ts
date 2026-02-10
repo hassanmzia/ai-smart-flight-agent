@@ -292,17 +292,27 @@ export interface PaymentMethod {
 // Itinerary Types
 export interface Itinerary {
   id: string;
-  userId: string;
-  name: string;
+  user: string;
+  title: string;
+  description: string;
   destination: string;
-  startDate: string;
-  endDate: string;
-  bookings: Booking[];
-  activities: Activity[];
-  notes?: string;
-  status: 'draft' | 'confirmed' | 'completed';
-  createdAt: string;
-  updatedAt: string;
+  start_date: string;
+  end_date: string;
+  status: 'draft' | 'planned' | 'active' | 'completed' | 'cancelled';
+  travelers: any[];
+  number_of_travelers: number;
+  estimated_budget: string | null;
+  actual_spent: string;
+  currency: string;
+  is_public: boolean;
+  is_shared: boolean;
+  shared_with: any[];
+  cover_image: string;
+  days?: any[];
+  status_display?: string;
+  duration_days?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Activity {
