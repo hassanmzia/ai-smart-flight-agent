@@ -54,7 +54,6 @@ class HotelListSerializer(serializers.ModelSerializer):
     # Frontend compatibility fields
     stars = serializers.IntegerField(source='star_rating', read_only=True)
     rating = serializers.DecimalField(source='guest_rating', max_digits=3, decimal_places=2, read_only=True)
-    images = serializers.ListField(source='images', read_only=True)
     amenities = serializers.SerializerMethodField()
     distanceFromCenter = serializers.SerializerMethodField()
 
