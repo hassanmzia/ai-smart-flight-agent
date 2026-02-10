@@ -61,6 +61,10 @@ class FlightSearchTool:
                 logger.warning(f"Invalid travel_class '{travel_class}', defaulting to 1 (Economy)")
                 travel_class = 1
 
+            # Normalize airport codes to uppercase (SerpAPI requirement)
+            origin = origin.upper().strip()
+            destination = destination.upper().strip()
+
             params = {
                 "api_key": settings.SERP_API_KEY,
                 "engine": "google_flights",
