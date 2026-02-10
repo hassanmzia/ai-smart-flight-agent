@@ -426,6 +426,7 @@ export interface WeatherData {
 // Error Types
 export interface ApiError {
   message: string;
+  detail?: string;
   code?: string;
   status?: number;
   errors?: Record<string, string[]>;
