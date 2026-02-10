@@ -26,7 +26,7 @@ class FlightSearchTool:
         trip_type: int = 2,
         return_date: Optional[str] = None,
         passengers: int = 1,
-        travel_class: str = "economy"
+        travel_class: int = 1
     ) -> Dict[str, Any]:
         """
         Search for flights between origin and destination
@@ -38,20 +38,28 @@ class FlightSearchTool:
             trip_type: 1=Round trip, 2=One way, 3=Multi-city
             return_date: Return date for round trips
             passengers: Number of passengers
-            travel_class: economy, business, first
+            travel_class: 1=Economy (default), 2=Premium economy, 3=Business, 4=First
 
         Returns:
             Dict containing flight results
         """
         try:
-            # Validate and normalize travel_class
-            valid_classes = ['economy', 'premium_economy', 'business', 'first']
-            if not travel_class or not isinstance(travel_class, str):
-                travel_class = "economy"
-            travel_class = travel_class.lower().strip()
-            if travel_class not in valid_classes:
-                logger.warning(f"Invalid travel_class '{travel_class}', defaulting to 'economy'")
-                travel_class = "economy"
+            # Validate and normalize travel_class (SerpAPI expects integer 1-4)
+            # Map string inputs to integers if needed
+            if isinstance(travel_class, str):
+                class_map = {
+                    'economy': 1,
+                    'premium_economy': 2,
+                    'premium economy': 2,
+                    'business': 3,
+                    'first': 4
+                }
+                travel_class = class_map.get(travel_class.lower().strip(), 1)
+
+            # Ensure it's a valid integer between 1-4
+            if not isinstance(travel_class, int) or travel_class not in [1, 2, 3, 4]:
+                logger.warning(f"Invalid travel_class '{travel_class}', defaulting to 1 (Economy)")
+                travel_class = 1
 
             params = {
                 "api_key": settings.SERP_API_KEY,
@@ -64,7 +72,7 @@ class FlightSearchTool:
                 "type": trip_type,
                 "currency": "USD",
                 "adults": passengers,
-                "travel_class": travel_class  # Already validated and lowercased
+                "travel_class": travel_class  # Now correctly using integer 1-4
             }
 
             if trip_type == 1 and return_date:

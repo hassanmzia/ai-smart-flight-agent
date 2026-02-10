@@ -48,7 +48,7 @@ params = {
     "type": 2,  # One-way
     "currency": "USD",
     "adults": 1,
-    "travel_class": "economy"
+    "travel_class": 1  # 1=Economy, 2=Premium economy, 3=Business, 4=First
 }
 
 print(f"   Params: {json.dumps(params, indent=2)}")
