@@ -523,7 +523,8 @@ class UtilityBasedEvaluator:
         Comprehensive hotel evaluation combining price and rating utilities
 
         Returns:
-            Dict with individual scores and combined utility score
+            Dict with individual scores and combined utility score,
+            preserving all original hotel data
         """
         price_eval = UtilityBasedEvaluator.evaluate_price_utility(
             hotel.get('price_per_night', hotel.get('price', 0))
@@ -532,11 +533,16 @@ class UtilityBasedEvaluator:
 
         combined_score = price_eval['price_utility_score'] + rating_eval['rating_utility_score']
 
-        return {
+        # Start with all original hotel data to preserve images, amenities, etc.
+        evaluated_hotel = dict(hotel)
+
+        # Add/override with evaluation fields
+        evaluated_hotel.update({
             # Use field names that match frontend expectations
             "name": hotel.get('hotel_name', hotel.get('name', 'Unknown')),
             "hotel_name": hotel.get('hotel_name', hotel.get('name', 'Unknown')),  # Keep for backward compatibility
             "price": price_eval['price'],
+            "price_per_night": price_eval['price'],  # Ensure this is set
             "price_utility_score": price_eval['price_utility_score'],
             "stars": rating_eval['star_rating'],
             "star_rating": rating_eval['star_rating'],  # Keep for backward compatibility
@@ -544,7 +550,9 @@ class UtilityBasedEvaluator:
             "utility_score": combined_score,  # Frontend expects this name
             "combined_utility_score": combined_score,  # Keep for backward compatibility
             "recommendation": UtilityBasedEvaluator._get_recommendation(combined_score)
-        }
+        })
+
+        return evaluated_hotel
 
     @staticmethod
     def _get_recommendation(score: int) -> str:
