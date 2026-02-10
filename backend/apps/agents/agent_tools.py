@@ -61,7 +61,24 @@ class FlightSearchTool:
             if trip_type == 1 and return_date:
                 params["return_date"] = return_date
 
+            logger.info(f"Flight search params: {params}")
             results = GoogleSearch(params).get_dict()
+
+            # Log raw response for debugging
+            logger.info(f"SerpAPI raw response keys: {results.keys()}")
+            if 'error' in results:
+                logger.error(f"SerpAPI returned error: {results.get('error')}")
+                return {
+                    "success": False,
+                    "error": results.get('error'),
+                    "message": "SerpAPI error",
+                    "flights": []
+                }
+
+            # Log what we got
+            best_count = len(results.get('best_flights', []))
+            other_count = len(results.get('other_flights', []))
+            logger.info(f"Found {best_count} best flights, {other_count} other flights")
 
             # Parse and format results
             formatted_results = FlightSearchTool._format_flight_results(results)
@@ -70,10 +87,12 @@ class FlightSearchTool:
             return formatted_results
 
         except Exception as e:
-            logger.error(f"Flight search error: {str(e)}")
+            logger.error(f"Flight search exception: {str(e)}", exc_info=True)
             return {
+                "success": False,
                 "error": str(e),
-                "message": "Failed to search flights"
+                "message": "Failed to search flights",
+                "flights": []
             }
 
     @staticmethod
@@ -85,51 +104,74 @@ class FlightSearchTool:
             # Extract best flights
             if 'best_flights' in raw_results:
                 for flight_data in raw_results.get('best_flights', []):
-                    flights.append(FlightSearchTool._parse_flight(flight_data))
+                    parsed = FlightSearchTool._parse_flight(flight_data)
+                    if parsed:  # Only add if parse was successful
+                        flights.append(parsed)
 
             # Extract other flights
             if 'other_flights' in raw_results:
                 for flight_data in raw_results.get('other_flights', [])[:10]:  # Limit to 10
-                    flights.append(FlightSearchTool._parse_flight(flight_data))
+                    parsed = FlightSearchTool._parse_flight(flight_data)
+                    if parsed:  # Only add if parse was successful
+                        flights.append(parsed)
+
+            # Check if no flights were found
+            if not flights:
+                logger.warning(f"No flights found in SerpAPI response. Available keys: {list(raw_results.keys())}")
 
             return {
                 "success": True,
                 "flights": flights,
+                "total_found": len(flights),
                 "search_metadata": raw_results.get('search_metadata', {}),
-                "search_parameters": raw_results.get('search_parameters', {})
+                "search_parameters": raw_results.get('search_parameters', {}),
+                "raw_keys": list(raw_results.keys())  # For debugging
             }
         except Exception as e:
-            logger.error(f"Error formatting flight results: {str(e)}")
+            logger.error(f"Error formatting flight results: {str(e)}", exc_info=True)
             return {"success": False, "error": str(e), "flights": []}
 
     @staticmethod
-    def _parse_flight(flight_data: Dict) -> Dict[str, Any]:
+    def _parse_flight(flight_data: Dict) -> Optional[Dict[str, Any]]:
         """Parse individual flight data"""
         try:
-            flights = flight_data.get('flights', [{}])[0]
+            if not flight_data:
+                return None
+
+            flights = flight_data.get('flights', [{}])
+            if not flights:
+                return None
+
+            flight = flights[0]
+
+            # Extract price - this is critical
+            price = flight_data.get('price', 0)
+            if not price:
+                logger.warning(f"Flight missing price: {flight_data.get('airline', 'Unknown')}")
+                return None
 
             return {
-                "airline": flights.get('airline', 'Unknown'),
-                "flight_number": flights.get('flight_number', ''),
-                "departure_airport": flights.get('departure_airport', {}).get('name', ''),
-                "departure_airport_code": flights.get('departure_airport', {}).get('id', ''),
-                "departure_time": flights.get('departure_airport', {}).get('time', ''),
-                "arrival_airport": flights.get('arrival_airport', {}).get('name', ''),
-                "arrival_airport_code": flights.get('arrival_airport', {}).get('id', ''),
-                "arrival_time": flights.get('arrival_airport', {}).get('time', ''),
+                "airline": flight.get('airline', 'Unknown'),
+                "flight_number": flight.get('flight_number', ''),
+                "departure_airport": flight.get('departure_airport', {}).get('name', ''),
+                "departure_airport_code": flight.get('departure_airport', {}).get('id', ''),
+                "departure_time": flight.get('departure_airport', {}).get('time', ''),
+                "arrival_airport": flight.get('arrival_airport', {}).get('name', ''),
+                "arrival_airport_code": flight.get('arrival_airport', {}).get('id', ''),
+                "arrival_time": flight.get('arrival_airport', {}).get('time', ''),
                 "duration": flight_data.get('total_duration', 0),
-                "stops": len(flight_data.get('flights', [])) - 1,
-                "aircraft": flights.get('airplane', 'Unknown'),
-                "travel_class": flights.get('travel_class', 'Economy'),
-                "legroom": flights.get('legroom', 'Standard'),
-                "price": flight_data.get('price', 0),
+                "stops": len(flights) - 1,
+                "aircraft": flight.get('airplane', 'Unknown'),
+                "travel_class": flight.get('travel_class', 'Economy'),
+                "legroom": flight.get('legroom', 'Standard'),
+                "price": price,
                 "currency": "USD",
                 "carbon_emissions": flight_data.get('carbon_emissions', {}),
                 "booking_token": flight_data.get('booking_token', ''),
             }
         except Exception as e:
-            logger.error(f"Error parsing flight: {str(e)}")
-            return {}
+            logger.error(f"Error parsing flight: {str(e)}", exc_info=True)
+            return None
 
 
 class HotelSearchTool:
