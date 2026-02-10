@@ -100,6 +100,16 @@ def transform_serp_flight(flight_data, idx, departure_date=None):
         dep_datetime = f"2026-01-01T12:00:00"
         arr_datetime = f"2026-01-01T14:00:00"
 
+    # Extract and clean price (handle currency strings)
+    price_value = flight_data.get('price', 0)
+    if isinstance(price_value, str):
+        # Remove currency symbols and commas
+        price_value = price_value.replace('$', '').replace(',', '').strip()
+    try:
+        price = float(price_value) if price_value else 0.0
+    except (ValueError, TypeError):
+        price = 0.0
+
     return {
         'id': f"SERP_{idx}_{flight_data.get('departure_token', '')}",
         'airline': first_leg.get('airline', 'Unknown'),
@@ -109,7 +119,7 @@ def transform_serp_flight(flight_data, idx, departure_date=None):
         'departureTime': dep_datetime,
         'arrivalTime': arr_datetime,
         'duration': duration_mins,
-        'price': flight_data.get('price', 0),
+        'price': price,
         'currency': 'USD',
         'class': flight_data.get('type', 'economy'),
         'stops': stops,
@@ -189,6 +199,8 @@ def search_flights(request):
                         flights.append(transform_serp_flight(flight_data, idx, departure_date))
                     except Exception as e:
                         print(f"Error transforming flight {idx}: {e}")
+                        import traceback
+                        traceback.print_exc()
                         continue
 
                 if flights:
