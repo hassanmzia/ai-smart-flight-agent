@@ -76,13 +76,18 @@ api.interceptors.response.use(
       }
     }
 
-    // Format error response
+    // Format error response but preserve original response for debugging
     const apiError: ApiError = {
-      message: error.response?.data?.message || error.message || 'An unexpected error occurred',
+      message: error.response?.data?.message || error.response?.data?.detail || error.message || 'An unexpected error occurred',
       code: error.code,
       status: error.response?.status,
       errors: error.response?.data?.errors,
     };
+
+    // Preserve the original response for detailed error handling
+    if (error.response) {
+      (apiError as any).response = error.response;
+    }
 
     return Promise.reject(apiError);
   }

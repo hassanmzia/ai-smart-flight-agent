@@ -82,9 +82,30 @@ const ItineraryDetailPage = () => {
       navigate('/itinerary');
     } catch (err: any) {
       console.error('Failed to save itinerary - Full error:', err);
+      console.error('Error message:', err.message);
       console.error('Error response:', err.response);
       console.error('Error data:', err.response?.data);
-      const errorMessage = err.response?.data?.message || err.message || 'Failed to save itinerary';
+
+      // The axios interceptor transforms errors, so check both formats
+      let errorMessage = 'Failed to save itinerary';
+
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err.response?.data) {
+        // If data is an object with field errors, format them
+        if (typeof err.response.data === 'object') {
+          const errors = Object.entries(err.response.data)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join('; ');
+          errorMessage = errors || errorMessage;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      console.error('Parsed error message:', errorMessage);
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
