@@ -64,7 +64,6 @@ function App() {
                 <Route path="/booking/:type/:id" element={<BookingPage />} />
                 <Route path={ROUTES.PAYMENT} element={<PaymentPage />} />
                 <Route path={ROUTES.ITINERARY} element={<ItineraryPage />} />
-                <Route path="/itineraries/new" element={<ItineraryDetailPage />} />
                 <Route path="/itineraries/:id" element={<ItineraryDetailPage />} />
                 <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
                 <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
