@@ -11,7 +11,7 @@ export const getNotifications = async (
   unreadOnly: boolean = false
 ): Promise<PaginatedResponse<Notification>> => {
   const response = await api.get(
-    `${API_ENDPOINTS.NOTIFICATIONS.LIST}?page=${page}&pageSize=${pageSize}&unreadOnly=${unreadOnly}`
+    `${API_ENDPOINTS.NOTIFICATIONS.LIST}/notifications/?page=${page}&pageSize=${pageSize}&unreadOnly=${unreadOnly}`
   );
   return handleApiResponse(response);
 };
@@ -20,7 +20,7 @@ export const getNotifications = async (
  * Get unread notification count
  */
 export const getUnreadCount = async (): Promise<number> => {
-  const response = await api.get(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/unread-count`);
+  const response = await api.get(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/notifications/unread_count/`);
   return handleApiResponse(response);
 };
 
@@ -29,7 +29,7 @@ export const getUnreadCount = async (): Promise<number> => {
  */
 export const markAsRead = async (notificationId: string): Promise<void> => {
   const response = await api.put(
-    `${API_ENDPOINTS.NOTIFICATIONS.MARK_READ}/${notificationId}`
+    `${API_ENDPOINTS.NOTIFICATIONS.LIST}/notifications/${notificationId}/mark_read/`
   );
   return handleApiResponse(response);
 };
@@ -38,7 +38,7 @@ export const markAsRead = async (notificationId: string): Promise<void> => {
  * Mark all notifications as read
  */
 export const markAllAsRead = async (): Promise<void> => {
-  const response = await api.put(`${API_ENDPOINTS.NOTIFICATIONS.MARK_READ}/all`);
+  const response = await api.put(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/notifications/mark_all_read/`);
   return handleApiResponse(response);
 };
 
@@ -47,7 +47,7 @@ export const markAllAsRead = async (): Promise<void> => {
  */
 export const deleteNotification = async (notificationId: string): Promise<void> => {
   const response = await api.delete(
-    `${API_ENDPOINTS.NOTIFICATIONS.LIST}/${notificationId}`
+    `${API_ENDPOINTS.NOTIFICATIONS.LIST}/notifications/${notificationId}/`
   );
   return handleApiResponse(response);
 };
@@ -56,7 +56,7 @@ export const deleteNotification = async (notificationId: string): Promise<void> 
  * Delete all notifications
  */
 export const deleteAllNotifications = async (): Promise<void> => {
-  const response = await api.delete(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/all`);
+  const response = await api.delete(`${API_ENDPOINTS.NOTIFICATIONS.LIST}/notifications/all/`);
   return handleApiResponse(response);
 };
 
@@ -69,7 +69,7 @@ export const getNotificationPreferences = async (): Promise<{
   push: boolean;
   types: Record<string, boolean>;
 }> => {
-  const response = await api.get('/api/notifications/preferences');
+  const response = await api.get('/api/notifications/preferences/me/');
   return handleApiResponse(response);
 };
 
@@ -82,6 +82,6 @@ export const updateNotificationPreferences = async (preferences: {
   push?: boolean;
   types?: Record<string, boolean>;
 }): Promise<void> => {
-  const response = await api.put('/api/notifications/preferences', preferences);
+  const response = await api.put('/api/notifications/preferences/me/', preferences);
   return handleApiResponse(response);
 };
