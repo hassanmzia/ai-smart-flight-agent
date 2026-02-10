@@ -45,6 +45,7 @@ export interface RegisterData {
 export interface Flight {
   id: string;
   airline: string;
+  airlineLogo?: string;
   flightNumber: string;
   origin: Airport;
   destination: Airport;
@@ -55,10 +56,26 @@ export interface Flight {
   currency: string;
   class: 'economy' | 'premium_economy' | 'business' | 'first';
   stops: number;
+  layovers?: Layover[];
   availableSeats: number;
   aircraft?: string;
   amenities?: string[];
+  carbonEmissions?: CarbonEmissions;
+  oftenDelayedBy?: number;
+  bookingToken?: string;
   goalEvaluation?: GoalEvaluation;
+}
+
+export interface Layover {
+  airport: string;
+  duration: number; // in minutes
+  id: string;
+}
+
+export interface CarbonEmissions {
+  this_flight: number;
+  typical_for_route: number;
+  difference_percent: number;
 }
 
 export interface Airport {
