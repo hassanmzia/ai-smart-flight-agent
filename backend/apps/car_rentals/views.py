@@ -149,11 +149,45 @@ def search_car_rentals(request):
     """
     from datetime import datetime, timedelta
 
+    # Helper function to convert airport codes to city names
+    def convert_airport_to_city(location):
+        """Convert airport codes to city names for Google Local search"""
+        airport_to_city = {
+            'LAX': 'Los Angeles',
+            'JFK': 'New York JFK',
+            'LGA': 'New York LaGuardia',
+            'EWR': 'Newark',
+            'ORD': 'Chicago',
+            'SFO': 'San Francisco',
+            'MIA': 'Miami',
+            'DFW': 'Dallas',
+            'SEA': 'Seattle',
+            'BOS': 'Boston',
+            'ATL': 'Atlanta',
+            'DEN': 'Denver',
+            'IAD': 'Washington DC',
+            'DCA': 'Washington DC',
+            'LAS': 'Las Vegas',
+            'PHX': 'Phoenix',
+            'IAH': 'Houston',
+            'MCO': 'Orlando',
+            'CDG': 'Paris',
+            'LHR': 'London',
+            'BER': 'Berlin',
+            'FCO': 'Rome',
+            'NRT': 'Tokyo',
+        }
+        return airport_to_city.get(location.upper(), location)
+
     # Get query parameters
-    pickup_city = request.query_params.get('pickup_city', '')
+    pickup_city_raw = request.query_params.get('pickup_city', '')
     pickup_date = request.query_params.get('pickup_date')
     return_date = request.query_params.get('return_date')
     car_type = request.query_params.get('car_type', '')
+
+    # Convert airport code to city name for Google Local search
+    pickup_city = convert_airport_to_city(pickup_city_raw) if pickup_city_raw else ''
+    logger.info(f"Converted location: '{pickup_city_raw}' -> '{pickup_city}'")
 
     # Check if SERP_API_KEY is configured
     serp_api_key = os.getenv('SERP_API_KEY', '')
