@@ -53,10 +53,14 @@ def search_attractions(request):
     Query Parameters:
     - city: City name or airport code (required)
     - category: Attraction category (optional): museums, parks, landmarks, entertainment, etc.
+    - start_date: Start date of travel period (optional, format: YYYY-MM-DD)
+    - end_date: End date of travel period (optional, format: YYYY-MM-DD)
     """
     try:
         city_raw = request.query_params.get('city', '')
         category = request.query_params.get('category', '')
+        start_date_str = request.query_params.get('start_date', '')
+        end_date_str = request.query_params.get('end_date', '')
 
         if not city_raw:
             return Response({

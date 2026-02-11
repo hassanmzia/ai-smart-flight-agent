@@ -74,6 +74,8 @@ export interface SafetyData {
 
 export interface SafetySearchParams {
   city: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 class SafetyService {
@@ -84,6 +86,8 @@ class SafetyService {
       const response = await axios.get(`${this.apiUrl}/info/`, {
         params: {
           city: params.city,
+          start_date: params.start_date,
+          end_date: params.end_date,
         },
       });
 

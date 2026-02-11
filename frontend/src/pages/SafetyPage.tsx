@@ -6,6 +6,8 @@ import Button from '@/components/common/Button';
 const SafetyPage = () => {
   const [searchParams] = useSearchParams();
   const [city, setCity] = useState(searchParams.get('city') || '');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [safetyData, setSafetyData] = useState<SafetyData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,6 +19,11 @@ const SafetyPage = () => {
       return;
     }
 
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+      setError('End date must be after start date');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setSearched(true);
@@ -24,6 +31,8 @@ const SafetyPage = () => {
     try {
       const response = await safetyService.getSafetyInfo({
         city: city.trim(),
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
       });
 
       if (response.success) {
@@ -74,8 +83,8 @@ const SafetyPage = () => {
 
         {/* Search Section */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
-          <div className="flex gap-4">
-            <div className="flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 City or Airport Code
               </label>
@@ -88,11 +97,33 @@ const SafetyPage = () => {
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Travel Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Travel End Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
             <div className="flex items-end">
               <Button
                 onClick={handleSearch}
                 disabled={loading}
-                className="whitespace-nowrap"
+                className="w-full"
               >
                 {loading ? 'Loading...' : 'Get Safety Info'}
               </Button>

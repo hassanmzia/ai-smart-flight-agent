@@ -23,6 +23,8 @@ export interface ShoppingVenue {
 export interface ShoppingSearchParams {
   city: string;
   category?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface ShoppingResponse {
@@ -42,6 +44,8 @@ class ShoppingService {
         params: {
           city: params.city,
           category: params.category,
+          start_date: params.start_date,
+          end_date: params.end_date,
         },
       });
 

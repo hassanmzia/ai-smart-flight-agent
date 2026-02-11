@@ -7,6 +7,8 @@ import Button from '@/components/common/Button';
 const ShoppingPage = () => {
   const [searchParams] = useSearchParams();
   const [city, setCity] = useState(searchParams.get('city') || '');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [category, setCategory] = useState('');
   const [venues, setVenues] = useState<ShoppingVenue[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,6 +31,11 @@ const ShoppingPage = () => {
       return;
     }
 
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+      setError('End date must be after start date');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setSearched(true);
@@ -37,6 +44,8 @@ const ShoppingPage = () => {
       const response = await shoppingService.searchShopping({
         city: city.trim(),
         category: category || undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
       });
 
       if (response.success) {
@@ -75,7 +84,7 @@ const ShoppingPage = () => {
 
         {/* Search Section */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {/* City Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -87,6 +96,32 @@ const ShoppingPage = () => {
                 onChange={(e) => setCity(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="e.g., New York, LAX, London"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* Start Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            {/* End Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               />
             </div>

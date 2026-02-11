@@ -11,6 +11,8 @@ const TouristAttractionSearchPage = () => {
   const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(false);
   const [city, setCity] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [category, setCategory] = useState('');
   const [attractions, setAttractions] = useState<TouristAttraction[]>([]);
 
@@ -22,6 +24,11 @@ const TouristAttractionSearchPage = () => {
       return;
     }
 
+    if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+      showError('End date must be after start date');
+      return;
+    }
+
     setLoading(true);
     setAttractions([]);
 
@@ -29,6 +36,8 @@ const TouristAttractionSearchPage = () => {
       const result = await touristAttractionService.searchAttractions({
         city: city.trim(),
         category: category || undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
       });
 
       if (result.success) {
@@ -60,13 +69,27 @@ const TouristAttractionSearchPage = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Input
                 label="City or Location"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="e.g., New York, Paris, Tokyo"
                 required
+              />
+
+              <Input
+                label="Start Date (Optional)"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+
+              <Input
+                label="End Date (Optional)"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
               />
 
               <div>

@@ -49,9 +49,13 @@ def get_safety_info(request):
 
     Query Parameters:
     - city: City name or airport code (required)
+    - start_date: Start date of travel period (optional, format: YYYY-MM-DD)
+    - end_date: End date of travel period (optional, format: YYYY-MM-DD)
     """
     try:
         city_raw = request.query_params.get('city', '')
+        start_date_str = request.query_params.get('start_date', '')
+        end_date_str = request.query_params.get('end_date', '')
 
         if not city_raw:
             return Response({
@@ -62,14 +66,42 @@ def get_safety_info(request):
         # Convert airport code to city name
         city = convert_airport_to_city(city_raw)
 
-        # Generate safety information
-        safety_data = generate_safety_data(city)
+        # Parse dates if provided
+        start_date = None
+        end_date = None
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            except ValueError:
+                return Response({
+                    'success': False,
+                    'error': 'Invalid start_date format. Use YYYY-MM-DD'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            except ValueError:
+                return Response({
+                    'success': False,
+                    'error': 'Invalid end_date format. Use YYYY-MM-DD'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate safety information
+        safety_data = generate_safety_data(city, start_date, end_date)
+
+        result = {
             'success': True,
             'location': city,
             **safety_data
-        })
+        }
+
+        if start_date:
+            result['start_date'] = start_date.strftime('%Y-%m-%d')
+        if end_date:
+            result['end_date'] = end_date.strftime('%Y-%m-%d')
+
+        return Response(result)
 
     except Exception as e:
         logger.error(f"Error getting safety information: {str(e)}", exc_info=True)
@@ -79,7 +111,7 @@ def get_safety_info(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def generate_safety_data(city: str) -> dict:
+def generate_safety_data(city: str, start_date=None, end_date=None) -> dict:
     """Generate safety information and alerts for a city"""
 
     # Overall safety rating
