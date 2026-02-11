@@ -18,6 +18,7 @@ const AIPlannerPage = () => {
   const [returnDate, setReturnDate] = useState('');
   const [passengers, setPassengers] = useState(1);
   const [budget, setBudget] = useState('');
+  const [cuisine, setCuisine] = useState('');
 
   const handlePlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +39,7 @@ const AIPlannerPage = () => {
           return_date: returnDate || undefined,
           passengers: Number(passengers),
           budget: budget ? Number(budget) : undefined,
+          cuisine: cuisine || undefined,
         }),
       });
 
@@ -121,6 +123,29 @@ const AIPlannerPage = () => {
                 onChange={(e) => setBudget(e.target.value)}
                 placeholder="e.g., 500"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Preferred Cuisine (Optional)
+              </label>
+              <select
+                value={cuisine}
+                onChange={(e) => setCuisine(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">Any Cuisine</option>
+                <option value="American">American</option>
+                <option value="Italian">Italian</option>
+                <option value="Mexican">Mexican</option>
+                <option value="Chinese">Chinese</option>
+                <option value="Japanese">Japanese</option>
+                <option value="Indian">Indian</option>
+                <option value="Thai">Thai</option>
+                <option value="French">French</option>
+                <option value="Mediterranean">Mediterranean</option>
+                <option value="Seafood">Seafood</option>
+              </select>
             </div>
 
             <Button
@@ -720,6 +745,183 @@ const AIPlannerPage = () => {
                         </p>
                         <p className="text-xs text-gray-600 dark:text-gray-400">
                           ${car.total_price} total
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Recommended Restaurant */}
+          {result.recommendation?.recommended_restaurant && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🍽️ Recommended Restaurant</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Restaurant Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-4xl">🍽️</span>
+                      <div>
+                        <h3 className="text-xl font-semibold">
+                          {result.recommendation.recommended_restaurant.name}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {result.recommendation.recommended_restaurant.cuisine_type}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                        {result.recommendation.recommended_restaurant.price_range}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        ${result.recommendation.recommended_restaurant.average_cost_per_person}/person
+                      </p>
+                      {result.recommendation.recommended_restaurant.utility_score !== undefined && (
+                        <p className="text-sm font-semibold mt-1">
+                          Utility Score: {result.recommendation.recommended_restaurant.utility_score}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Rating */}
+                  {result.recommendation.recommended_restaurant.rating > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-yellow-500">⭐</span>
+                      <span className="font-semibold">{result.recommendation.recommended_restaurant.rating.toFixed(1)}</span>
+                      {result.recommendation.recommended_restaurant.review_count > 0 && (
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          ({result.recommendation.recommended_restaurant.review_count} reviews)
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Address */}
+                  {result.recommendation.recommended_restaurant.address && (
+                    <div className="text-sm">
+                      <span className="font-semibold">Address:</span> {result.recommendation.recommended_restaurant.address}
+                    </div>
+                  )}
+
+                  {/* Services */}
+                  <div className="flex flex-wrap gap-2">
+                    {result.recommendation.recommended_restaurant.has_delivery && (
+                      <span className="text-xs px-3 py-1.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full">
+                        🚚 Delivery
+                      </span>
+                    )}
+                    {result.recommendation.recommended_restaurant.has_takeout && (
+                      <span className="text-xs px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full">
+                        🥡 Takeout
+                      </span>
+                    )}
+                    {result.recommendation.recommended_restaurant.has_reservation && (
+                      <span className="text-xs px-3 py-1.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full">
+                        📅 Reservations
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Contact */}
+                  <div className="flex gap-3 text-sm">
+                    {result.recommendation.recommended_restaurant.phone && (
+                      <a
+                        href={`tel:${result.recommendation.recommended_restaurant.phone}`}
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        📞 {result.recommendation.recommended_restaurant.phone}
+                      </a>
+                    )}
+                    {result.recommendation.recommended_restaurant.website && (
+                      <a
+                        href={result.recommendation.recommended_restaurant.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        🌐 Website
+                      </a>
+                    )}
+                  </div>
+
+                  {/* Recommendation */}
+                  {result.recommendation.recommended_restaurant.recommendation && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        💡 {result.recommendation.recommended_restaurant.recommendation}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* No restaurant message */}
+          {result.recommendation && !result.recommendation.recommended_restaurant && result.recommendation.summary?.restaurants_found > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🍽️ Restaurant Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-6 text-gray-600 dark:text-gray-400">
+                  <p className="text-lg">⚠️ No restaurants with ratings available</p>
+                  <p className="mt-2 text-sm">
+                    Restaurants at this location don't have sufficient rating data.
+                    Please try searching for restaurants directly.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Alternative Restaurants */}
+          {result.recommendation?.top_5_restaurants && result.recommendation.top_5_restaurants.length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🍽️ Alternative Restaurants</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {result.recommendation.top_5_restaurants.slice(1, 5).map((restaurant: any, idx: number) => (
+                    <div key={idx} className="flex gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
+                      {/* Restaurant Icon */}
+                      <div className="flex-shrink-0">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl">
+                          🍽️
+                        </div>
+                      </div>
+                      {/* Restaurant Info */}
+                      <div className="flex-grow min-w-0">
+                        <h4 className="font-semibold truncate">{restaurant.name}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{restaurant.cuisine_type}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {restaurant.rating > 0 && (
+                            <>
+                              <span className="text-yellow-500 text-sm">⭐</span>
+                              <span className="text-sm font-semibold">{restaurant.rating.toFixed(1)}</span>
+                              <span className="mx-2">•</span>
+                            </>
+                          )}
+                          <span className="text-sm font-semibold">{restaurant.price_range}</span>
+                          <span className="mx-2">•</span>
+                          <span className="text-sm">Score: {restaurant.utility_score || restaurant.combined_utility_score}</span>
+                        </div>
+                      </div>
+                      {/* Price */}
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                          ${restaurant.average_cost_per_person}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          per person
                         </p>
                       </div>
                     </div>
