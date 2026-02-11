@@ -712,13 +712,38 @@ class CarRentalSearchTool:
             response = requests.get("https://serpapi.com/search", params=params, timeout=30)
             raw_results = response.json()
 
+            logger.info(f"Car rental API response keys: {raw_results.keys()}")
+
+            # Check for errors in API response
+            if 'error' in raw_results:
+                logger.error(f"SERP API error for car rentals: {raw_results.get('error')}")
+                return json.dumps({"success": False, "error": raw_results.get('error'), "cars": []})
+
+            # Check if local_results exists
+            if 'local_results' not in raw_results or len(raw_results.get('local_results', [])) == 0:
+                logger.warning(f"No local_results in car rental response. Keys: {raw_results.keys()}")
+                logger.warning(f"Search parameters: q={params['q']}, location={params['location']}")
+                return json.dumps({
+                    "success": False,
+                    "error": "No car rental results found for this location",
+                    "cars": [],
+                    "debug_info": {
+                        "response_keys": list(raw_results.keys()),
+                        "search_query": params['q'],
+                        "search_location": params['location']
+                    }
+                })
+
             # Format results
-            return json.dumps(self._format_car_rental_results(
+            formatted_results = self._format_car_rental_results(
                 raw_results, pickup_date, dropoff_date, car_type
-            ))
+            )
+
+            logger.info(f"Formatted {len(formatted_results.get('cars', []))} car rental options")
+            return json.dumps(formatted_results)
 
         except Exception as e:
-            logger.error(f"Error searching car rentals: {str(e)}")
+            logger.error(f"Error searching car rentals: {str(e)}", exc_info=True)
             return json.dumps({"success": False, "error": str(e), "cars": []})
 
     @staticmethod

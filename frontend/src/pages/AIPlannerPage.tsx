@@ -762,51 +762,107 @@ const AIPlannerPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Restaurant Header */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-4xl">🍽️</span>
+                  {/* Restaurant Image and Info */}
+                  <div className="flex flex-col md:flex-row gap-4">
+                    {/* Restaurant Image */}
+                    {(result.recommendation.recommended_restaurant.thumbnail || result.recommendation.recommended_restaurant.primary_image) && (
+                      <img
+                        src={result.recommendation.recommended_restaurant.thumbnail || result.recommendation.recommended_restaurant.primary_image}
+                        alt={result.recommendation.recommended_restaurant.name}
+                        className="w-full md:w-64 h-48 object-cover rounded-lg"
+                        onError={(e) => {
+                          // Hide image if it fails to load
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+
+                    {/* Restaurant Details */}
+                    <div className="flex-1 space-y-3">
+                      {/* Restaurant Header */}
                       <div>
                         <h3 className="text-xl font-semibold">
                           {result.recommendation.recommended_restaurant.name}
                         </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {result.recommendation.recommended_restaurant.cuisine_type}
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          {result.recommendation.recommended_restaurant.cuisine_type} • {result.recommendation.recommended_restaurant.city}
                         </p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                        {result.recommendation.recommended_restaurant.price_range}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        ${result.recommendation.recommended_restaurant.average_cost_per_person}/person
-                      </p>
-                      {result.recommendation.recommended_restaurant.utility_score !== undefined && (
-                        <p className="text-sm font-semibold mt-1">
-                          Utility Score: {result.recommendation.recommended_restaurant.utility_score}
-                        </p>
+
+                      {/* Rating */}
+                      {result.recommendation.recommended_restaurant.rating > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-yellow-500">⭐</span>
+                          <span className="font-semibold">{result.recommendation.recommended_restaurant.rating.toFixed(1)}</span>
+                          {result.recommendation.recommended_restaurant.review_count > 0 && (
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              ({result.recommendation.recommended_restaurant.review_count} reviews)
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Price Info */}
+                      <div className="bg-primary-50 dark:bg-primary-900/20 p-3 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+                              {result.recommendation.recommended_restaurant.price_range}
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              ~${result.recommendation.recommended_restaurant.average_cost_per_person} per person
+                            </p>
+                          </div>
+                          {result.recommendation.recommended_restaurant.utility_score !== undefined && (
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                Utility Score
+                              </p>
+                              <p className="text-xl font-bold text-primary-600 dark:text-primary-400">
+                                {result.recommendation.recommended_restaurant.utility_score}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Address */}
+                      {result.recommendation.recommended_restaurant.address && (
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          📍 {result.recommendation.recommended_restaurant.address}
+                        </div>
+                      )}
+
+                      {/* Hours */}
+                      {result.recommendation.recommended_restaurant.hours && (
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          🕒 {result.recommendation.recommended_restaurant.hours}
+                        </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Rating */}
-                  {result.recommendation.recommended_restaurant.rating > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-yellow-500">⭐</span>
-                      <span className="font-semibold">{result.recommendation.recommended_restaurant.rating.toFixed(1)}</span>
-                      {result.recommendation.recommended_restaurant.review_count > 0 && (
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          ({result.recommendation.recommended_restaurant.review_count} reviews)
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Address */}
-                  {result.recommendation.recommended_restaurant.address && (
-                    <div className="text-sm">
-                      <span className="font-semibold">Address:</span> {result.recommendation.recommended_restaurant.address}
+                  {/* Utility Score Breakdown */}
+                  {(result.recommendation.recommended_restaurant.rating_utility_score !== undefined ||
+                    result.recommendation.recommended_restaurant.price_utility_score !== undefined) && (
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        Utility Score Breakdown:
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        {result.recommendation.recommended_restaurant.rating_utility_score !== undefined && (
+                          <div className="text-gray-600 dark:text-gray-400">
+                            • Rating Score: {result.recommendation.recommended_restaurant.rating_utility_score > 0 ? '+' : ''}
+                            {result.recommendation.recommended_restaurant.rating_utility_score}
+                          </div>
+                        )}
+                        {result.recommendation.recommended_restaurant.price_utility_score !== undefined && (
+                          <div className="text-gray-600 dark:text-gray-400">
+                            • Price Score: {result.recommendation.recommended_restaurant.price_utility_score > 0 ? '+' : ''}
+                            {result.recommendation.recommended_restaurant.price_utility_score}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -892,29 +948,49 @@ const AIPlannerPage = () => {
                 <div className="space-y-3">
                   {result.recommendation.top_5_restaurants.slice(1, 5).map((restaurant: any, idx: number) => (
                     <div key={idx} className="flex gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
-                      {/* Restaurant Icon */}
-                      <div className="flex-shrink-0">
-                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl">
+                      {/* Restaurant Thumbnail */}
+                      {(restaurant.thumbnail || restaurant.primary_image) ? (
+                        <img
+                          src={restaurant.thumbnail || restaurant.primary_image}
+                          alt={restaurant.name}
+                          className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                          onError={(e) => {
+                            // Show icon if image fails to load
+                            const parent = (e.target as HTMLImageElement).parentElement;
+                            if (parent) {
+                              parent.innerHTML = '<div class="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl">🍽️</div>';
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
                           🍽️
                         </div>
-                      </div>
+                      )}
+
                       {/* Restaurant Info */}
                       <div className="flex-grow min-w-0">
                         <h4 className="font-semibold truncate">{restaurant.name}</h4>
                         <p className="text-sm text-gray-600 dark:text-gray-400">{restaurant.cuisine_type}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {restaurant.rating > 0 && (
                             <>
                               <span className="text-yellow-500 text-sm">⭐</span>
                               <span className="text-sm font-semibold">{restaurant.rating.toFixed(1)}</span>
-                              <span className="mx-2">•</span>
+                              <span className="text-gray-400">•</span>
                             </>
                           )}
-                          <span className="text-sm font-semibold">{restaurant.price_range}</span>
-                          <span className="mx-2">•</span>
-                          <span className="text-sm">Score: {restaurant.utility_score || restaurant.combined_utility_score}</span>
+                          <span className="text-sm font-semibold text-green-600 dark:text-green-400">{restaurant.price_range}</span>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Score: {restaurant.utility_score || restaurant.combined_utility_score}</span>
                         </div>
+                        {restaurant.address && (
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 truncate">
+                            📍 {restaurant.address}
+                          </p>
+                        )}
                       </div>
+
                       {/* Price */}
                       <div className="flex-shrink-0 text-right">
                         <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
