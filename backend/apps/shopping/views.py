@@ -193,12 +193,12 @@ def generate_sample_shopping_data(city: str, category: str = '') -> list:
         features = random.sample(all_features, random.randint(4, 7))
 
         venues.append({
-            'name': f\"{city} {template['name']}\",
+            'name': f"{city} {template['name']}",
             'category': venue_category,
             'icon': template['icon'],
-            'description': f\"Popular shopping destination in {city} with a wide variety of stores and brands.\",
+            'description': f"Popular shopping destination in {city} with a wide variety of stores and brands.",
             'location': random.choice(areas),
-            'address': f\"{random.randint(100, 999)} {random.choice(areas)} {random.choice(['Street', 'Avenue', 'Road', 'Boulevard'])}\",
+            'address': f"{random.randint(100, 999)} {random.choice(areas)} {random.choice(['Street', 'Avenue', 'Road', 'Boulevard'])}",
             'price_level': price_level,
             'store_count': template['stores'],
             'opening_hours': hours,
