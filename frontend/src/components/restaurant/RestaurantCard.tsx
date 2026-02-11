@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/common';
 import type { Restaurant } from '@/services/restaurantService';
 
@@ -7,6 +7,9 @@ interface RestaurantCardProps {
 }
 
 const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
   const getCuisineIcon = (cuisine: string) => {
     const icons: { [key: string]: string } = {
       Italian: '🍝',
@@ -24,7 +27,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) => {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card hover className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
@@ -40,13 +43,32 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) => {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {/* Image */}
-          {restaurant.thumbnail && (
-            <img
-              src={restaurant.thumbnail}
-              alt={restaurant.name}
-              className="w-full h-48 object-cover rounded-lg"
-            />
+          {/* Image with lazy loading and better sizing */}
+          {restaurant.thumbnail && !imageError ? (
+            <div className="relative w-full h-32 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700">
+              {!imageLoaded && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="animate-pulse text-4xl">{getCuisineIcon(restaurant.cuisine_type)}</div>
+                </div>
+              )}
+              <img
+                src={restaurant.thumbnail}
+                alt={restaurant.name}
+                loading="lazy"
+                className={`w-full h-32 object-cover transition-opacity duration-300 ${
+                  imageLoaded ? 'opacity-100' : 'opacity-0'
+                }`}
+                onLoad={() => setImageLoaded(true)}
+                onError={() => {
+                  setImageError(true);
+                  setImageLoaded(true);
+                }}
+              />
+            </div>
+          ) : (
+            <div className="w-full h-32 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center">
+              <span className="text-6xl">{getCuisineIcon(restaurant.cuisine_type)}</span>
+            </div>
           )}
 
           {/* Cuisine and Price */}
