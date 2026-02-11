@@ -701,12 +701,16 @@ class CarRentalSearchTool:
             logger.info(f"Searching car rentals: {pickup_location} -> {search_location}, {pickup_date} to {dropoff_date}")
 
             # Build SerpAPI parameters
+            # Use more specific search terms to get better results
+            search_query = f"car rental companies {search_location}"
             params = {
                 "engine": "google_local",
-                "q": f"car rental {search_location}",
+                "q": search_query,
                 "location": search_location,
                 "api_key": settings.SERP_API_KEY
             }
+
+            logger.info(f"Car rental search query: {search_query}")
 
             # Make API request
             response = requests.get("https://serpapi.com/search", params=params, timeout=30)
@@ -719,22 +723,13 @@ class CarRentalSearchTool:
                 logger.error(f"SERP API error for car rentals: {raw_results.get('error')}")
                 return json.dumps({"success": False, "error": raw_results.get('error'), "cars": []})
 
-            # Check if local_results exists
-            if 'local_results' not in raw_results or len(raw_results.get('local_results', [])) == 0:
+            # Log if local_results is missing or empty
+            local_results = raw_results.get('local_results', [])
+            if not local_results:
                 logger.warning(f"No local_results in car rental response. Keys: {raw_results.keys()}")
-                logger.warning(f"Search parameters: q={params['q']}, location={params['location']}")
-                return json.dumps({
-                    "success": False,
-                    "error": "No car rental results found for this location",
-                    "cars": [],
-                    "debug_info": {
-                        "response_keys": list(raw_results.keys()),
-                        "search_query": params['q'],
-                        "search_location": params['location']
-                    }
-                })
+                logger.warning(f"Search parameters: q={search_query}, location={search_location}")
 
-            # Format results
+            # Format results (will return empty cars array if no results)
             formatted_results = self._format_car_rental_results(
                 raw_results, pickup_date, dropoff_date, car_type
             )
