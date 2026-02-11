@@ -851,8 +851,12 @@ class MultiAgentTravelSystem:
                 "parameters": kwargs,
                 "flights": final_state.get('flight_results'),
                 "hotels": final_state.get('hotel_results'),
+                "car_rentals": final_state.get('car_rental_results'),
+                "restaurants": final_state.get('restaurant_results'),
                 "goal_evaluation": final_state.get('goal_evaluation'),
                 "utility_evaluation": final_state.get('utility_evaluation'),
+                "car_evaluation": final_state.get('car_evaluation'),
+                "restaurant_evaluation": final_state.get('restaurant_evaluation'),
                 "recommendation": final_state.get('final_recommendation'),
                 "messages": [msg.content for msg in final_state.get('messages', [])]
             }
