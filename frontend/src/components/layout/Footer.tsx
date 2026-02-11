@@ -24,18 +24,18 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/careers"
-                  className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
-                >
-                  Careers
-                </Link>
-              </li>
-              <li>
-                <Link
                   to="/contact"
                   className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
                 >
                   Contact
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to={ROUTES.AI_PLANNER}
+                  className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+                >
+                  AI Planner
                 </Link>
               </li>
             </ul>
@@ -49,18 +49,18 @@ const Footer = () => {
             <ul className="mt-4 space-y-2">
               <li>
                 <Link
-                  to="/help"
+                  to="/faq"
                   className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
                 >
-                  Help Center
+                  Help & FAQ
                 </Link>
               </li>
               <li>
                 <Link
-                  to="/faq"
+                  to={ROUTES.DASHBOARD}
                   className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
                 >
-                  FAQ
+                  My Bookings
                 </Link>
               </li>
               <li>
