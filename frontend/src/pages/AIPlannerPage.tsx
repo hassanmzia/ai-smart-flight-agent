@@ -366,65 +366,6 @@ const AIPlannerPage = () => {
             </Card>
           )}
 
-          {/* Alternative Flight */}
-          {result.recommendation?.alternative_flight && (
-            <Card>
-              <CardHeader>
-                <CardTitle>✈️ Alternative Flight Option</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {result.recommendation.alternative_flight.airline_logo && (
-                      <img
-                        src={result.recommendation.alternative_flight.airline_logo}
-                        alt={result.recommendation.alternative_flight.airline}
-                        className="h-8 w-8 object-contain"
-                      />
-                    )}
-                    <div>
-                      <h4 className="font-semibold">{result.recommendation.alternative_flight.airline}</h4>
-                      {result.recommendation.alternative_flight.flight_number && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Flight {result.recommendation.alternative_flight.flight_number}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2 mt-1 text-sm">
-                        <span>{result.recommendation.alternative_flight.departure_time?.split(' ')[1] || result.recommendation.alternative_flight.departure_time}</span>
-                        <span className="text-gray-400">→</span>
-                        <span>{result.recommendation.alternative_flight.arrival_time?.split(' ')[1] || result.recommendation.alternative_flight.arrival_time}</span>
-                        <span className="mx-2 text-gray-400">•</span>
-                        <span className="text-gray-600 dark:text-gray-400">
-                          {result.recommendation.alternative_flight.stops === 0
-                            ? 'Nonstop'
-                            : `${result.recommendation.alternative_flight.stops} stop${result.recommendation.alternative_flight.stops > 1 ? 's' : ''}`
-                          }
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                      ${result.recommendation.alternative_flight.price}
-                    </p>
-                    {result.recommendation.alternative_flight.goal_score !== undefined && (
-                      <p className={`text-sm mt-1 ${
-                        result.recommendation.alternative_flight.budget_status === 'within budget'
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-orange-600 dark:text-orange-400'
-                      }`}>
-                        {result.recommendation.alternative_flight.budget_status === 'within budget'
-                          ? `✓ Within budget`
-                          : `! Over budget`
-                        }
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Recommended Hotel - Enhanced */}
           {result.recommendation?.recommended_hotel && (
             <Card>
@@ -720,58 +661,6 @@ const AIPlannerPage = () => {
             </Card>
           )}
 
-          {/* Alternative Cars */}
-          {result.recommendation?.top_5_cars && result.recommendation.top_5_cars.length > 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>🚗 Alternative Car Rentals</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {result.recommendation.top_5_cars.slice(1, 5).map((car: any, idx: number) => (
-                    <div key={idx} className="flex gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
-                      {/* Car Icon */}
-                      <div className="flex-shrink-0">
-                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl">
-                          🚗
-                        </div>
-                      </div>
-
-                      {/* Car Info */}
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{car.rental_company}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{car.vehicle || car.car_type}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded capitalize">
-                            {car.car_type}
-                          </span>
-                          {car.rating > 0 && (
-                            <span className="text-xs">⭐ {car.rating.toFixed(1)}</span>
-                          )}
-                          {car.utility_score !== undefined && (
-                            <span className="text-xs text-gray-600 dark:text-gray-400">
-                              Score: {car.utility_score}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Price */}
-                      <div className="flex-shrink-0 text-right">
-                        <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
-                          ${car.price_per_day}/day
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          ${car.total_price} total
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Recommended Restaurant */}
           {result.recommendation?.recommended_restaurant && (
             <Card>
@@ -955,6 +844,42 @@ const AIPlannerPage = () => {
             </Card>
           )}
 
+          {/* Alternative Flights */}
+          {result.flights?.flights && result.flights.flights.length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>✈️ Alternative Flights</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {result.flights.flights.slice(1, 6).map((flight: any, idx: number) => (
+                    <div key={idx} className="flex gap-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          {flight.airline_logo && (
+                            <img src={flight.airline_logo} alt={flight.airline} className="h-6 w-6 object-contain" />
+                          )}
+                          <h4 className="font-semibold">{flight.airline}</h4>
+                          {flight.flight_number && <span className="text-sm text-gray-600 dark:text-gray-400">#{flight.flight_number}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span>{flight.departure_time?.split(' ')[1] || flight.departure_time}</span>
+                          <span className="text-gray-400">→</span>
+                          <span>{flight.arrival_time?.split(' ')[1] || flight.arrival_time}</span>
+                          <span className="mx-2">•</span>
+                          <span>{flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop${flight.stops > 1 ? 's' : ''}`}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-primary-600 dark:text-primary-400">${flight.price}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Alternative Hotels */}
           {result.recommendation?.top_5_hotels && result.recommendation.top_5_hotels.length > 1 && (
             <Card>
@@ -963,22 +888,18 @@ const AIPlannerPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {result.recommendation.top_5_hotels.slice(1, 5).map((hotel: any, idx: number) => (
+                  {result.recommendation.top_5_hotels.slice(1, 6).map((hotel: any, idx: number) => (
                     <div key={idx} className="flex gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
-                      {/* Hotel Thumbnail */}
                       {hotel.images?.[0] && (
                         <img
                           src={hotel.images[0]}
                           alt={hotel.name || hotel.hotel_name}
                           className="w-24 h-24 object-cover rounded"
                           onError={(e) => {
-                            // Hide image if it fails to load
                             (e.target as HTMLImageElement).style.display = 'none';
                           }}
                         />
                       )}
-
-                      {/* Hotel Info */}
                       <div className="flex-1">
                         <h4 className="font-semibold">{hotel.name || hotel.hotel_name}</h4>
                         <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -990,6 +911,111 @@ const AIPlannerPage = () => {
                           <span className="mx-2">•</span>
                           <span>Score: {hotel.utility_score || hotel.combined_utility_score}</span>
                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Alternative Car Rentals */}
+          {result.recommendation?.top_5_cars && result.recommendation.top_5_cars.length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🚗 Alternative Car Rentals</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {result.recommendation.top_5_cars.slice(1, 6).map((car: any, idx: number) => (
+                    <div key={idx} className="flex gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
+                      <div className="flex-shrink-0">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl">
+                          🚗
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{car.rental_company}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{car.vehicle || car.car_type}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded capitalize">
+                            {car.car_type}
+                          </span>
+                          {car.rating > 0 && (
+                            <span className="text-xs">⭐ {car.rating.toFixed(1)}</span>
+                          )}
+                          {car.utility_score !== undefined && (
+                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                              Score: {car.utility_score}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                          ${car.price_per_day}/day
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          ${car.total_price} total
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Alternative Restaurants */}
+          {result.recommendation?.top_5_restaurants && result.recommendation.top_5_restaurants.length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🍽️ Alternative Restaurants</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {result.recommendation.top_5_restaurants.slice(1, 6).map((restaurant: any, idx: number) => (
+                    <div key={idx} className="flex gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
+                      {(restaurant.thumbnail || restaurant.primary_image) ? (
+                        <img
+                          src={restaurant.thumbnail || restaurant.primary_image}
+                          alt={restaurant.name}
+                          className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                          onError={(e) => {
+                            const parent = (e.target as HTMLImageElement).parentElement;
+                            if (parent) {
+                              parent.innerHTML = '<div class="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl">🍽️</div>';
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl flex-shrink-0">
+                          🍽️
+                        </div>
+                      )}
+                      <div className="flex-grow min-w-0">
+                        <h4 className="font-semibold truncate">{restaurant.name}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{restaurant.cuisine_type}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {restaurant.rating > 0 && (
+                            <>
+                              <span className="text-yellow-500 text-sm">⭐</span>
+                              <span className="text-sm font-semibold">{restaurant.rating.toFixed(1)}</span>
+                              <span className="text-gray-400">•</span>
+                            </>
+                          )}
+                          <span className="text-sm font-semibold text-green-600 dark:text-green-400">{restaurant.price_range}</span>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Score: {restaurant.utility_score || restaurant.combined_utility_score}</span>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                          ${restaurant.average_cost_per_person}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          per person
+                        </p>
                       </div>
                     </div>
                   ))}
