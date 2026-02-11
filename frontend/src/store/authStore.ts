@@ -128,6 +128,17 @@ const useAuthStore = create<AuthState>()(
             throw error;
           }
         },
+
+        refreshUser: async () => {
+          try {
+            const user = await authService.getCurrentUser();
+            storage.set(STORAGE_KEYS.USER_DATA, user);
+            set({ user });
+          } catch (error: any) {
+            console.error('Failed to refresh user:', error);
+            throw error;
+          }
+        },
       }),
       {
         name: 'auth-storage',

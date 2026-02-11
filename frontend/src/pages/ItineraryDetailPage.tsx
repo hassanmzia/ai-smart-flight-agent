@@ -70,7 +70,7 @@ const ItineraryDetailPage = () => {
         console.log('Creating new itinerary...');
         const dataWithUser = {
           ...formData,
-          user: user.id, // Add the authenticated user's ID
+          user: String(user.id), // Add the authenticated user's ID as string
           status: 'planned', // Set default status to 'planned'
         };
         const result = await createItinerary(dataWithUser);

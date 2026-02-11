@@ -18,6 +18,7 @@ export const useAuth = () => {
     register: authStore.register,
     logout: authStore.logout,
     updateUser: authStore.updateUser,
+    refreshUser: authStore.refreshUser,
   };
 };
 

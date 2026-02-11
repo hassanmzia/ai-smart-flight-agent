@@ -1,13 +1,55 @@
 // User & Authentication Types
+export interface UserProfile {
+  id: number;
+  date_of_birth?: string;
+  nationality?: string;
+  passport_number?: string;
+  passport_expiry?: string;
+  preferred_currency: string;
+  preferred_language: string;
+  preferred_travel_class: string;
+  preferred_airlines: string[];
+  preferred_hotel_chains: string[];
+  frequent_flyer_programs: Record<string, string>;
+  hotel_loyalty_programs: Record<string, string>;
+  dietary_restrictions: string[];
+  accessibility_needs?: string;
+  seat_preference: string;
+  total_trips: number;
+  total_flights: number;
+  total_hotel_nights: number;
+  countries_visited: string[];
+  cities_visited: string[];
+  email_notifications: boolean;
+  sms_notifications: boolean;
+  push_notifications: boolean;
+  avatar?: string;
+  bio?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface User {
-  id: string;
+  id: string | number;
   email: string;
-  name: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
   phone?: string;
-  role: 'user' | 'admin';
+  phone_number?: string;
+  role?: 'user' | 'admin';
+  is_active?: boolean;
+  is_verified?: boolean;
+  is_staff?: boolean;
+  date_joined?: string;
+  last_login?: string;
+  profile?: UserProfile;
   preferences?: UserPreferences;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface UserPreferences {
@@ -459,6 +501,7 @@ export interface AuthState {
   logout: () => void;
   refreshToken: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 export interface SearchState {

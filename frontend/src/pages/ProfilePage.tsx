@@ -276,7 +276,7 @@ const ProfilePage = () => {
                   label="Email Address"
                   value={user?.email || ''}
                   disabled
-                  helpText="Email cannot be changed. Contact support if needed."
+                  helperText="Email cannot be changed. Contact support if needed."
                 />
 
                 <Input
