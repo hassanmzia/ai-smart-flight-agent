@@ -15,16 +15,16 @@ export const Card = ({
 }: CardProps) => {
   const paddingStyles = {
     none: '',
-    sm: 'p-3',
-    md: 'p-4',
-    lg: 'p-6',
+    sm: 'p-4',
+    md: 'p-6',
+    lg: 'p-8',
   };
 
   return (
     <div
       className={cn(
-        'bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm',
-        hover && 'hover:shadow-md transition-shadow cursor-pointer',
+        'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md',
+        hover && 'hover:shadow-xl hover:border-primary-300 dark:hover:border-primary-700 transition-all duration-200 cursor-pointer transform hover:-translate-y-0.5',
         paddingStyles[padding],
         className
       )}
@@ -54,7 +54,7 @@ export const CardTitle = ({
 }: HTMLAttributes<HTMLHeadingElement>) => {
   return (
     <h3
-      className={cn('text-lg font-semibold text-gray-900 dark:text-white', className)}
+      className={cn('text-xl font-bold text-gray-900 dark:text-white', className)}
       {...props}
     >
       {children}

@@ -30,39 +30,47 @@ const HomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-primary-600 to-primary-800 dark:from-primary-700 dark:to-primary-900 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold mb-4">
+      <div className="relative bg-gradient-to-br from-primary-600 via-primary-700 to-primary-900 dark:from-primary-700 dark:via-primary-800 dark:to-primary-950 text-white py-24 overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+            backgroundSize: '40px 40px'
+          }}></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="text-center mb-16">
+            <h1 className="text-5xl md:text-6xl font-extrabold mb-6 leading-tight">
               Your AI-Powered Travel Companion
             </h1>
-            <p className="text-xl opacity-90">
+            <p className="text-xl md:text-2xl opacity-95 max-w-3xl mx-auto font-light">
               Smart flight and hotel bookings with goal-based optimization
             </p>
           </div>
 
           {/* Search Form */}
-          <Card className="max-w-4xl mx-auto">
-            <div className="flex space-x-4 mb-6">
+          <Card className="max-w-4xl mx-auto backdrop-blur-sm">
+            <div className="flex space-x-4 mb-8">
               <button
                 onClick={() => setSearchType('flight')}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all duration-200 ${
                   searchType === 'flight'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    ? 'bg-primary-600 text-white shadow-lg transform scale-105'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                Flights
+                ✈️ Flights
               </button>
               <button
                 onClick={() => setSearchType('hotel')}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all duration-200 ${
                   searchType === 'hotel'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    ? 'bg-primary-600 text-white shadow-lg transform scale-105'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                Hotels
+                🏨 Hotels
               </button>
             </div>
 
@@ -105,8 +113,8 @@ const HomePage = () => {
                 />
               </div>
 
-              <Button type="submit" className="w-full" size="lg">
-                Search {searchType === 'flight' ? 'Flights' : 'Hotels'}
+              <Button type="submit" className="w-full shadow-lg hover:shadow-xl" size="lg">
+                🔍 Search {searchType === 'flight' ? 'Flights' : 'Hotels'}
               </Button>
             </form>
           </Card>
@@ -114,44 +122,49 @@ const HomePage = () => {
       </div>
 
       {/* Features Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
-          Why Choose AI Travel Agent?
-        </h2>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            Why Choose AI Travel Agent?
+          </h2>
+          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            Experience the future of travel planning with our intelligent platform
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="text-center">
-            <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <MagnifyingGlassIcon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+          <Card hover className="text-center group">
+            <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900/30 dark:to-primary-800/20 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-200">
+              <MagnifyingGlassIcon className="h-10 w-10 text-primary-600 dark:text-primary-400" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
               Smart Search
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
               AI-powered search with goal-based optimization finds the best deals for your needs
             </p>
           </Card>
 
-          <Card className="text-center">
-            <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CalendarIcon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+          <Card hover className="text-center group">
+            <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900/30 dark:to-primary-800/20 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-200">
+              <CalendarIcon className="h-10 w-10 text-primary-600 dark:text-primary-400" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
               Trip Planning
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
               Organize your entire trip with our intuitive itinerary builder
             </p>
           </Card>
 
-          <Card className="text-center">
-            <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserGroupIcon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
+          <Card hover className="text-center group">
+            <div className="w-20 h-20 bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900/30 dark:to-primary-800/20 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-200">
+              <UserGroupIcon className="h-10 w-10 text-primary-600 dark:text-primary-400" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
               24/7 Support
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
               AI assistant available anytime to help with your travel needs
             </p>
           </Card>

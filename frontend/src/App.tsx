@@ -35,6 +35,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 
 // Create query client
 const queryClient = new QueryClient({
@@ -88,6 +89,7 @@ function App() {
                 <Route path={ROUTES.ADMIN_DASHBOARD} element={<AdminDashboardPage />} />
                 <Route path={ROUTES.LOGIN} element={<LoginPage />} />
                 <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
 
                 {/* 404 */}
                 <Route

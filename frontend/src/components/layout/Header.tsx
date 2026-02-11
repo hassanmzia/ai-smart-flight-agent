@@ -7,6 +7,7 @@ import {
   SunIcon,
   MoonIcon,
   Bars3Icon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -32,88 +33,184 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
+    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to={ROUTES.HOME} className="flex items-center">
-            <span className="text-2xl font-bold text-primary-600 dark:text-primary-400">
+          <Link to={ROUTES.HOME} className="flex items-center gap-2 group">
+            <span className="text-2xl">✈️</span>
+            <span className="text-lg font-bold bg-gradient-to-r from-primary-600 to-primary-800 dark:from-primary-400 dark:to-primary-600 bg-clip-text text-transparent group-hover:from-primary-700 group-hover:to-primary-900 dark:group-hover:from-primary-300 dark:group-hover:to-primary-500 transition-all">
               AI Travel Agent
             </span>
           </Link>
 
           {/* Navigation */}
-          <nav className="hidden md:flex space-x-8">
+          <nav className="hidden lg:flex items-center space-x-1">
             <Link
               to={ROUTES.SEARCH}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium"
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             >
               Search
             </Link>
             <Link
               to={ROUTES.AI_PLANNER}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
             >
-              🤖 AI Planner
+              <span>🤖</span> AI Planner
             </Link>
-            <Link
-              to="/cars"
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
-            >
-              🚗 Cars
-            </Link>
-            <Link
-              to="/restaurants"
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
-            >
-              🍽️ Restaurants
-            </Link>
-            <Link
-              to="/attractions"
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
-            >
-              🗺️ Attractions
-            </Link>
-            <Link
-              to="/weather"
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
-            >
-              🌤️ Weather
-            </Link>
-            <Link
-              to="/events"
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
-            >
-              🎉 Events
-            </Link>
-            <Link
-              to="/shopping"
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
-            >
-              🛍️ Shopping
-            </Link>
-            <Link
-              to="/safety"
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
-            >
-              🛡️ Safety
-            </Link>
-            <Link
-              to="/commute"
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
-            >
-              🚗 Traffic
-            </Link>
+
+            {/* Explore Dropdown */}
+            <Menu as="div" className="relative">
+              <Menu.Button className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all">
+                Explore
+                <ChevronDownIcon className="h-4 w-4" />
+              </Menu.Button>
+
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-100"
+                enterFrom="transform opacity-0 scale-95"
+                enterTo="transform opacity-100 scale-100"
+                leave="transition ease-in duration-75"
+                leaveFrom="transform opacity-100 scale-100"
+                leaveTo="transform opacity-0 scale-95"
+              >
+                <Menu.Items className="absolute left-0 mt-2 w-56 origin-top-left rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700">
+                  <div className="p-1">
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to="/attractions"
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🗺️</span> Attractions
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to="/restaurants"
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🍽️</span> Restaurants
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to="/shopping"
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🛍️</span> Shopping
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to="/events"
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🎉</span> Events
+                        </Link>
+                      )}
+                    </Menu.Item>
+                  </div>
+                </Menu.Items>
+              </Transition>
+            </Menu>
+
+            {/* Travel Info Dropdown */}
+            <Menu as="div" className="relative">
+              <Menu.Button className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all">
+                Travel Info
+                <ChevronDownIcon className="h-4 w-4" />
+              </Menu.Button>
+
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-100"
+                enterFrom="transform opacity-0 scale-95"
+                enterTo="transform opacity-100 scale-100"
+                leave="transition ease-in duration-75"
+                leaveFrom="transform opacity-100 scale-100"
+                leaveTo="transform opacity-0 scale-95"
+              >
+                <Menu.Items className="absolute left-0 mt-2 w-56 origin-top-left rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700">
+                  <div className="p-1">
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to="/weather"
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🌤️</span> Weather
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to="/commute"
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🚗</span> Traffic & Commute
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to="/safety"
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🛡️</span> Safety
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to="/cars"
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🚙</span> Car Rentals
+                        </Link>
+                      )}
+                    </Menu.Item>
+                  </div>
+                </Menu.Items>
+              </Transition>
+            </Menu>
+
             <Link
               to={ROUTES.ITINERARY}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium"
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             >
               My Trips
             </Link>
             {isAuthenticated && (
               <Link
                 to={ROUTES.DASHBOARD}
-                className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium"
+                className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
               >
                 Dashboard
               </Link>
