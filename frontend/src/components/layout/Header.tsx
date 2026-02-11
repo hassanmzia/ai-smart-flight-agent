@@ -75,6 +75,12 @@ const Header = () => {
               🗺️ Attractions
             </Link>
             <Link
+              to="/weather"
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
+            >
+              🌤️ Weather
+            </Link>
+            <Link
               to={ROUTES.ITINERARY}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium"
             >

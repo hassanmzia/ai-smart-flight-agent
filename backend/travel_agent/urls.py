@@ -163,6 +163,7 @@ urlpatterns = [
     path('api/restaurants/', include('apps.restaurants.urls')),
     path('api/car-rentals/', include('apps.car_rentals.urls')),
     path('api/tourist-attractions/', include('apps.tourist_attractions.urls')),
+    path('api/weather/', include('apps.weather.urls')),
 ]
 
 # Serve media files in development
