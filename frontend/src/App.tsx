@@ -23,6 +23,7 @@ const WeatherPage = lazy(() => import('./pages/WeatherPage'));
 const EventsPage = lazy(() => import('./pages/EventsPage'));
 const ShoppingPage = lazy(() => import('./pages/ShoppingPage'));
 const SafetyPage = lazy(() => import('./pages/SafetyPage'));
+const CommutePage = lazy(() => import('./pages/CommutePage'));
 const BookingPage = lazy(() => import('./pages/BookingPage'));
 const FlightBookingPage = lazy(() => import('./pages/FlightBookingPage'));
 const HotelBookingPage = lazy(() => import('./pages/HotelBookingPage'));
@@ -74,6 +75,7 @@ function App() {
                 <Route path="/events" element={<EventsPage />} />
                 <Route path="/shopping" element={<ShoppingPage />} />
                 <Route path="/safety" element={<SafetyPage />} />
+                <Route path="/commute" element={<CommutePage />} />
                 <Route path="/booking/flight" element={<FlightBookingPage />} />
                 <Route path="/booking/hotel" element={<HotelBookingPage />} />
                 <Route path={ROUTES.BOOKING} element={<BookingPage />} />

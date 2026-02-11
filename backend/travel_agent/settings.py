@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'apps.events',
     'apps.shopping',
     'apps.safety',
+    'apps.commute',
 ]
 
 MIDDLEWARE = [

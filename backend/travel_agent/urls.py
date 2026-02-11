@@ -167,6 +167,7 @@ urlpatterns = [
     path('api/events/', include('apps.events.urls')),
     path('api/shopping/', include('apps.shopping.urls')),
     path('api/safety/', include('apps.safety.urls')),
+    path('api/commute/', include('apps.commute.urls')),
 ]
 
 # Serve media files in development
