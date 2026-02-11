@@ -18,9 +18,11 @@ from .agent_tools import (
     FlightSearchTool,
     HotelSearchTool,
     CarRentalSearchTool,
+    RestaurantSearchTool,
     GoalBasedEvaluator,
     UtilityBasedEvaluator,
     CarRentalEvaluator,
+    RestaurantEvaluator,
     WeatherTool
 )
 
@@ -41,9 +43,11 @@ class TravelAgentState(TypedDict):
     flight_results: Optional[Dict]
     hotel_results: Optional[Dict]
     car_rental_results: Optional[Dict]
+    restaurant_results: Optional[Dict]
     goal_evaluation: Optional[Dict]
     utility_evaluation: Optional[Dict]
     car_evaluation: Optional[Dict]
+    restaurant_evaluation: Optional[Dict]
     final_recommendation: Optional[Dict]
     current_agent: str
     error: Optional[str]
@@ -329,6 +333,131 @@ class CarRentalEvaluatorAgent:
             return state
 
 
+class RestaurantAgent:
+    """
+    Restaurant search agent - searches for restaurants using SerpAPI
+    """
+
+    def __init__(self, model: ChatOpenAI):
+        self.model = model
+        self.tool = RestaurantSearchTool()
+
+    def execute(self, state: TravelAgentState) -> TravelAgentState:
+        """Execute restaurant search"""
+        try:
+            destination = state.get('destination', 'Berlin')
+            logger.info(f"RestaurantAgent executing for destination: {destination}")
+
+            # Use destination/city for restaurant search
+            search_city = self._get_restaurant_location(destination)
+            logger.info(f"Restaurant search location: {search_city}")
+
+            # Search for restaurants
+            restaurant_results = self.tool._run(
+                city=search_city,
+                cuisine=None  # No filter by default
+            )
+
+            # Parse JSON results
+            import json
+            restaurant_data = json.loads(restaurant_results) if isinstance(restaurant_results, str) else restaurant_results
+
+            state['restaurant_results'] = restaurant_data
+            state['current_agent'] = 'restaurant_evaluator'
+            state['messages'].append(AIMessage(content=f"Found {len(restaurant_data.get('restaurants', []))} restaurant options"))
+
+            return state
+
+        except Exception as e:
+            logger.error(f"RestaurantAgent error: {str(e)}")
+            # Set empty results so downstream agents can continue
+            state['restaurant_results'] = {"restaurants": [], "error": str(e)}
+            state['current_agent'] = 'goal_evaluator'
+            state['messages'].append(AIMessage(content="Restaurant search failed, continuing without restaurant options"))
+            return state
+
+    def _get_restaurant_location(self, destination: str) -> str:
+        """Convert destination to restaurant search location"""
+        # Use same airport mappings as car rental
+        airport_to_city = {
+            'LAX': 'Los Angeles',
+            'JFK': 'New York',
+            'LGA': 'New York',
+            'EWR': 'Newark',
+            'ORD': 'Chicago',
+            'SFO': 'San Francisco',
+            'MIA': 'Miami',
+            'DFW': 'Dallas',
+            'SEA': 'Seattle',
+            'BOS': 'Boston',
+            'ATL': 'Atlanta',
+            'DEN': 'Denver',
+            'IAD': 'Washington DC',
+            'DCA': 'Washington DC',
+            'LAS': 'Las Vegas',
+            'PHX': 'Phoenix',
+            'IAH': 'Houston',
+            'MCO': 'Orlando',
+            'CDG': 'Paris',
+            'LHR': 'London',
+            'BER': 'Berlin',
+            'FCO': 'Rome',
+            'NRT': 'Tokyo',
+        }
+
+        return airport_to_city.get(destination.upper(), destination)
+
+
+class RestaurantEvaluatorAgent:
+    """
+    Utility-based agent for evaluating restaurants
+    Implements utility scoring (rating + price + reviews)
+    """
+
+    def __init__(self, model: ChatOpenAI):
+        self.model = model
+        self.evaluator = RestaurantEvaluator()
+
+    def execute(self, state: TravelAgentState) -> TravelAgentState:
+        """Execute restaurant utility evaluation"""
+        try:
+            logger.info("RestaurantEvaluatorAgent executing")
+
+            # Handle None or missing restaurant_results
+            restaurant_results = state.get('restaurant_results')
+            if restaurant_results is None or not isinstance(restaurant_results, dict):
+                state['restaurant_evaluation'] = {"error": "No restaurant results available"}
+                state['current_agent'] = 'manager'
+                return state
+
+            restaurants = restaurant_results.get('restaurants', [])
+
+            if not restaurants:
+                state['restaurant_evaluation'] = {"error": "No restaurants to evaluate"}
+                state['current_agent'] = 'manager'
+                return state
+
+            # Rank restaurants by utility
+            ranked_restaurants = self.evaluator.rank_restaurants(restaurants)
+
+            state['restaurant_evaluation'] = {
+                "ranked_restaurants": ranked_restaurants,
+                "top_recommendation": ranked_restaurants[0] if ranked_restaurants else None,
+                "total_evaluated": len(ranked_restaurants)
+            }
+
+            state['current_agent'] = 'manager'
+            state['messages'].append(AIMessage(content=f"Ranked {len(ranked_restaurants)} restaurant options by utility"))
+
+            return state
+
+        except Exception as e:
+            logger.error(f"RestaurantEvaluatorAgent error: {str(e)}")
+            state['restaurant_evaluation'] = {"error": str(e)}
+            state['current_agent'] = 'manager'
+            return state
+
+
 class GoalBasedAgent:
     """
     Goal-based agent for evaluating flights against budget goals
@@ -484,9 +613,13 @@ Your responsibilities:
             car_rental_results = state.get('car_rental_results')
             cars = car_rental_results.get('cars', []) if car_rental_results and isinstance(car_rental_results, dict) else []
 
+            restaurant_results = state.get('restaurant_results')
+            restaurants = restaurant_results.get('restaurants', []) if restaurant_results and isinstance(restaurant_results, dict) else []
+
             goal_eval = state.get('goal_evaluation', {})
             utility_eval = state.get('utility_evaluation', {})
             car_eval = state.get('car_evaluation', {})
+            restaurant_eval = state.get('restaurant_evaluation', {})
 
             # Compile final recommendation
             # Merge flight with its goal evaluation scores
@@ -519,17 +652,21 @@ Your responsibilities:
                     "flights_found": len(flights),
                     "hotels_found": len(hotels),
                     "cars_found": len(cars),
+                    "restaurants_found": len(restaurants),
                     "budget": state.get('budget', 'Not specified')
                 },
                 "recommended_flight": recommended_flight,
                 "alternative_flight": alternative_flight,
                 "recommended_hotel": utility_eval.get('top_recommendation') if utility_eval else None,
                 "recommended_car": car_eval.get('top_recommendation') if car_eval else None,
+                "recommended_restaurant": restaurant_eval.get('top_recommendation') if restaurant_eval else None,
                 "top_5_hotels": utility_eval.get('ranked_hotels', [])[:5] if utility_eval else [],
                 "top_5_cars": car_eval.get('ranked_cars', [])[:5] if car_eval else [],
+                "top_5_restaurants": restaurant_eval.get('ranked_restaurants', [])[:5] if restaurant_eval else [],
                 "budget_analysis": goal_eval,
                 "hotel_rankings": utility_eval,
                 "car_rankings": car_eval,
+                "restaurant_rankings": restaurant_eval,
                 "total_estimated_cost": self._calculate_total_cost(goal_eval, utility_eval, car_eval, state)
             }
 
@@ -612,35 +749,41 @@ class MultiAgentTravelSystem:
         self.flight_agent = FlightAgent(self.model)
         self.hotel_agent = HotelAgent(self.model)
         self.car_rental_agent = CarRentalAgent(self.model)
+        self.restaurant_agent = RestaurantAgent(self.model)
         self.goal_agent = GoalBasedAgent(self.model)
         self.utility_agent = UtilityBasedAgent(self.model)
         self.car_evaluator_agent = CarRentalEvaluatorAgent(self.model)
+        self.restaurant_evaluator_agent = RestaurantEvaluatorAgent(self.model)
         self.manager_agent = ManagerAgent(self.model)
 
         # Build the graph
         self.graph = self._build_graph()
 
     def _build_graph(self) -> StateGraph:
-        """Build the LangGraph workflow with car rental support"""
+        """Build the LangGraph workflow with car rental and restaurant support"""
         workflow = StateGraph(TravelAgentState)
 
         # Add nodes
         workflow.add_node("flight", self.flight_agent.execute)
         workflow.add_node("hotel", self.hotel_agent.execute)
         workflow.add_node("car_rental", self.car_rental_agent.execute)
+        workflow.add_node("restaurant", self.restaurant_agent.execute)
         workflow.add_node("goal_evaluator", self.goal_agent.execute)
         workflow.add_node("utility_evaluator", self.utility_agent.execute)
         workflow.add_node("car_evaluator", self.car_evaluator_agent.execute)
+        workflow.add_node("restaurant_evaluator", self.restaurant_evaluator_agent.execute)
         workflow.add_node("manager", self.manager_agent.execute)
 
         # Define edges (sequential workflow)
         workflow.set_entry_point("flight")
         workflow.add_edge("flight", "hotel")
         workflow.add_edge("hotel", "car_rental")
-        workflow.add_edge("car_rental", "goal_evaluator")
+        workflow.add_edge("car_rental", "restaurant")
+        workflow.add_edge("restaurant", "goal_evaluator")
         workflow.add_edge("goal_evaluator", "utility_evaluator")
         workflow.add_edge("utility_evaluator", "car_evaluator")
-        workflow.add_edge("car_evaluator", "manager")
+        workflow.add_edge("car_evaluator", "restaurant_evaluator")
+        workflow.add_edge("restaurant_evaluator", "manager")
         workflow.add_edge("manager", END)
 
         return workflow.compile()

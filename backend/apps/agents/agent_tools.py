@@ -1016,3 +1016,299 @@ class CarRentalEvaluator:
             key=lambda x: x['combined_utility_score'],
             reverse=True
         )
+
+
+class RestaurantSearchTool:
+    """
+    Tool for searching restaurants using SerpAPI Google Local
+    """
+
+    name = "restaurant_search"
+    description = "Search for restaurants at a specific location"
+
+    def _run(self, city: str, cuisine: Optional[str] = None) -> str:
+        """
+        Search for restaurants
+
+        Args:
+            city: City or location to search
+            cuisine: Optional cuisine type filter
+
+        Returns:
+            JSON string with restaurant results
+        """
+        try:
+            logger.info(f"Searching restaurants: {city}, cuisine: {cuisine or 'any'}")
+
+            # Convert airport codes to city names
+            airport_to_city = {
+                'LAX': 'Los Angeles, CA',
+                'JFK': 'New York, NY',
+                'LGA': 'New York, NY',
+                'EWR': 'Newark, NJ',
+                'ORD': 'Chicago, IL',
+                'SFO': 'San Francisco, CA',
+                'MIA': 'Miami, FL',
+                'DFW': 'Dallas, TX',
+                'SEA': 'Seattle, WA',
+                'BOS': 'Boston, MA',
+                'ATL': 'Atlanta, GA',
+                'DEN': 'Denver, CO',
+                'IAD': 'Washington, DC',
+                'DCA': 'Washington, DC',
+                'LAS': 'Las Vegas, NV',
+                'PHX': 'Phoenix, AZ',
+                'IAH': 'Houston, TX',
+                'MCO': 'Orlando, FL',
+                'CDG': 'Paris, France',
+                'LHR': 'London, UK',
+                'BER': 'Berlin, Germany',
+                'FCO': 'Rome, Italy',
+                'NRT': 'Tokyo, Japan',
+            }
+
+            search_city = airport_to_city.get(city.upper(), city)
+
+            # Build search query
+            search_query = f"restaurants {search_city}"
+            if cuisine:
+                search_query = f"{cuisine} restaurants {search_city}"
+
+            # Build SerpAPI parameters
+            params = {
+                "engine": "google_local",
+                "q": search_query,
+                "location": search_city,
+                "api_key": settings.SERP_API_KEY
+            }
+
+            # Make API request
+            response = requests.get("https://serpapi.com/search", params=params, timeout=30)
+            raw_results = response.json()
+
+            # Format results
+            return json.dumps(self._format_restaurant_results(raw_results, search_city, cuisine))
+
+        except Exception as e:
+            logger.error(f"Error searching restaurants: {str(e)}")
+            return json.dumps({"success": False, "error": str(e), "restaurants": []})
+
+    @staticmethod
+    def _format_restaurant_results(raw_results: Dict, city: str, cuisine: Optional[str] = None) -> Dict[str, Any]:
+        """Format restaurant search results"""
+        try:
+            restaurants = []
+            local_results = raw_results.get('local_results', [])
+
+            for result in local_results[:15]:  # Limit to 15 results
+                # Parse restaurant data
+                parsed_restaurant = RestaurantSearchTool._parse_restaurant(result, city)
+
+                # Apply cuisine filter if specified
+                if cuisine and cuisine.lower() not in parsed_restaurant.get('cuisine_type', '').lower():
+                    continue
+
+                restaurants.append(parsed_restaurant)
+
+            return {
+                "success": True,
+                "restaurants": restaurants,
+                "search_parameters": {
+                    "city": city,
+                    "cuisine": cuisine
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error formatting restaurant results: {str(e)}")
+            return {"success": False, "error": str(e), "restaurants": []}
+
+    @staticmethod
+    def _parse_restaurant(restaurant_data: Dict, city: str) -> Dict[str, Any]:
+        """Parse individual restaurant data"""
+        try:
+            # Extract price level
+            price_info = restaurant_data.get('price', '')
+            if isinstance(price_info, str):
+                price_level = len([c for c in price_info if c == '$'])
+            else:
+                price_level = 2  # Default to $$
+
+            # Determine cuisine type
+            restaurant_type = restaurant_data.get('type', '')
+            cuisine_type = 'Other'
+            common_cuisines = ['American', 'Italian', 'Mexican', 'Chinese', 'Japanese',
+                             'Indian', 'Thai', 'French', 'Mediterranean', 'Seafood']
+            for c in common_cuisines:
+                if c.lower() in restaurant_type.lower():
+                    cuisine_type = c
+                    break
+
+            # Estimate average cost
+            cost_map = {1: 15, 2: 30, 3: 50, 4: 100}
+            avg_cost = cost_map.get(price_level, 30)
+
+            return {
+                "name": restaurant_data.get('title', 'Unknown Restaurant'),
+                "cuisine_type": cuisine_type,
+                "city": city,
+                "address": restaurant_data.get('address', ''),
+                "rating": float(restaurant_data.get('rating', 0)),
+                "review_count": restaurant_data.get('reviews', 0),
+                "price_level": price_level,
+                "price_range": '$' * price_level,
+                "average_cost_per_person": avg_cost,
+                "currency": "USD",
+                "phone": restaurant_data.get('phone', ''),
+                "website": restaurant_data.get('website', ''),
+                "thumbnail": restaurant_data.get('thumbnail', ''),
+                "has_delivery": 'delivery' in restaurant_type.lower(),
+                "has_takeout": 'takeout' in restaurant_type.lower(),
+                "hours": restaurant_data.get('hours', ''),
+            }
+        except Exception as e:
+            logger.error(f"Error parsing restaurant: {str(e)}", exc_info=True)
+            return {}
+
+
+class RestaurantEvaluator:
+    """
+    Utility-based evaluator for restaurants
+    Scores based on rating, price, and reviews
+    """
+
+    @staticmethod
+    def evaluate_rating_utility(rating: float, reviews: int = 0) -> Dict[str, Any]:
+        """
+        Evaluate restaurant rating utility
+
+        Score ranges:
+        - 4.5-5★: +40 (excellent)
+        - 4.0-4.4★: +20 (very good)
+        - 3.5-3.9★: 0 (good)
+        - 3.0-3.4★: -20 (fair)
+        - < 3.0★: -40 (poor)
+
+        Bonus: +5 for > 100 reviews (well-established)
+        """
+        try:
+            rating = float(rating)
+        except:
+            rating = 0
+
+        if rating >= 4.5:
+            rating_score = 40
+        elif rating >= 4.0:
+            rating_score = 20
+        elif rating >= 3.5:
+            rating_score = 0
+        elif rating >= 3.0:
+            rating_score = -20
+        else:
+            rating_score = -40
+
+        # Bonus for well-reviewed restaurants
+        review_bonus = 5 if reviews > 100 else 0
+
+        return {
+            "rating": rating,
+            "review_count": reviews,
+            "rating_utility_score": rating_score + review_bonus
+        }
+
+    @staticmethod
+    def evaluate_price_utility(price_level: int, avg_cost: float = 0) -> Dict[str, Any]:
+        """
+        Evaluate restaurant price utility
+
+        Score ranges:
+        - $ (budget): +30 (excellent value)
+        - $$ (moderate): +10 (good value)
+        - $$$ (upscale): -10 (expensive)
+        - $$$$ (fine dining): -30 (very expensive)
+        """
+        try:
+            price_level = int(price_level)
+        except:
+            price_level = 2
+
+        if price_level == 1:
+            price_score = 30
+        elif price_level == 2:
+            price_score = 10
+        elif price_level == 3:
+            price_score = -10
+        else:  # 4
+            price_score = -30
+
+        return {
+            "price_level": price_level,
+            "price_range": '$' * price_level,
+            "average_cost_per_person": avg_cost,
+            "price_utility_score": price_score
+        }
+
+    @staticmethod
+    def evaluate_restaurant_comprehensive(restaurant: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Comprehensive restaurant evaluation combining rating and price utilities
+        """
+        rating_eval = RestaurantEvaluator.evaluate_rating_utility(
+            restaurant.get('rating', 0),
+            restaurant.get('review_count', 0)
+        )
+        price_eval = RestaurantEvaluator.evaluate_price_utility(
+            restaurant.get('price_level', 2),
+            restaurant.get('average_cost_per_person', 0)
+        )
+
+        combined_score = rating_eval['rating_utility_score'] + price_eval['price_utility_score']
+
+        # Start with all original restaurant data
+        evaluated_restaurant = dict(restaurant)
+
+        # Add/override with evaluation fields
+        evaluated_restaurant.update({
+            "rating": rating_eval['rating'],
+            "review_count": rating_eval['review_count'],
+            "rating_utility_score": rating_eval['rating_utility_score'],
+            "price_level": price_eval['price_level'],
+            "price_range": price_eval['price_range'],
+            "average_cost_per_person": price_eval['average_cost_per_person'],
+            "price_utility_score": price_eval['price_utility_score'],
+            "utility_score": combined_score,
+            "combined_utility_score": combined_score,
+            "recommendation": RestaurantEvaluator._get_recommendation(combined_score)
+        })
+
+        return evaluated_restaurant
+
+    @staticmethod
+    def _get_recommendation(score: int) -> str:
+        """Get recommendation based on utility score"""
+        if score >= 40:
+            return "Highly recommended - excellent rating and value"
+        elif score >= 20:
+            return "Great choice - good balance of quality and price"
+        elif score >= 0:
+            return "Good option - decent quality"
+        elif score >= -20:
+            return "Consider alternatives - may be overpriced"
+        else:
+            return "Not recommended - poor value or quality"
+
+    @staticmethod
+    def rank_restaurants(restaurants: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Rank restaurants by utility score"""
+        if not restaurants:
+            return []
+
+        evaluated_restaurants = [
+            RestaurantEvaluator.evaluate_restaurant_comprehensive(restaurant)
+            for restaurant in restaurants
+        ]
+
+        return sorted(
+            evaluated_restaurants,
+            key=lambda x: x['combined_utility_score'],
+            reverse=True
+        )
