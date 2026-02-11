@@ -40,6 +40,7 @@ class TravelAgentState(TypedDict):
     return_date: Optional[str]
     passengers: int
     budget: Optional[float]
+    cuisine: Optional[str]
     flight_results: Optional[Dict]
     hotel_results: Optional[Dict]
     car_rental_results: Optional[Dict]
@@ -346,16 +347,17 @@ class RestaurantAgent:
         """Execute restaurant search"""
         try:
             destination = state.get('destination', 'Berlin')
-            logger.info(f"RestaurantAgent executing for destination: {destination}")
+            cuisine = state.get('cuisine')
+            logger.info(f"RestaurantAgent executing for destination: {destination}, cuisine: {cuisine}")
 
             # Use destination/city for restaurant search
             search_city = self._get_restaurant_location(destination)
             logger.info(f"Restaurant search location: {search_city}")
 
-            # Search for restaurants
+            # Search for restaurants with optional cuisine filter
             restaurant_results = self.tool._run(
                 city=search_city,
-                cuisine=None  # No filter by default
+                cuisine=cuisine
             )
 
             # Parse JSON results
@@ -667,7 +669,7 @@ Your responsibilities:
                 "hotel_rankings": utility_eval,
                 "car_rankings": car_eval,
                 "restaurant_rankings": restaurant_eval,
-                "total_estimated_cost": self._calculate_total_cost(goal_eval, utility_eval, car_eval, state)
+                "total_estimated_cost": self._calculate_total_cost(goal_eval, utility_eval, car_eval, restaurant_eval, state)
             }
 
             state['final_recommendation'] = final_recommendation
@@ -682,16 +684,17 @@ Your responsibilities:
             state['current_agent'] = 'error'
             return state
 
-    def _calculate_total_cost(self, goal_eval: Dict, utility_eval: Dict, car_eval: Dict = None, state: Dict = None) -> Optional[float]:
-        """Calculate total estimated trip cost including flight, hotel (total for all nights), and car rental"""
+    def _calculate_total_cost(self, goal_eval: Dict, utility_eval: Dict, car_eval: Dict = None, restaurant_eval: Dict = None, state: Dict = None) -> Optional[float]:
+        """Calculate total estimated trip cost including flight, hotel (total for all nights), car rental, and estimated restaurant costs"""
         try:
             from datetime import datetime
 
             # Get flight price (round-trip total)
             flight_price = goal_eval.get('cheapest flight', {}).get('price', 0)
 
-            # Calculate number of nights for hotel
+            # Calculate number of nights for hotel and days for restaurant estimate
             nights = 1  # Default to 1 night
+            days = 1  # Default to 1 day
             if state:
                 departure_date = state.get('departure_date', '')
                 return_date = state.get('return_date', '')
@@ -700,6 +703,7 @@ Your responsibilities:
                         dep = datetime.strptime(departure_date, '%Y-%m-%d')
                         ret = datetime.strptime(return_date, '%Y-%m-%d')
                         nights = max(1, (ret - dep).days)
+                        days = max(1, (ret - dep).days + 1)  # Including departure day
                     except Exception as e:
                         logger.warning(f"Error calculating nights: {e}, using default 1 night")
 
@@ -724,8 +728,18 @@ Your responsibilities:
                     # Try multiple field names (total_price, price)
                     car_price = car.get('total_price') or car.get('price') or 0
 
-            total = round(flight_price + hotel_total_price + car_price, 2)
-            logger.info(f"Total cost calculation: Flight ${flight_price} + Hotel ${hotel_price_per_night}/night × {nights} nights = ${hotel_total_price} + Car ${car_price} = ${total}")
+            # Calculate estimated restaurant cost (3 meals per day per passenger)
+            restaurant_price = 0
+            if restaurant_eval:
+                restaurant = restaurant_eval.get('top_recommendation', {})
+                if restaurant:
+                    avg_cost_per_person = restaurant.get('average_cost_per_person') or 0
+                    passengers = state.get('passengers', 1) if state else 1
+                    meals_per_day = 3  # Breakfast, lunch, dinner
+                    restaurant_price = avg_cost_per_person * passengers * meals_per_day * days
+
+            total = round(flight_price + hotel_total_price + car_price + restaurant_price, 2)
+            logger.info(f"Total cost calculation: Flight ${flight_price} + Hotel ${hotel_price_per_night}/night × {nights} nights = ${hotel_total_price} + Car ${car_price} + Restaurant ~${restaurant_price} = ${total}")
             return total
         except Exception as e:
             logger.error(f"Error calculating total cost: {e}", exc_info=True)
@@ -812,6 +826,7 @@ class MultiAgentTravelSystem:
                 "return_date": kwargs.get('return_date'),
                 "passengers": kwargs.get('passengers', 1),
                 "budget": kwargs.get('budget'),
+                "cuisine": kwargs.get('cuisine'),
                 "flight_results": None,
                 "hotel_results": None,
                 "goal_evaluation": None,

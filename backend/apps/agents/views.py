@@ -283,6 +283,7 @@ def plan_travel(request):
         return_date = request.data.get('return_date')
         passengers = request.data.get('passengers', 1)
         budget = request.data.get('budget')
+        cuisine = request.data.get('cuisine')
 
         # Validate required fields
         if not all([origin, destination, departure_date]):
@@ -303,7 +304,8 @@ def plan_travel(request):
             departure_date=departure_date,
             return_date=return_date,
             passengers=passengers,
-            budget=budget
+            budget=budget,
+            cuisine=cuisine
         )
 
         # Create session record if user is authenticated
@@ -319,7 +321,8 @@ def plan_travel(request):
                         'departure_date': departure_date,
                         'return_date': return_date,
                         'passengers': passengers,
-                        'budget': budget
+                        'budget': budget,
+                        'cuisine': cuisine
                     },
                     status='completed' if result.get('success') else 'failed'
                 )
