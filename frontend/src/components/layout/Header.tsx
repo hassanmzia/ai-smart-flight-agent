@@ -46,6 +46,14 @@ const Header = () => {
 
           {/* Navigation */}
           <nav className="hidden lg:flex items-center space-x-1">
+            {/* AI Planner - First */}
+            <Link
+              to={ROUTES.AI_PLANNER}
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
+            >
+              <span>🤖</span> AI Planner
+            </Link>
+
             {/* Search Dropdown */}
             <Menu as="div" className="relative">
               <Menu.Button className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all">
@@ -104,13 +112,6 @@ const Header = () => {
                 </Menu.Items>
               </Transition>
             </Menu>
-
-            <Link
-              to={ROUTES.AI_PLANNER}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
-            >
-              <span>🤖</span> AI Planner
-            </Link>
 
             {/* Explore Dropdown */}
             <Menu as="div" className="relative">
