@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/common';
 import CarRentalCard from '../components/car/CarRentalCard';
 import carRentalService, { CarRental, CarRentalSearchParams } from '../services/carRentalService';
 
