@@ -1,5 +1,4 @@
 import axios from 'axios';
-import authService from './authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8109';
 
@@ -44,11 +43,6 @@ export interface RestaurantSearchResponse {
 }
 
 class RestaurantService {
-  private getAuthHeader() {
-    const token = authService.getToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
-
   async searchRestaurants(params: RestaurantSearchParams): Promise<RestaurantSearchResponse> {
     try {
       const response = await axios.get(`${API_URL}/api/restaurants/search/`, {
@@ -57,7 +51,6 @@ class RestaurantService {
           cuisine: params.cuisine,
           price_level: params.price_level,
         },
-        headers: this.getAuthHeader(),
       });
 
       return {
@@ -77,9 +70,7 @@ class RestaurantService {
 
   async getRestaurantById(id: string): Promise<Restaurant | null> {
     try {
-      const response = await axios.get(`${API_URL}/api/restaurants/restaurants/${id}/`, {
-        headers: this.getAuthHeader(),
-      });
+      const response = await axios.get(`${API_URL}/api/restaurants/restaurants/${id}/`);
       return response.data;
     } catch (error) {
       console.error('Error fetching restaurant:', error);
@@ -89,9 +80,7 @@ class RestaurantService {
 
   async getFeaturedRestaurants(): Promise<Restaurant[]> {
     try {
-      const response = await axios.get(`${API_URL}/api/restaurants/restaurants/featured/`, {
-        headers: this.getAuthHeader(),
-      });
+      const response = await axios.get(`${API_URL}/api/restaurants/restaurants/featured/`);
       return response.data;
     } catch (error) {
       console.error('Error fetching featured restaurants:', error);
