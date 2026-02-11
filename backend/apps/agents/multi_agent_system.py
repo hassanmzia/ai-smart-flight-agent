@@ -241,8 +241,10 @@ Focus on finding cost-effective and reliable options.
 
         except Exception as e:
             logger.error(f"CarRentalAgent error: {str(e)}")
-            state['error'] = str(e)
-            state['current_agent'] = 'error'
+            # Set empty results so downstream agents can continue
+            state['car_rental_results'] = {"cars": [], "error": str(e)}
+            state['current_agent'] = 'goal_evaluator'
+            state['messages'].append(AIMessage(content="Car rental search failed, continuing without car options"))
             return state
 
     def _get_car_rental_location(self, destination: str) -> str:
@@ -292,7 +294,14 @@ class CarRentalEvaluatorAgent:
         try:
             logger.info("CarRentalEvaluatorAgent executing")
 
-            cars = state.get('car_rental_results', {}).get('cars', [])
+            # Handle None or missing car_rental_results
+            car_rental_results = state.get('car_rental_results')
+            if car_rental_results is None or not isinstance(car_rental_results, dict):
+                state['car_evaluation'] = {"error": "No car rental results available"}
+                state['current_agent'] = 'manager'
+                return state
+
+            cars = car_rental_results.get('cars', [])
 
             if not cars:
                 state['car_evaluation'] = {"error": "No cars to evaluate"}
@@ -465,10 +474,16 @@ Your responsibilities:
         try:
             logger.info("ManagerAgent compiling final recommendations")
 
-            # Extract all results
-            flights = state.get('flight_results', {}).get('flights', [])
-            hotels = state.get('hotel_results', {}).get('hotels', [])
-            cars = state.get('car_rental_results', {}).get('cars', [])
+            # Extract all results with safe handling of None values
+            flight_results = state.get('flight_results')
+            flights = flight_results.get('flights', []) if flight_results and isinstance(flight_results, dict) else []
+
+            hotel_results = state.get('hotel_results')
+            hotels = hotel_results.get('hotels', []) if hotel_results and isinstance(hotel_results, dict) else []
+
+            car_rental_results = state.get('car_rental_results')
+            cars = car_rental_results.get('cars', []) if car_rental_results and isinstance(car_rental_results, dict) else []
+
             goal_eval = state.get('goal_evaluation', {})
             utility_eval = state.get('utility_evaluation', {})
             car_eval = state.get('car_evaluation', {})
