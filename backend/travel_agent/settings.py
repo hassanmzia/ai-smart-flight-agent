@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'apps.attractions',
     'apps.restaurants',
     'apps.car_rentals',
+    'apps.tourist_attractions',
 ]
 
 MIDDLEWARE = [

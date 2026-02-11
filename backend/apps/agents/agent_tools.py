@@ -835,7 +835,6 @@ class CarRentalSearchTool:
             logger.error(f"Error parsing car rental: {str(e)}", exc_info=True)
             return {}
 
-
 class CarRentalEvaluator:
     """
     Utility-based evaluator for car rentals
