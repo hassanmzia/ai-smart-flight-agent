@@ -548,17 +548,32 @@ Your responsibilities:
     def _calculate_total_cost(self, goal_eval: Dict, utility_eval: Dict, car_eval: Dict = None) -> Optional[float]:
         """Calculate total estimated trip cost including flight, hotel, and car rental"""
         try:
+            # Get flight price
             flight_price = goal_eval.get('cheapest flight', {}).get('price', 0)
-            hotel = utility_eval.get('top_recommendation', {})
-            hotel_price = hotel.get('price', 0) if hotel else 0
 
+            # Get hotel price with multiple fallbacks
+            hotel = utility_eval.get('top_recommendation', {})
+            hotel_price = 0
+            if hotel:
+                # Try multiple field names (price, price_per_night, pricePerNight, price_range_min)
+                hotel_price = (hotel.get('price') or
+                             hotel.get('price_per_night') or
+                             hotel.get('pricePerNight') or
+                             hotel.get('price_range_min') or 0)
+
+            # Get car rental price with fallbacks
             car_price = 0
             if car_eval:
                 car = car_eval.get('top_recommendation', {})
-                car_price = car.get('total_price', 0) if car else 0
+                if car:
+                    # Try multiple field names (total_price, price)
+                    car_price = car.get('total_price') or car.get('price') or 0
 
-            return round(flight_price + hotel_price + car_price, 2)
-        except:
+            total = round(flight_price + hotel_price + car_price, 2)
+            logger.info(f"Total cost calculation: Flight ${flight_price} + Hotel ${hotel_price} + Car ${car_price} = ${total}")
+            return total
+        except Exception as e:
+            logger.error(f"Error calculating total cost: {e}")
             return None
 
 
