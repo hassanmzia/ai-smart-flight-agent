@@ -169,6 +169,8 @@ const AIPlannerPage = () => {
             <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
               <p>✈️ Flight Agent searching for best flights...</p>
               <p>🏨 Hotel Agent finding accommodations...</p>
+              <p>🚗 Car Rental Agent searching for vehicles...</p>
+              <p>🍽️ Restaurant Agent finding dining options...</p>
               <p>💰 Budget Agent optimizing costs...</p>
               <p>🎯 Recommendation Agent compiling results...</p>
             </div>
@@ -525,49 +527,6 @@ const AIPlannerPage = () => {
             </Card>
           )}
 
-          {/* Alternative Hotels */}
-          {result.recommendation?.top_5_hotels && result.recommendation.top_5_hotels.length > 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>🏨 Alternative Hotels</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {result.recommendation.top_5_hotels.slice(1, 5).map((hotel: any, idx: number) => (
-                    <div key={idx} className="flex gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
-                      {/* Hotel Thumbnail */}
-                      {hotel.images?.[0] && (
-                        <img
-                          src={hotel.images[0]}
-                          alt={hotel.name || hotel.hotel_name}
-                          className="w-24 h-24 object-cover rounded"
-                          onError={(e) => {
-                            // Hide image if it fails to load
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                      )}
-
-                      {/* Hotel Info */}
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{hotel.name || hotel.hotel_name}</h4>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          <span className="text-yellow-500">
-                            {'⭐'.repeat(Math.round(hotel.stars || hotel.star_rating || 0))}
-                          </span>
-                          <span className="mx-2">•</span>
-                          <span className="font-medium">${hotel.price || hotel.price_per_night}/night</span>
-                          <span className="mx-2">•</span>
-                          <span>Score: {hotel.utility_score || hotel.combined_utility_score}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Recommended Car Rental */}
           {result.recommendation?.recommended_car && (
             <Card>
@@ -746,6 +705,49 @@ const AIPlannerPage = () => {
                         <p className="text-xs text-gray-600 dark:text-gray-400">
                           ${car.total_price} total
                         </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Alternative Hotels */}
+          {result.recommendation?.top_5_hotels && result.recommendation.top_5_hotels.length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🏨 Alternative Hotels</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {result.recommendation.top_5_hotels.slice(1, 5).map((hotel: any, idx: number) => (
+                    <div key={idx} className="flex gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
+                      {/* Hotel Thumbnail */}
+                      {hotel.images?.[0] && (
+                        <img
+                          src={hotel.images[0]}
+                          alt={hotel.name || hotel.hotel_name}
+                          className="w-24 h-24 object-cover rounded"
+                          onError={(e) => {
+                            // Hide image if it fails to load
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      )}
+
+                      {/* Hotel Info */}
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{hotel.name || hotel.hotel_name}</h4>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                          <span className="text-yellow-500">
+                            {'⭐'.repeat(Math.round(hotel.stars || hotel.star_rating || 0))}
+                          </span>
+                          <span className="mx-2">•</span>
+                          <span className="font-medium">${hotel.price || hotel.price_per_night}/night</span>
+                          <span className="mx-2">•</span>
+                          <span>Score: {hotel.utility_score || hotel.combined_utility_score}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
