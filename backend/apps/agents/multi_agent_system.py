@@ -253,12 +253,12 @@ Focus on finding cost-effective and reliable options.
             return state
 
     def _get_car_rental_location(self, destination: str) -> str:
-        """Convert destination to car rental search location"""
-        # Use same airport mappings as hotel search
+        """Convert destination to car rental search location (city names only for SERP API)"""
+        # Map airport codes to city names (no airport suffix for car rental API)
         airport_to_city = {
             'LAX': 'Los Angeles',
-            'JFK': 'New York JFK',
-            'LGA': 'New York LaGuardia',
+            'JFK': 'New York',
+            'LGA': 'New York',
             'EWR': 'Newark',
             'ORD': 'Chicago',
             'SFO': 'San Francisco',
@@ -268,8 +268,8 @@ Focus on finding cost-effective and reliable options.
             'BOS': 'Boston',
             'ATL': 'Atlanta',
             'DEN': 'Denver',
-            'IAD': 'Washington DC',
-            'DCA': 'Washington DC',
+            'IAD': 'Washington',
+            'DCA': 'Washington',
             'LAS': 'Las Vegas',
             'PHX': 'Phoenix',
             'IAH': 'Houston',
