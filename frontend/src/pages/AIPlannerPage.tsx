@@ -531,6 +531,192 @@ const AIPlannerPage = () => {
             </Card>
           )}
 
+          {/* Recommended Car Rental */}
+          {result.recommendation?.recommended_car && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🚗 Recommended Car Rental</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Car Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-4xl">🚗</span>
+                      <div>
+                        <h3 className="text-xl font-semibold">
+                          {result.recommendation.recommended_car.rental_company}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {result.recommendation.recommended_car.vehicle || result.recommendation.recommended_car.car_type}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                        ${result.recommendation.recommended_car.price_per_day}
+                        <span className="text-sm text-gray-600">/day</span>
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Total: ${result.recommendation.recommended_car.total_price}
+                      </p>
+                      {result.recommendation.recommended_car.utility_score !== undefined && (
+                        <p className="text-sm font-semibold mt-1">
+                          Utility Score: {result.recommendation.recommended_car.utility_score}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Car Type and Rating */}
+                  <div className="flex items-center gap-4">
+                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-semibold capitalize">
+                      {result.recommendation.recommended_car.car_type}
+                    </span>
+                    {result.recommendation.recommended_car.rating > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-yellow-500">⭐</span>
+                        <span className="font-semibold">{result.recommendation.recommended_car.rating.toFixed(1)}</span>
+                        {result.recommendation.recommended_car.reviews > 0 && (
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            ({result.recommendation.recommended_car.reviews} reviews)
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Rental Details */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Rental Days</p>
+                      <p className="font-semibold">{result.recommendation.recommended_car.rental_days} days</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Mileage</p>
+                      <p className="font-semibold">{result.recommendation.recommended_car.mileage}</p>
+                    </div>
+                    {result.recommendation.recommended_car.deposit > 0 && (
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Deposit</p>
+                        <p className="font-semibold">${result.recommendation.recommended_car.deposit}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Insurance</p>
+                      <p className="font-semibold">
+                        {result.recommendation.recommended_car.insurance_available ? 'Available' : 'Not available'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Features */}
+                  {result.recommendation.recommended_car.features && result.recommendation.recommended_car.features.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Features:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {result.recommendation.recommended_car.features.slice(0, 6).map((feature: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="text-xs bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-full"
+                          >
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pickup Location */}
+                  {result.recommendation.recommended_car.pickup_location && (
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-semibold">Pickup Location:</span> {result.recommendation.recommended_car.pickup_location}
+                    </div>
+                  )}
+
+                  {/* Recommendation */}
+                  {result.recommendation.recommended_car.recommendation && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        💡 {result.recommendation.recommended_car.recommendation}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* No car rental message */}
+          {result.recommendation && !result.recommendation.recommended_car && result.recommendation.summary?.cars_found > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🚗 Car Rental Information</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-6 text-gray-600 dark:text-gray-400">
+                  <p className="text-lg">⚠️ No car rentals with pricing available</p>
+                  <p className="mt-2 text-sm">
+                    Car rentals at this location don't have current pricing data available.
+                    Please try searching for car rentals directly.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Alternative Cars */}
+          {result.recommendation?.top_5_cars && result.recommendation.top_5_cars.length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🚗 Alternative Car Rentals</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {result.recommendation.top_5_cars.slice(1, 5).map((car: any, idx: number) => (
+                    <div key={idx} className="flex gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 transition-colors">
+                      {/* Car Icon */}
+                      <div className="flex-shrink-0">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center text-2xl">
+                          🚗
+                        </div>
+                      </div>
+
+                      {/* Car Info */}
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{car.rental_company}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{car.vehicle || car.car_type}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded capitalize">
+                            {car.car_type}
+                          </span>
+                          {car.rating > 0 && (
+                            <span className="text-xs">⭐ {car.rating.toFixed(1)}</span>
+                          )}
+                          {car.utility_score !== undefined && (
+                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                              Score: {car.utility_score}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Price */}
+                      <div className="flex-shrink-0 text-right">
+                        <p className="text-lg font-bold text-primary-600 dark:text-primary-400">
+                          ${car.price_per_day}/day
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          ${car.total_price} total
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Agent Messages */}
           {result.messages && result.messages.length > 0 && (
             <Card>

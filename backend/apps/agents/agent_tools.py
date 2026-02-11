@@ -642,3 +642,346 @@ class WeatherTool:
             "humidity": "65%",
             "wind_speed": "15 km/h"
         }
+
+
+class CarRentalSearchTool:
+    """
+    Tool for searching car rentals using SerpAPI Google Car Rental
+    """
+
+    name = "car_rental_search"
+    description = "Search for car rentals at a specific location and dates"
+
+    def _run(self, pickup_location: str, pickup_date: str, dropoff_date: str,
+             car_type: Optional[str] = None) -> str:
+        """
+        Search for car rentals
+
+        Args:
+            pickup_location: City, airport code, or location
+            pickup_date: Pickup date (YYYY-MM-DD)
+            dropoff_date: Drop-off date (YYYY-MM-DD)
+            car_type: Optional filter (economy, compact, suv, etc.)
+
+        Returns:
+            JSON string with car rental results
+        """
+        try:
+            logger.info(f"Searching car rentals: {pickup_location}, {pickup_date} to {dropoff_date}")
+
+            # Build SerpAPI parameters
+            params = {
+                "engine": "google_local",
+                "q": f"car rental {pickup_location}",
+                "location": pickup_location,
+                "api_key": settings.SERP_API_KEY
+            }
+
+            # Make API request
+            response = requests.get("https://serpapi.com/search", params=params, timeout=30)
+            raw_results = response.json()
+
+            # Format results
+            return json.dumps(self._format_car_rental_results(
+                raw_results, pickup_date, dropoff_date, car_type
+            ))
+
+        except Exception as e:
+            logger.error(f"Error searching car rentals: {str(e)}")
+            return json.dumps({"success": False, "error": str(e), "cars": []})
+
+    @staticmethod
+    def _format_car_rental_results(raw_results: Dict, pickup_date: str,
+                                   dropoff_date: str, car_type: Optional[str] = None) -> Dict[str, Any]:
+        """Format car rental search results"""
+        try:
+            cars = []
+            local_results = raw_results.get('local_results', [])
+
+            for result in local_results[:15]:  # Limit to 15 results
+                # Parse car rental data
+                parsed_car = CarRentalSearchTool._parse_car_rental(result, pickup_date, dropoff_date)
+
+                # Apply car type filter if specified
+                if car_type and parsed_car.get('car_type', '').lower() != car_type.lower():
+                    continue
+
+                cars.append(parsed_car)
+
+            return {
+                "success": True,
+                "cars": cars,
+                "search_parameters": {
+                    "pickup_location": raw_results.get('search_parameters', {}).get('q', ''),
+                    "pickup_date": pickup_date,
+                    "dropoff_date": dropoff_date
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error formatting car rental results: {str(e)}")
+            return {"success": False, "error": str(e), "cars": []}
+
+    @staticmethod
+    def _parse_car_rental(car_data: Dict, pickup_date: str, dropoff_date: str) -> Dict[str, Any]:
+        """Parse individual car rental data"""
+        try:
+            # Calculate rental days
+            from datetime import datetime
+            pickup = datetime.strptime(pickup_date, '%Y-%m-%d')
+            dropoff = datetime.strptime(dropoff_date, '%Y-%m-%d')
+            days = max(1, (dropoff - pickup).days)
+
+            # Extract price (simulated for car rentals)
+            price_per_day = 50  # Default price
+            if 'price' in car_data:
+                try:
+                    price_str = car_data['price'].replace('$', '').replace(',', '')
+                    price_per_day = float(price_str)
+                except:
+                    pass
+
+            # Infer car type from title
+            title = car_data.get('title', '').lower()
+            car_type = 'economy'  # default
+            if any(word in title for word in ['suv', 'jeep', 'explorer']):
+                car_type = 'suv'
+            elif any(word in title for word in ['luxury', 'mercedes', 'bmw', 'audi']):
+                car_type = 'luxury'
+            elif any(word in title for word in ['van', 'minivan']):
+                car_type = 'van'
+            elif any(word in title for word in ['compact', 'small']):
+                car_type = 'compact'
+            elif any(word in title for word in ['full', 'large']):
+                car_type = 'fullsize'
+
+            return {
+                "rental_company": car_data.get('title', 'Unknown'),
+                "car_type": car_type,
+                "vehicle": "Standard Vehicle",  # Would come from detailed API
+                "price_per_day": price_per_day,
+                "total_price": price_per_day * days,
+                "currency": "USD",
+                "pickup_location": car_data.get('address', ''),
+                "rating": car_data.get('rating', 0),
+                "reviews": car_data.get('reviews', 0),
+                "features": [
+                    "Air Conditioning",
+                    "Automatic Transmission",
+                    "4 Passengers",
+                    "2 Large Bags"
+                ],
+                "phone": car_data.get('phone', ''),
+                "website": car_data.get('website', ''),
+                "thumbnail": car_data.get('thumbnail', ''),
+                "rental_days": days,
+                "pickup_date": pickup_date,
+                "dropoff_date": dropoff_date,
+                "mileage": "Unlimited",
+                "deposit": 200,  # Default deposit
+                "insurance_available": True
+            }
+        except Exception as e:
+            logger.error(f"Error parsing car rental: {str(e)}", exc_info=True)
+            return {}
+
+
+class CarRentalEvaluator:
+    """
+    Utility-based evaluator for car rentals
+    Evaluates cars based on price, rating, and car type
+    """
+
+    @staticmethod
+    def evaluate_price_utility(price: float) -> Dict[str, Any]:
+        """
+        Evaluate car rental price utility
+
+        Score ranges (per day):
+        - < $30: +40 (excellent value)
+        - $30-49: +20 (good value)
+        - $50-69: 0 (moderate)
+        - $70-99: -20 (expensive)
+        - >= $100: -40 (very expensive)
+        """
+        try:
+            if isinstance(price, str):
+                price = float(price.replace('$', '').replace(',', '').strip())
+            else:
+                price = float(price)
+        except:
+            price = 9999  # Fail-safe large price
+
+        if price < 30:
+            price_score = 40
+        elif price < 50:
+            price_score = 20
+        elif price < 70:
+            price_score = 0
+        elif price < 100:
+            price_score = -20
+        else:  # price >= 100
+            price_score = -40
+
+        return {
+            "price": price,
+            "price_utility_score": price_score
+        }
+
+    @staticmethod
+    def evaluate_car_type_utility(car_type: str) -> Dict[str, Any]:
+        """
+        Evaluate car type utility
+
+        Score ranges:
+        - Economy/Compact: +20 (fuel efficient, affordable)
+        - Midsize: +10 (balanced)
+        - SUV/Fullsize: 0 (spacious but less efficient)
+        - Luxury: -10 (expensive)
+        - Van: -20 (less demand)
+        """
+        car_type = car_type.lower() if car_type else 'economy'
+
+        if car_type in ['economy', 'compact']:
+            type_score = 20
+        elif car_type in ['midsize']:
+            type_score = 10
+        elif car_type in ['suv', 'fullsize']:
+            type_score = 0
+        elif car_type in ['luxury']:
+            type_score = -10
+        else:  # van, convertible, etc.
+            type_score = -20
+
+        return {
+            "car_type": car_type,
+            "type_utility_score": type_score
+        }
+
+    @staticmethod
+    def evaluate_rating_utility(rating: float, reviews: int = 0) -> Dict[str, Any]:
+        """
+        Evaluate car rental company rating utility
+
+        Score ranges:
+        - 4.5-5.0: +20 (excellent)
+        - 4.0-4.4: +10 (good)
+        - 3.5-3.9: 0 (average)
+        - 3.0-3.4: -10 (below average)
+        - < 3.0: -20 (poor)
+
+        Bonus: +5 if reviews > 100 (well-established)
+        """
+        try:
+            rating = float(rating)
+        except:
+            rating = 0
+
+        if rating >= 4.5:
+            rating_score = 20
+        elif rating >= 4.0:
+            rating_score = 10
+        elif rating >= 3.5:
+            rating_score = 0
+        elif rating >= 3.0:
+            rating_score = -10
+        else:
+            rating_score = -20
+
+        # Bonus for many reviews (indicates reliability)
+        if reviews > 100:
+            rating_score += 5
+
+        return {
+            "rating": rating,
+            "reviews": reviews,
+            "rating_utility_score": rating_score
+        }
+
+    @staticmethod
+    def evaluate_car_comprehensive(car: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Comprehensive car rental evaluation combining price, type, and rating utilities
+
+        Returns:
+            Dict with individual scores and combined utility score,
+            preserving all original car data
+        """
+        price_eval = CarRentalEvaluator.evaluate_price_utility(
+            car.get('price_per_day', car.get('price', 0))
+        )
+        type_eval = CarRentalEvaluator.evaluate_car_type_utility(
+            car.get('car_type', 'economy')
+        )
+        rating_eval = CarRentalEvaluator.evaluate_rating_utility(
+            car.get('rating', 0),
+            car.get('reviews', 0)
+        )
+
+        # Combined score
+        combined_score = (
+            price_eval['price_utility_score'] +
+            type_eval['type_utility_score'] +
+            rating_eval['rating_utility_score']
+        )
+
+        # Start with all original car data
+        evaluated_car = dict(car)
+
+        # Add/override with evaluation fields
+        evaluated_car.update({
+            "price": price_eval['price'],
+            "price_per_day": price_eval['price'],
+            "price_utility_score": price_eval['price_utility_score'],
+            "car_type": type_eval['car_type'],
+            "type_utility_score": type_eval['type_utility_score'],
+            "rating": rating_eval['rating'],
+            "rating_utility_score": rating_eval['rating_utility_score'],
+            "utility_score": combined_score,
+            "combined_utility_score": combined_score,
+            "recommendation": CarRentalEvaluator._get_recommendation(combined_score)
+        })
+
+        return evaluated_car
+
+    @staticmethod
+    def _get_recommendation(score: int) -> str:
+        """Get recommendation based on utility score"""
+        if score >= 40:
+            return "Excellent choice - great value and quality"
+        elif score >= 15:
+            return "Good option - reasonable value"
+        elif score >= -15:
+            return "Fair option - acceptable"
+        else:
+            return "Consider other options - poor value or quality"
+
+    @staticmethod
+    def rank_cars(cars: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Rank car rentals by combined utility score
+
+        Filters out cars with $0 prices (no pricing data available)
+
+        Returns:
+            List of cars sorted by utility score (highest first)
+        """
+        # Filter out cars with no pricing data
+        cars_with_prices = [
+            car for car in cars
+            if car.get('price_per_day', 0) > 0 or car.get('price', 0) > 0
+        ]
+
+        if not cars_with_prices:
+            print("⚠️ Warning: No car rentals with pricing data available")
+            return []
+
+        evaluated_cars = [
+            CarRentalEvaluator.evaluate_car_comprehensive(car)
+            for car in cars_with_prices
+        ]
+
+        return sorted(
+            evaluated_cars,
+            key=lambda x: x['combined_utility_score'],
+            reverse=True
+        )

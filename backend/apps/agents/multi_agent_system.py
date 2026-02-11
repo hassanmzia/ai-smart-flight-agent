@@ -17,8 +17,10 @@ from django.conf import settings
 from .agent_tools import (
     FlightSearchTool,
     HotelSearchTool,
+    CarRentalSearchTool,
     GoalBasedEvaluator,
     UtilityBasedEvaluator,
+    CarRentalEvaluator,
     WeatherTool
 )
 
@@ -38,8 +40,10 @@ class TravelAgentState(TypedDict):
     budget: Optional[float]
     flight_results: Optional[Dict]
     hotel_results: Optional[Dict]
+    car_rental_results: Optional[Dict]
     goal_evaluation: Optional[Dict]
     utility_evaluation: Optional[Dict]
+    car_evaluation: Optional[Dict]
     final_recommendation: Optional[Dict]
     current_agent: str
     error: Optional[str]
@@ -183,6 +187,137 @@ Focus on hotels near the destination airport or city center.
 
         # Return mapped city or use destination as-is
         return airport_to_city.get(destination.upper(), f"{destination} Airport")
+
+
+class CarRentalAgent:
+    """
+    Car rental search agent - searches for car rentals using SerpAPI
+    """
+
+    def __init__(self, model: ChatOpenAI):
+        self.model = model
+        self.tool = CarRentalSearchTool()
+
+        self.system_prompt = """
+You are a Travel Assistant Agent responsible for finding car rental options.
+
+Extract the following from the user query or context:
+- pickup_location: destination city or airport
+- pickup_date: start date for rental
+- dropoff_date: end date for rental
+- car_type: optional filter (economy, suv, luxury, etc.)
+
+Use the car_rental_search tool to find available rental cars.
+Focus on finding cost-effective and reliable options.
+"""
+
+    def execute(self, state: TravelAgentState) -> TravelAgentState:
+        """Execute car rental search"""
+        try:
+            destination = state.get('destination', 'Berlin')
+            logger.info(f"CarRentalAgent executing for destination: {destination}")
+
+            # Use destination/airport as pickup location
+            pickup_location = self._get_car_rental_location(destination)
+            logger.info(f"Car rental search location: {pickup_location}")
+
+            # Search for car rentals
+            car_rental_results = self.tool._run(
+                pickup_location=pickup_location,
+                pickup_date=state.get('departure_date', '2025-10-10'),
+                dropoff_date=state.get('return_date', '2025-10-12'),
+                car_type=None  # No filter by default
+            )
+
+            # Parse JSON results
+            import json
+            car_results = json.loads(car_rental_results) if isinstance(car_rental_results, str) else car_rental_results
+
+            state['car_rental_results'] = car_results
+            state['current_agent'] = 'goal_evaluator'
+            state['messages'].append(AIMessage(content=f"Found {len(car_results.get('cars', []))} car rental options"))
+
+            return state
+
+        except Exception as e:
+            logger.error(f"CarRentalAgent error: {str(e)}")
+            state['error'] = str(e)
+            state['current_agent'] = 'error'
+            return state
+
+    def _get_car_rental_location(self, destination: str) -> str:
+        """Convert destination to car rental search location"""
+        # Use same airport mappings as hotel search
+        airport_to_city = {
+            'LAX': 'Los Angeles',
+            'JFK': 'New York JFK',
+            'LGA': 'New York LaGuardia',
+            'EWR': 'Newark',
+            'ORD': 'Chicago',
+            'SFO': 'San Francisco',
+            'MIA': 'Miami',
+            'DFW': 'Dallas',
+            'SEA': 'Seattle',
+            'BOS': 'Boston',
+            'ATL': 'Atlanta',
+            'DEN': 'Denver',
+            'IAD': 'Washington DC',
+            'DCA': 'Washington DC',
+            'LAS': 'Las Vegas',
+            'PHX': 'Phoenix',
+            'IAH': 'Houston',
+            'MCO': 'Orlando',
+            'CDG': 'Paris',
+            'LHR': 'London',
+            'BER': 'Berlin',
+            'FCO': 'Rome',
+            'NRT': 'Tokyo',
+        }
+
+        return airport_to_city.get(destination.upper(), destination)
+
+
+class CarRentalEvaluatorAgent:
+    """
+    Utility-based agent for evaluating car rentals
+    Implements utility scoring (price + type + rating)
+    """
+
+    def __init__(self, model: ChatOpenAI):
+        self.model = model
+        self.evaluator = CarRentalEvaluator()
+
+    def execute(self, state: TravelAgentState) -> TravelAgentState:
+        """Execute car rental utility evaluation"""
+        try:
+            logger.info("CarRentalEvaluatorAgent executing")
+
+            cars = state.get('car_rental_results', {}).get('cars', [])
+
+            if not cars:
+                state['car_evaluation'] = {"error": "No cars to evaluate"}
+                state['current_agent'] = 'manager'
+                return state
+
+            # Rank cars by utility
+            ranked_cars = self.evaluator.rank_cars(cars)
+
+            state['car_evaluation'] = {
+                "ranked_cars": ranked_cars,
+                "top_recommendation": ranked_cars[0] if ranked_cars else None,
+                "total_evaluated": len(ranked_cars)
+            }
+
+            state['current_agent'] = 'manager'
+            state['messages'].append(AIMessage(content=f"Ranked {len(ranked_cars)} car rental options by utility"))
+
+            return state
+
+        except Exception as e:
+            logger.error(f"CarRentalEvaluatorAgent error: {str(e)}")
+            state['error'] = str(e)
+            state['current_agent'] = 'error'
+            return state
 
 
 class GoalBasedAgent:
@@ -333,8 +468,10 @@ Your responsibilities:
             # Extract all results
             flights = state.get('flight_results', {}).get('flights', [])
             hotels = state.get('hotel_results', {}).get('hotels', [])
+            cars = state.get('car_rental_results', {}).get('cars', [])
             goal_eval = state.get('goal_evaluation', {})
             utility_eval = state.get('utility_evaluation', {})
+            car_eval = state.get('car_evaluation', {})
 
             # Compile final recommendation
             # Merge flight with its goal evaluation scores
@@ -366,15 +503,19 @@ Your responsibilities:
                 "summary": {
                     "flights_found": len(flights),
                     "hotels_found": len(hotels),
+                    "cars_found": len(cars),
                     "budget": state.get('budget', 'Not specified')
                 },
                 "recommended_flight": recommended_flight,
                 "alternative_flight": alternative_flight,
                 "recommended_hotel": utility_eval.get('top_recommendation') if utility_eval else None,
+                "recommended_car": car_eval.get('top_recommendation') if car_eval else None,
                 "top_5_hotels": utility_eval.get('ranked_hotels', [])[:5] if utility_eval else [],
+                "top_5_cars": car_eval.get('ranked_cars', [])[:5] if car_eval else [],
                 "budget_analysis": goal_eval,
                 "hotel_rankings": utility_eval,
-                "total_estimated_cost": self._calculate_total_cost(goal_eval, utility_eval)
+                "car_rankings": car_eval,
+                "total_estimated_cost": self._calculate_total_cost(goal_eval, utility_eval, car_eval)
             }
 
             state['final_recommendation'] = final_recommendation
@@ -389,14 +530,19 @@ Your responsibilities:
             state['current_agent'] = 'error'
             return state
 
-    def _calculate_total_cost(self, goal_eval: Dict, utility_eval: Dict) -> Optional[float]:
-        """Calculate total estimated trip cost"""
+    def _calculate_total_cost(self, goal_eval: Dict, utility_eval: Dict, car_eval: Dict = None) -> Optional[float]:
+        """Calculate total estimated trip cost including flight, hotel, and car rental"""
         try:
             flight_price = goal_eval.get('cheapest flight', {}).get('price', 0)
             hotel = utility_eval.get('top_recommendation', {})
             hotel_price = hotel.get('price', 0) if hotel else 0
 
-            return round(flight_price + hotel_price, 2)
+            car_price = 0
+            if car_eval:
+                car = car_eval.get('top_recommendation', {})
+                car_price = car.get('total_price', 0) if car else 0
+
+            return round(flight_price + hotel_price + car_price, 2)
         except:
             return None
 
@@ -417,30 +563,36 @@ class MultiAgentTravelSystem:
         # Initialize agents
         self.flight_agent = FlightAgent(self.model)
         self.hotel_agent = HotelAgent(self.model)
+        self.car_rental_agent = CarRentalAgent(self.model)
         self.goal_agent = GoalBasedAgent(self.model)
         self.utility_agent = UtilityBasedAgent(self.model)
+        self.car_evaluator_agent = CarRentalEvaluatorAgent(self.model)
         self.manager_agent = ManagerAgent(self.model)
 
         # Build the graph
         self.graph = self._build_graph()
 
     def _build_graph(self) -> StateGraph:
-        """Build the LangGraph workflow"""
+        """Build the LangGraph workflow with car rental support"""
         workflow = StateGraph(TravelAgentState)
 
         # Add nodes
         workflow.add_node("flight", self.flight_agent.execute)
         workflow.add_node("hotel", self.hotel_agent.execute)
+        workflow.add_node("car_rental", self.car_rental_agent.execute)
         workflow.add_node("goal_evaluator", self.goal_agent.execute)
         workflow.add_node("utility_evaluator", self.utility_agent.execute)
+        workflow.add_node("car_evaluator", self.car_evaluator_agent.execute)
         workflow.add_node("manager", self.manager_agent.execute)
 
-        # Define edges
+        # Define edges (sequential workflow)
         workflow.set_entry_point("flight")
         workflow.add_edge("flight", "hotel")
-        workflow.add_edge("hotel", "goal_evaluator")
+        workflow.add_edge("hotel", "car_rental")
+        workflow.add_edge("car_rental", "goal_evaluator")
         workflow.add_edge("goal_evaluator", "utility_evaluator")
-        workflow.add_edge("utility_evaluator", "manager")
+        workflow.add_edge("utility_evaluator", "car_evaluator")
+        workflow.add_edge("car_evaluator", "manager")
         workflow.add_edge("manager", END)
 
         return workflow.compile()
