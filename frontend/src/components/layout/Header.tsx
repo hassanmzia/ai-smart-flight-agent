@@ -81,6 +81,24 @@ const Header = () => {
               🌤️ Weather
             </Link>
             <Link
+              to="/events"
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
+            >
+              🎉 Events
+            </Link>
+            <Link
+              to="/shopping"
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
+            >
+              🛍️ Shopping
+            </Link>
+            <Link
+              to="/safety"
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium flex items-center gap-1"
+            >
+              🛡️ Safety
+            </Link>
+            <Link
               to={ROUTES.ITINERARY}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 px-3 py-2 text-sm font-medium"
             >
