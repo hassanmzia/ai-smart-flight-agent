@@ -530,7 +530,7 @@ Your responsibilities:
                 "budget_analysis": goal_eval,
                 "hotel_rankings": utility_eval,
                 "car_rankings": car_eval,
-                "total_estimated_cost": self._calculate_total_cost(goal_eval, utility_eval, car_eval)
+                "total_estimated_cost": self._calculate_total_cost(goal_eval, utility_eval, car_eval, state)
             }
 
             state['final_recommendation'] = final_recommendation
@@ -545,23 +545,41 @@ Your responsibilities:
             state['current_agent'] = 'error'
             return state
 
-    def _calculate_total_cost(self, goal_eval: Dict, utility_eval: Dict, car_eval: Dict = None) -> Optional[float]:
-        """Calculate total estimated trip cost including flight, hotel, and car rental"""
+    def _calculate_total_cost(self, goal_eval: Dict, utility_eval: Dict, car_eval: Dict = None, state: Dict = None) -> Optional[float]:
+        """Calculate total estimated trip cost including flight, hotel (total for all nights), and car rental"""
         try:
-            # Get flight price
+            from datetime import datetime
+
+            # Get flight price (round-trip total)
             flight_price = goal_eval.get('cheapest flight', {}).get('price', 0)
 
-            # Get hotel price with multiple fallbacks
+            # Calculate number of nights for hotel
+            nights = 1  # Default to 1 night
+            if state:
+                departure_date = state.get('departure_date', '')
+                return_date = state.get('return_date', '')
+                if departure_date and return_date:
+                    try:
+                        dep = datetime.strptime(departure_date, '%Y-%m-%d')
+                        ret = datetime.strptime(return_date, '%Y-%m-%d')
+                        nights = max(1, (ret - dep).days)
+                    except Exception as e:
+                        logger.warning(f"Error calculating nights: {e}, using default 1 night")
+
+            # Get hotel price per night with multiple fallbacks
             hotel = utility_eval.get('top_recommendation', {})
-            hotel_price = 0
+            hotel_price_per_night = 0
             if hotel:
                 # Try multiple field names (price, price_per_night, pricePerNight, price_range_min)
-                hotel_price = (hotel.get('price') or
-                             hotel.get('price_per_night') or
-                             hotel.get('pricePerNight') or
-                             hotel.get('price_range_min') or 0)
+                hotel_price_per_night = (hotel.get('price') or
+                                        hotel.get('price_per_night') or
+                                        hotel.get('pricePerNight') or
+                                        hotel.get('price_range_min') or 0)
 
-            # Get car rental price with fallbacks
+            # Calculate TOTAL hotel cost for entire stay
+            hotel_total_price = hotel_price_per_night * nights
+
+            # Get car rental price with fallbacks (already total for rental period)
             car_price = 0
             if car_eval:
                 car = car_eval.get('top_recommendation', {})
@@ -569,11 +587,11 @@ Your responsibilities:
                     # Try multiple field names (total_price, price)
                     car_price = car.get('total_price') or car.get('price') or 0
 
-            total = round(flight_price + hotel_price + car_price, 2)
-            logger.info(f"Total cost calculation: Flight ${flight_price} + Hotel ${hotel_price} + Car ${car_price} = ${total}")
+            total = round(flight_price + hotel_total_price + car_price, 2)
+            logger.info(f"Total cost calculation: Flight ${flight_price} + Hotel ${hotel_price_per_night}/night × {nights} nights = ${hotel_total_price} + Car ${car_price} = ${total}")
             return total
         except Exception as e:
-            logger.error(f"Error calculating total cost: {e}")
+            logger.error(f"Error calculating total cost: {e}", exc_info=True)
             return None
 
 
