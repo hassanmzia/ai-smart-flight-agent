@@ -13,6 +13,7 @@ const RestaurantSearchPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [displayCount, setDisplayCount] = useState(9); // Show 9 initially
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +25,7 @@ const RestaurantSearchPage: React.FC = () => {
     setLoading(true);
     setError(null);
     setSearched(true);
+    setDisplayCount(9); // Reset display count on new search
 
     try {
       const result = await restaurantService.searchRestaurants(searchParams);
@@ -40,6 +42,10 @@ const RestaurantSearchPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleShowMore = () => {
+    setDisplayCount(prev => prev + 9);
   };
 
   const cuisineOptions = [
@@ -148,14 +154,31 @@ const RestaurantSearchPage: React.FC = () => {
       {/* Results */}
       {searched && !loading && restaurants.length > 0 && (
         <>
-          <h2 className="text-2xl font-bold mb-4">
-            Found {restaurants.length} Restaurant{restaurants.length !== 1 ? 's' : ''}
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold">
+              Found {restaurants.length} Restaurant{restaurants.length !== 1 ? 's' : ''}
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {Math.min(displayCount, restaurants.length)} of {restaurants.length}
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {restaurants.map((restaurant) => (
+            {restaurants.slice(0, displayCount).map((restaurant) => (
               <RestaurantCard key={restaurant.id} restaurant={restaurant} />
             ))}
           </div>
+
+          {/* Show More Button */}
+          {displayCount < restaurants.length && (
+            <div className="mt-8 text-center">
+              <button
+                onClick={handleShowMore}
+                className="bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-md hover:shadow-lg"
+              >
+                Show More ({restaurants.length - displayCount} remaining)
+              </button>
+            </div>
+          )}
         </>
       )}
 
