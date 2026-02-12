@@ -35,9 +35,9 @@ RUN pip install --upgrade pip && \
                 channels==4.0.0 channels-redis==4.2.0 daphne==4.1.0 && \
     # Stage 5: AI/ML frameworks (complex dependencies)
     # Install langchain with updated versions for better pydantic compatibility
-    pip install langchain-core==0.1.52 langchain==0.1.20 && \
-    pip install langchain-openai==0.0.8 langchain-community==0.0.38 \
-                langgraph==0.0.32 openai==1.12.0 "langsmith>=0.1.0" && \
+    pip install langchain-core==0.2.38 langchain==0.2.16 && \
+    pip install langchain-openai==0.1.23 langchain-community==0.2.16 \
+                langgraph==0.0.32 openai==1.12.0 langsmith==0.1.75 && \
     # Stage 6: Vector DB and embeddings
     pip install "chromadb>=0.4.22,<0.5.0" "sentence-transformers>=2.3.1,<3.0.0" \
                 langchain-chroma>=0.1.0 && \
