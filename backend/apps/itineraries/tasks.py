@@ -7,6 +7,8 @@ from django.conf import settings
 from django.utils import timezone
 from django.core.files.base import ContentFile
 import io
+from pathlib import Path
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -325,3 +327,201 @@ def optimize_itinerary_route(self, itinerary_id):
     except Exception as exc:
         logger.error(f"Error in optimize_itinerary_route task: {str(exc)}")
         raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=3)
+def send_itinerary_email_task(
+    self,
+    itinerary_id: int,
+    to_email: str,
+    subject: str = None,
+    backend: str = 'auto',
+    include_calendar: bool = False,
+    theme: str = 'pumpkin'
+):
+    """
+    Async task to generate PDF and send itinerary email.
+
+    Args:
+        itinerary_id: ID of the itinerary to send
+        to_email: Recipient email address
+        subject: Optional custom subject
+        backend: Email backend to use
+        include_calendar: Whether to include .ics file
+        theme: PDF theme
+
+    Returns:
+        dict with status and message
+    """
+    try:
+        from .models import Itinerary
+        from .pdf_generator import ProfessionalPDFGenerator
+        from .email_service import EmailService, CalendarService
+
+        # Get itinerary
+        itinerary = Itinerary.objects.select_related('user').prefetch_related(
+            'days__items'
+        ).get(id=itinerary_id)
+
+        # Generate subject if not provided
+        if not subject:
+            subject = f'Your Trip Itinerary: {itinerary.destination}'
+
+        # Generate itinerary text
+        itinerary_text = _generate_itinerary_text(itinerary)
+
+        # Create PDF
+        media_root = Path(settings.MEDIA_ROOT) / 'pdfs'
+        media_root.mkdir(parents=True, exist_ok=True)
+
+        clean_dest = itinerary.destination.replace(" ", "_").replace("/", "_")[:30]
+        filename = f"itinerary_{clean_dest}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        pdf_path = str(media_root / filename)
+
+        # Generate PDF
+        ProfessionalPDFGenerator.create_itinerary_pdf(
+            itinerary_text=itinerary_text,
+            destination=itinerary.destination,
+            dates=f"{itinerary.start_date} to {itinerary.end_date}",
+            origin=itinerary.origin or "N/A",
+            budget=int(itinerary.total_budget) if itinerary.total_budget else 0,
+            output_path=pdf_path,
+            theme=theme,
+            user_name=itinerary.user.get_full_name() or itinerary.user.username
+        )
+
+        # Generate calendar file if requested
+        ics_path = None
+        if include_calendar:
+            ics_path = str(media_root / f"itinerary_{clean_dest}.ics")
+            activities = []
+            for day in itinerary.days.all():
+                for item in day.items.all():
+                    if item.start_time:
+                        activities.append({
+                            'title': item.title,
+                            'time': datetime.combine(day.date, item.start_time),
+                            'description': item.description or ''
+                        })
+
+            CalendarService.create_ics_file(
+                destination=itinerary.destination,
+                start_date=str(itinerary.start_date),
+                end_date=str(itinerary.end_date),
+                activities=activities,
+                output_path=ics_path
+            )
+
+        # Send email
+        success = EmailService.send_itinerary_email(
+            to_email=to_email,
+            subject=subject,
+            itinerary_text=itinerary_text,
+            pdf_path=pdf_path,
+            user_name=itinerary.user.get_full_name() or itinerary.user.username,
+            destination=itinerary.destination,
+            dates=f"{itinerary.start_date} to {itinerary.end_date}",
+            backend=backend
+        )
+
+        if success:
+            logger.info(f"Email sent successfully for itinerary {itinerary_id} to {to_email}")
+            return {
+                'status': 'success',
+                'message': f'Email sent to {to_email}',
+                'pdf_filename': filename
+            }
+        else:
+            logger.error(f"Email sending failed for itinerary {itinerary_id}")
+            raise Exception("Email sending failed")
+
+    except Exception as exc:
+        logger.error(f"Error sending email for itinerary {itinerary_id}: {str(exc)}")
+        # Retry with exponential backoff
+        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+
+
+@shared_task
+def cleanup_old_pdfs_task(days_old: int = 7):
+    """
+    Clean up PDF files older than specified days.
+
+    Args:
+        days_old: Delete PDFs older than this many days
+    """
+    try:
+        import time
+
+        pdf_dir = Path(settings.MEDIA_ROOT) / 'pdfs'
+        if not pdf_dir.exists():
+            return {'status': 'success', 'deleted': 0}
+
+        current_time = time.time()
+        cutoff_time = current_time - (days_old * 24 * 60 * 60)
+
+        deleted_count = 0
+        for pdf_file in pdf_dir.glob('*.pdf'):
+            if pdf_file.stat().st_mtime < cutoff_time:
+                pdf_file.unlink()
+                deleted_count += 1
+
+        logger.info(f"Cleaned up {deleted_count} old PDF files")
+
+        return {
+            'status': 'success',
+            'deleted': deleted_count
+        }
+
+    except Exception as e:
+        logger.error(f"Error cleaning up PDFs: {str(e)}")
+        return {
+            'status': 'error',
+            'message': str(e)
+        }
+
+
+def _generate_itinerary_text(itinerary):
+    """Helper function to generate markdown-formatted itinerary text"""
+    lines = []
+
+    # Title and metadata
+    lines.append(f"# {itinerary.title or itinerary.destination}")
+    lines.append(f"\n**Destination:** {itinerary.destination}")
+    lines.append(f"**Dates:** {itinerary.start_date} to {itinerary.end_date}")
+    lines.append(f"**Budget:** ${itinerary.total_budget}")
+    lines.append("")
+
+    # Add itinerary overview if available
+    if itinerary.notes:
+        lines.append("## Overview")
+        lines.append(itinerary.notes)
+        lines.append("")
+
+    # Day-by-day itinerary
+    days = itinerary.days.all().order_by('day_number')
+    for day in days:
+        lines.append(f"## Day {day.day_number}: {day.title or 'Activities'}")
+        if day.notes:
+            lines.append(day.notes)
+
+        # Add items for this day
+        items = day.items.all().order_by('order', 'start_time')
+        for item in items:
+            if item.start_time:
+                time_str = item.start_time.strftime('%I:%M %p')
+                lines.append(f"{time_str} - {item.title}")
+            else:
+                lines.append(f"- {item.title}")
+
+            if item.description:
+                lines.append(f"  {item.description}")
+
+            if item.location:
+                lines.append(f"  📍 {item.location}")
+
+            if item.estimated_cost:
+                lines.append(f"  💰 ${item.estimated_cost}")
+
+        lines.append("")
+
+    return "\n".join(lines)
