@@ -77,6 +77,8 @@ export const API_ENDPOINTS = {
     CREATE: '/api/itineraries/itineraries',
     UPDATE: '/api/itineraries/itineraries',
     DELETE: '/api/itineraries/itineraries',
+    DAYS: '/api/itineraries/days',
+    ITEMS: '/api/itineraries/items',
   },
   NOTIFICATIONS: {
     LIST: '/api/notifications',

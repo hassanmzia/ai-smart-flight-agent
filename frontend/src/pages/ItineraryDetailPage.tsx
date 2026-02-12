@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { Card, Button } from '@/components/common';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { createItinerary, getItinerary, updateItinerary } from '@/services/itineraryService';
 import { ItineraryPDFViewer } from '@/components/ItineraryPDFViewer';
+import DayByDayPlan from '@/components/DayByDayPlan';
 import toast from 'react-hot-toast';
 
 const ItineraryDetailPage = () => {
@@ -24,17 +25,11 @@ const ItineraryDetailPage = () => {
     currency: 'USD',
   });
 
+  const [days, setDays] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isNewItinerary && id) {
-      // Load existing itinerary for editing
-      loadItinerary(id);
-    }
-  }, [id, isNewItinerary]);
-
-  const loadItinerary = async (itineraryId: string) => {
+  const loadItinerary = useCallback(async (itineraryId: string) => {
     try {
       setLoading(true);
       const data = await getItinerary(itineraryId);
@@ -48,51 +43,48 @@ const ItineraryDetailPage = () => {
         estimated_budget: data.estimated_budget || '',
         currency: data.currency || 'USD',
       });
+      setDays(data.days || []);
     } catch (err) {
       console.error('Failed to load itinerary:', err);
       toast.error('Failed to load itinerary');
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!isNewItinerary && id) {
+      loadItinerary(id);
+    }
+  }, [id, isNewItinerary, loadItinerary]);
+
+  const handleDaysUpdate = () => {
+    if (id && !isNewItinerary) {
+      loadItinerary(id);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted with data:', formData);
-    console.log('id:', id);
-    console.log('isNewItinerary:', isNewItinerary);
 
     setLoading(true);
     setError(null);
 
     try {
       if (isNewItinerary) {
-        // Create new itinerary
-        console.log('Creating new itinerary...');
         const dataWithUser = {
           ...formData,
-          user: String(user.id), // Add the authenticated user's ID as string
-          status: 'planned', // Set default status to 'planned'
+          user: String(user.id),
+          status: 'planned',
         };
-        const result = await createItinerary(dataWithUser);
-        console.log('Itinerary created:', result);
+        await createItinerary(dataWithUser);
         toast.success('Itinerary created successfully!');
       } else if (id) {
-        // Update existing itinerary
-        console.log('Updating itinerary...', id);
-        const result = await updateItinerary(id, formData);
-        console.log('Itinerary updated:', result);
+        await updateItinerary(id, formData);
         toast.success('Itinerary updated successfully!');
       }
-      console.log('Navigating to /itinerary');
       navigate('/itinerary');
     } catch (err: any) {
-      console.error('Failed to save itinerary - Full error:', err);
-      console.error('Error message:', err.message);
-      console.error('Error response:', err.response);
-      console.error('Error data:', err.response?.data);
-
-      // The axios interceptor transforms errors, so check both formats
       let errorMessage = 'Failed to save itinerary';
 
       if (err.response?.data?.message) {
@@ -100,7 +92,6 @@ const ItineraryDetailPage = () => {
       } else if (err.response?.data?.detail) {
         errorMessage = err.response.data.detail;
       } else if (err.response?.data) {
-        // If data is an object with field errors, format them
         if (typeof err.response.data === 'object') {
           const errors = Object.entries(err.response.data)
             .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
@@ -111,7 +102,6 @@ const ItineraryDetailPage = () => {
         errorMessage = err.message;
       }
 
-      console.error('Parsed error message:', errorMessage);
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -307,6 +297,19 @@ const ItineraryDetailPage = () => {
         </form>
         )}
       </Card>
+
+      {/* Day-by-Day Plan - only show for existing itineraries */}
+      {!isNewItinerary && id && formData.start_date && formData.end_date && (
+        <div className="mt-8">
+          <DayByDayPlan
+            itineraryId={Number(id)}
+            days={days}
+            startDate={formData.start_date}
+            endDate={formData.end_date}
+            onUpdate={handleDaysUpdate}
+          />
+        </div>
+      )}
 
       {/* PDF Export & Email - only show for existing itineraries */}
       {!isNewItinerary && id && (

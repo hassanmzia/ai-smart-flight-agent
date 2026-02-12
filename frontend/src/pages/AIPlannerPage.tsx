@@ -1,14 +1,24 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import Loading from '@/components/common/Loading';
 import { useToast } from '@/hooks/useNotifications';
+import { useAuth } from '@/hooks/useAuth';
 import { API_BASE_URL } from '@/utils/constants';
+import {
+  createItinerary,
+  createItineraryDay,
+  createItineraryItem,
+} from '@/services/itineraryService';
 
 const AIPlannerPage = () => {
+  const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
+  const { isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<any>(null);
 
   // Form state
@@ -55,6 +65,117 @@ const AIPlannerPage = () => {
       showError(error.message || 'Failed to connect to AI agent');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveAsItinerary = async () => {
+    if (!result || !isAuthenticated || !user) {
+      showError('Please log in to save itineraries');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Calculate trip duration
+      const start = departureDate;
+      const end = returnDate || departureDate;
+      const totalCost = result.recommendation?.total_estimated_cost;
+
+      // Create itinerary
+      const itinerary = await createItinerary({
+        title: `AI Trip: ${origin} to ${destination}`,
+        destination: destination,
+        start_date: start,
+        end_date: end,
+        user: String(user.id),
+        status: 'planned',
+        number_of_travelers: passengers,
+        estimated_budget: totalCost ? String(totalCost) : undefined,
+        currency: 'USD',
+        description: `AI-planned trip from ${origin} to ${destination}. ${passengers} passenger(s).`,
+      });
+
+      const itineraryId = Number(itinerary.id);
+
+      // Create Day 1 with travel items
+      const day1 = await createItineraryDay({
+        itinerary: itineraryId,
+        day_number: 1,
+        date: start,
+        title: 'Arrival Day',
+      });
+
+      // Add flight as item
+      const rec = result.recommendation;
+      if (rec?.recommended_flight) {
+        const flight = rec.recommended_flight;
+        await createItineraryItem({
+          day: day1.id!,
+          item_type: 'flight',
+          title: `${flight.airline} ${flight.flight_number || ''} - ${flight.departure_airport_code || origin} to ${flight.arrival_airport_code || destination}`,
+          description: `${flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop(s)`}${flight.duration ? ` \u00B7 ${Math.floor(flight.duration / 60)}h ${flight.duration % 60}m` : ''}`,
+          start_time: flight.departure_time?.split(' ')[1]?.slice(0, 5) || undefined,
+          estimated_cost: flight.price || undefined,
+          location_name: flight.departure_airport || origin,
+        });
+      }
+
+      // Add hotel check-in as item
+      if (rec?.recommended_hotel) {
+        const hotel = rec.recommended_hotel;
+        await createItineraryItem({
+          day: day1.id!,
+          item_type: 'hotel',
+          title: `Check in: ${hotel.name || hotel.hotel_name}`,
+          description: `${'⭐'.repeat(Math.round(hotel.stars || hotel.star_rating || 0))} ${hotel.check_in_time ? `Check-in: ${hotel.check_in_time}` : ''}`,
+          start_time: '15:00',
+          estimated_cost: hotel.price || hotel.price_per_night || undefined,
+          location_name: hotel.address || destination,
+        });
+      }
+
+      // Add restaurant as item
+      if (rec?.recommended_restaurant) {
+        const rest = rec.recommended_restaurant;
+        await createItineraryItem({
+          day: day1.id!,
+          item_type: 'restaurant',
+          title: `Dinner: ${rest.name}`,
+          description: `${rest.cuisine_type || ''} ${rest.price_range || ''}`.trim(),
+          start_time: '19:00',
+          estimated_cost: rest.average_cost_per_person || undefined,
+          location_name: rest.address || '',
+        });
+      }
+
+      // If multi-day, create remaining days
+      if (returnDate && returnDate !== departureDate) {
+        const startD = new Date(start);
+        const endD = new Date(end);
+        const totalDays = Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+        for (let d = 2; d <= totalDays; d++) {
+          const dayDate = new Date(startD);
+          dayDate.setDate(dayDate.getDate() + d - 1);
+          const dateStr = dayDate.toISOString().split('T')[0];
+
+          const isLastDay = d === totalDays;
+          await createItineraryDay({
+            itinerary: itineraryId,
+            day_number: d,
+            date: dateStr,
+            title: isLastDay ? 'Departure Day' : `Day ${d} - Explore ${destination}`,
+          });
+        }
+      }
+
+      showSuccess('Itinerary saved! Redirecting...');
+      setTimeout(() => navigate(`/itineraries/${itinerary.id}`), 500);
+    } catch (err: any) {
+      console.error('Failed to save itinerary:', err);
+      showError(err.response?.data?.detail || 'Failed to save itinerary. Make sure you are logged in.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -221,6 +342,33 @@ const AIPlannerPage = () => {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Save as Itinerary Button */}
+          <Card>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Save this plan as an itinerary</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Create a day-by-day trip plan you can edit, export as PDF, and share
+                  </p>
+                </div>
+                <Button
+                  onClick={handleSaveAsItinerary}
+                  disabled={saving || !isAuthenticated}
+                  isLoading={saving}
+                  className="whitespace-nowrap"
+                >
+                  {saving ? 'Saving...' : '📋 Save as Itinerary'}
+                </Button>
+              </div>
+              {!isAuthenticated && (
+                <p className="text-xs text-orange-600 dark:text-orange-400 mt-2">
+                  Please sign in to save itineraries.
+                </p>
+              )}
             </CardContent>
           </Card>
 

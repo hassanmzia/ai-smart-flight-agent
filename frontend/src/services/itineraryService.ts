@@ -205,3 +205,81 @@ export const exportItineraryPDF = async (itineraryId: string): Promise<Blob> => 
   );
   return response.data;
 };
+
+// ==================== Day Management ====================
+
+export interface ItineraryDayData {
+  id?: number;
+  itinerary: number;
+  day_number: number;
+  date: string;
+  title?: string;
+  description?: string;
+  notes?: string;
+  items?: ItineraryItemData[];
+}
+
+export interface ItineraryItemData {
+  id?: number;
+  day: number;
+  item_type: 'flight' | 'hotel' | 'restaurant' | 'attraction' | 'activity' | 'transport' | 'note';
+  order?: number;
+  title: string;
+  description?: string;
+  start_time?: string;
+  end_time?: string;
+  duration_minutes?: number;
+  location_name?: string;
+  location_address?: string;
+  estimated_cost?: number;
+  notes?: string;
+  url?: string;
+}
+
+/**
+ * Create an itinerary day
+ */
+export const createItineraryDay = async (data: Omit<ItineraryDayData, 'id' | 'items'>): Promise<ItineraryDayData> => {
+  const response = await api.post(`${API_ENDPOINTS.ITINERARY.DAYS}/`, data);
+  return handleApiResponse(response);
+};
+
+/**
+ * Update an itinerary day
+ */
+export const updateItineraryDay = async (dayId: number, data: Partial<ItineraryDayData>): Promise<ItineraryDayData> => {
+  const response = await api.patch(`${API_ENDPOINTS.ITINERARY.DAYS}/${dayId}/`, data);
+  return handleApiResponse(response);
+};
+
+/**
+ * Delete an itinerary day
+ */
+export const deleteItineraryDay = async (dayId: number): Promise<void> => {
+  const response = await api.delete(`${API_ENDPOINTS.ITINERARY.DAYS}/${dayId}/`);
+  return handleApiResponse(response);
+};
+
+/**
+ * Create an itinerary item
+ */
+export const createItineraryItem = async (data: Omit<ItineraryItemData, 'id'>): Promise<ItineraryItemData> => {
+  const response = await api.post(`${API_ENDPOINTS.ITINERARY.ITEMS}/`, data);
+  return handleApiResponse(response);
+};
+
+/**
+ * Update an itinerary item
+ */
+export const updateItineraryItem = async (itemId: number, data: Partial<ItineraryItemData>): Promise<ItineraryItemData> => {
+  const response = await api.patch(`${API_ENDPOINTS.ITINERARY.ITEMS}/${itemId}/`, data);
+  return handleApiResponse(response);
+};
+
+/**
+ * Delete an itinerary item
+ */
+export const deleteItineraryItem = async (itemId: number): Promise<void> => {
+  const response = await api.delete(`${API_ENDPOINTS.ITINERARY.ITEMS}/${itemId}/`);
+  return handleApiResponse(response);
+};
