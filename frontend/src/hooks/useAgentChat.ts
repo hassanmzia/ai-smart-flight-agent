@@ -29,8 +29,8 @@ export const useAgentChat = (sessionId?: string) => {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: (message: string) => agentService.sendChatMessage(message, contextRef.current),
-    onSuccess: (data: ChatMessage) => {
-      setMessages((prev) => [...prev, data]);
+    onSuccess: (data) => {
+      setMessages((prev) => [...prev, data.response]);
     },
   });
 
