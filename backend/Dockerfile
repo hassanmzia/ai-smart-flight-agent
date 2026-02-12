@@ -37,7 +37,7 @@ RUN pip install --upgrade pip && \
     # Install langchain with updated versions for better pydantic compatibility
     pip install langchain-core==0.2.38 langchain==0.2.16 && \
     pip install langchain-openai==0.1.23 langchain-community==0.2.16 \
-                langgraph==0.2.16 openai==1.54.4 langsmith==0.1.75 && \
+                "langgraph>=0.1.0,<0.2.0" openai==1.54.4 langsmith==0.1.75 && \
     # Stage 6: Vector DB and embeddings
     pip install "chromadb>=0.4.22,<0.5.0" "sentence-transformers>=2.3.1,<3.0.0" \
                 langchain-chroma>=0.1.0 && \
