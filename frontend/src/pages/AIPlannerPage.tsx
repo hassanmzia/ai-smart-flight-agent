@@ -712,16 +712,44 @@ const AIPlannerPage = () => {
                     prose-strong:text-gray-900 dark:prose-strong:text-white
                     prose-ul:my-1 prose-ol:my-1"
                   dangerouslySetInnerHTML={{
-                    __html: result.itinerary_text
-                      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-                      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-                      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                      .replace(/^- (.*$)/gm, '<li>$1</li>')
-                      .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-                      .replace(/\n\n/g, '</p><p>')
-                      .replace(/\n/g, '<br/>')
+                    __html: (() => {
+                      let html = result.itinerary_text;
+                      // Convert markdown tables to HTML tables
+                      html = html.replace(
+                        /(?:^\|.+\|$\n?)+/gm,
+                        (tableBlock: string) => {
+                          const rows = tableBlock.trim().split('\n').filter((r: string) => r.trim());
+                          if (rows.length < 2) return tableBlock;
+                          let table = '<table class="w-full text-sm border-collapse my-3">';
+                          rows.forEach((row: string, i: number) => {
+                            // Skip separator rows (|---|---|)
+                            if (/^\|[\s\-:|]+\|$/.test(row.trim())) return;
+                            const cells = row.split('|').filter((c: string, ci: number, arr: string[]) => ci > 0 && ci < arr.length - 1);
+                            const tag = i === 0 ? 'th' : 'td';
+                            const cls = i === 0 ? 'bg-gray-100 dark:bg-gray-800 font-semibold' : '';
+                            table += `<tr class="${cls}">`;
+                            cells.forEach((cell: string) => {
+                              table += `<${tag} class="border border-gray-200 dark:border-gray-700 px-3 py-1.5">${cell.trim()}</${tag}>`;
+                            });
+                            table += '</tr>';
+                          });
+                          table += '</table>';
+                          return table;
+                        }
+                      );
+                      // Convert markdown headings, bold, italic, lists
+                      html = html
+                        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                        .replace(/^- (.*$)/gm, '<li>$1</li>')
+                        .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+                        .replace(/\n\n/g, '</p><p>')
+                        .replace(/\n/g, '<br/>');
+                      return html;
+                    })()
                   }}
                 />
               </CardContent>

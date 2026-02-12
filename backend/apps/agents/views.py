@@ -443,7 +443,11 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
     if rec.get('recommended_flight'):
         f = rec['recommended_flight']
         dur = f.get('duration')
-        dur_str = f"{dur // 60}h {dur % 60}m" if dur else 'N/A'
+        try:
+            dur = int(dur) if dur else None
+            dur_str = f"{dur // 60}h {dur % 60}m" if dur else 'N/A'
+        except (TypeError, ValueError):
+            dur_str = str(dur) if dur else 'N/A'
         flight_summary = (
             f"BOOKED FLIGHT:\n"
             f"  Airline: {f.get('airline', 'Unknown')}\n"
@@ -721,10 +725,17 @@ IMPORTANT REMINDERS:
         model=settings.AGENT_CONFIG.get('MODEL', 'gpt-4o-mini'),
         temperature=0.7,
         api_key=settings.OPENAI_API_KEY,
+        request_timeout=120,
     )
 
-    response = model.invoke([HumanMessage(content=prompt)])
-    return response.content
+    logger.info("Calling LLM for narrative generation (prompt length: %d chars)", len(prompt))
+    try:
+        response = model.invoke([HumanMessage(content=prompt)])
+        logger.info("LLM narrative generated successfully (%d chars)", len(response.content))
+        return response.content
+    except Exception as exc:
+        logger.error("LLM narrative call failed: %s", exc, exc_info=True)
+        raise
 
 
 @api_view(['POST'])
@@ -808,8 +819,20 @@ def plan_travel(request):
                     enhanced_data=enhanced_data,
                 )
             except Exception as e:
-                logger.warning(f"LLM narrative generation failed: {e}")
-                result['itinerary_text'] = None
+                logger.error(f"LLM narrative generation failed: {e}", exc_info=True)
+                # Provide a fallback plan so the user still sees something
+                result['itinerary_text'] = (
+                    f"## Trip Overview\n\n"
+                    f"AI-planned trip from {origin} to {destination}, "
+                    f"{departure_date} to {return_date or departure_date}.\n\n"
+                    f"## Day 1: Arrival\n\n"
+                    f"- Arrive in {destination}\n"
+                    f"- Check in to hotel\n"
+                    f"- Explore the area\n\n"
+                    f"*Note: Detailed AI itinerary generation encountered an error. "
+                    f"Please try again or check your search results below for "
+                    f"flight, hotel, and restaurant recommendations.*"
+                )
 
         # Create session record if user is authenticated
         if request.user.is_authenticated:
