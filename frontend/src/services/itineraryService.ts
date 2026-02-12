@@ -198,7 +198,7 @@ export const shareItinerary = async (
  */
 export const exportItineraryPDF = async (itineraryId: string): Promise<Blob> => {
   const response = await api.get(
-    `${API_ENDPOINTS.ITINERARY.LIST}/${itineraryId}/export`,
+    `${API_ENDPOINTS.ITINERARY.LIST}/${itineraryId}/export-pdf/`,
     {
       responseType: 'blob',
     }

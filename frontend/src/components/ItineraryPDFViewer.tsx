@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { ArrowPathIcon } from '@heroicons/react/24/solid';
 import api from '../services/api';
+import { API_ENDPOINTS } from '@/utils/constants';
 
 interface ItineraryPDFViewerProps {
   itineraryId: number;
@@ -51,7 +52,7 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
     setLoading(true);
     try {
       const response = await api.post(
-        `/api/itineraries/${itineraryId}/export-pdf/`,
+        `${API_ENDPOINTS.ITINERARY.LIST}/${itineraryId}/export-pdf/`,
         {
           theme: selectedTheme,
           include_qr: includeQR,
@@ -93,7 +94,7 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
     setEmailMessage('Sending...');
 
     try {
-      const response = await api.post(`/api/itineraries/${itineraryId}/send-email/`, {
+      const response = await api.post(`${API_ENDPOINTS.ITINERARY.LIST}/${itineraryId}/send-email/`, {
         to_email: emailAddress,
         subject: `Your Trip Itinerary: ${destination}`,
         backend: 'auto',

@@ -45,13 +45,13 @@ class ItineraryViewSet(viewsets.ModelViewSet):
         lines.append(f"# {itinerary.title or itinerary.destination}")
         lines.append(f"\n**Destination:** {itinerary.destination}")
         lines.append(f"**Dates:** {itinerary.start_date} to {itinerary.end_date}")
-        lines.append(f"**Budget:** ${itinerary.total_budget}")
+        lines.append(f"**Budget:** ${itinerary.estimated_budget or 0}")
         lines.append("")
 
         # Add itinerary overview if available
-        if itinerary.notes:
+        if itinerary.description:
             lines.append("## Overview")
-            lines.append(itinerary.notes)
+            lines.append(itinerary.description)
             lines.append("")
 
         # Day-by-day itinerary
@@ -73,8 +73,8 @@ class ItineraryViewSet(viewsets.ModelViewSet):
                 if item.description:
                     lines.append(f"  {item.description}")
 
-                if item.location:
-                    lines.append(f"  📍 {item.location}")
+                if item.location_name:
+                    lines.append(f"  📍 {item.location_name}")
 
                 if item.estimated_cost:
                     lines.append(f"  💰 ${item.estimated_cost}")
@@ -125,8 +125,8 @@ class ItineraryViewSet(viewsets.ModelViewSet):
                 itinerary_text=itinerary_text,
                 destination=itinerary.destination,
                 dates=f"{itinerary.start_date} to {itinerary.end_date}",
-                origin=itinerary.origin or "N/A",
-                budget=int(itinerary.total_budget) if itinerary.total_budget else 0,
+                origin="N/A",
+                budget=int(itinerary.estimated_budget) if itinerary.estimated_budget else 0,
                 output_path=pdf_path,
                 theme=theme,
                 user_name=request.user.get_full_name() or request.user.username,
@@ -194,8 +194,8 @@ class ItineraryViewSet(viewsets.ModelViewSet):
                 itinerary_text=itinerary_text,
                 destination=itinerary.destination,
                 dates=f"{itinerary.start_date} to {itinerary.end_date}",
-                origin=itinerary.origin or "N/A",
-                budget=int(itinerary.total_budget) if itinerary.total_budget else 0,
+                origin="N/A",
+                budget=int(itinerary.estimated_budget) if itinerary.estimated_budget else 0,
                 output_path=pdf_path,
                 user_name=request.user.get_full_name() or request.user.username
             )
