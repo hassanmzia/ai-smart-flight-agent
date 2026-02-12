@@ -34,8 +34,9 @@ RUN pip install --upgrade pip && \
     pip install gunicorn==21.2.0 uvicorn==0.27.0 websockets==12.0 \
                 channels==4.0.0 channels-redis==4.2.0 daphne==4.1.0 && \
     # Stage 5: AI/ML frameworks (complex dependencies)
-    pip install langchain==0.1.6 langchain-openai==0.0.5 langchain-community==0.0.19 \
-                langgraph==0.0.23 openai==1.12.0 langsmith>=0.0.83 && \
+    pip install langchain-core==0.1.23 langchain==0.1.6 langchain-openai==0.0.5 \
+                langchain-community==0.0.19 langgraph==0.0.23 openai==1.12.0 \
+                langsmith>=0.0.83 && \
     # Stage 6: Vector DB and embeddings
     pip install "chromadb>=0.4.22,<0.5.0" "sentence-transformers>=2.3.1,<3.0.0" \
                 langchain-chroma>=0.1.0 && \
