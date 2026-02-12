@@ -262,13 +262,132 @@ class AgentLogViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 
+def _gather_enhanced_agent_data(*, destination, origin, departure_date, return_date, cuisine):
+    """
+    Call all enhanced agents (weather, health/safety, visa, packing, local expert)
+    and return their data. Each agent call is wrapped in a try/except so failures
+    don't block the overall plan.
+    """
+    enhanced = {}
+
+    # ── Weather (try real client first, fall back to stub) ──
+    try:
+        from .integrations.weather_client import WeatherClient
+        client = WeatherClient()
+        if client.api_key:
+            weather = client.get_weather_by_city(destination, units='metric')
+            if weather:
+                enhanced['weather'] = {
+                    'temperature': f"{weather.get('temperature', 'N/A')}°C",
+                    'feels_like': f"{weather.get('feels_like', 'N/A')}°C",
+                    'condition': weather.get('condition', ''),
+                    'description': weather.get('description', ''),
+                    'humidity': f"{weather.get('humidity', 'N/A')}%",
+                    'wind_speed': f"{weather.get('wind_speed', 'N/A')} m/s",
+                    'source': 'OpenWeatherMap'
+                }
+    except Exception as e:
+        logger.debug(f"Real weather client failed: {e}")
+
+    if 'weather' not in enhanced:
+        # Use LLM general knowledge instead of the fake stub
+        enhanced['weather'] = {
+            'note': f'No live weather data available. Use general climate knowledge for {destination} around {departure_date}.',
+            'source': 'general_knowledge'
+        }
+
+    # ── Health & Safety ──
+    try:
+        from .enhanced_agents import HealthSafetyAgent
+        health_agent = HealthSafetyAgent.__new__(HealthSafetyAgent)
+        health_agent.data_provider = __import__(
+            'apps.agents.enhanced_agents', fromlist=['HealthSafetyDataProvider']
+        ).HealthSafetyDataProvider()
+        # Call data providers directly (no LLM needed)
+        safety_data = health_agent.data_provider.get_travel_safety_score(destination)
+        cdc_data = health_agent.data_provider.get_cdc_travel_health_notices(destination)
+        enhanced['health_safety'] = {
+            'safety_score': safety_data.get('overall_safety_score', 'N/A'),
+            'crime_level': safety_data.get('crime_level', 'N/A'),
+            'terrorism_threat': safety_data.get('terrorism_threat', 'N/A'),
+            'political_stability': safety_data.get('political_stability', 'N/A'),
+            'health_infrastructure': safety_data.get('health_infrastructure', 'N/A'),
+            'emergency_numbers': safety_data.get('emergency_numbers', {}),
+            'cdc_alert_level': cdc_data.get('alert_level', 'N/A'),
+            'vaccinations_required': cdc_data.get('vaccinations_required', []),
+            'health_recommendations': cdc_data.get('notices', []),
+        }
+    except Exception as e:
+        logger.debug(f"Health/safety agent failed: {e}")
+        enhanced['health_safety'] = {}
+
+    # ── Visa Requirements ──
+    try:
+        from .enhanced_agents import VisaRequirementsAgent
+        visa_agent = VisaRequirementsAgent()
+        visa_data = visa_agent.get_visa_requirements(
+            origin_country=origin,
+            destination_country=destination,
+        )
+        enhanced['visa'] = {
+            'visa_required': visa_data.get('visa_required', 'Check with embassy'),
+            'max_stay': visa_data.get('max_stay', 'Varies'),
+            'required_documents': visa_data.get('required_documents', []),
+            'important_notes': visa_data.get('important_notes', []),
+        }
+    except Exception as e:
+        logger.debug(f"Visa agent failed: {e}")
+        enhanced['visa'] = {}
+
+    # ── Packing List ──
+    try:
+        from .enhanced_agents import PackingListAgent
+        packing_agent = PackingListAgent()
+        weather_for_packing = enhanced.get('weather', {})
+        packing_data = packing_agent.generate_packing_list(
+            destination=destination,
+            start_date=departure_date,
+            end_date=return_date or departure_date,
+            weather_data=weather_for_packing,
+        )
+        enhanced['packing'] = packing_data.get('packing_list', {})
+        enhanced['packing_tips'] = packing_data.get('packing_tips', [])
+    except Exception as e:
+        logger.debug(f"Packing agent failed: {e}")
+        enhanced['packing'] = {}
+
+    # ── Local Expert (dining customs, cuisine info) ──
+    try:
+        from .enhanced_agents import EnhancedLocalExpertAgent
+        local_agent = EnhancedLocalExpertAgent()
+        dining_data = local_agent.get_dining_recommendations(
+            city=destination,
+            country=destination,  # approximate
+            cuisine_preferences=[cuisine] if cuisine else None,
+        )
+        enhanced['local_dining'] = {
+            'must_try_dishes': dining_data.get('must_try_dishes', []),
+            'food_customs': dining_data.get('food_customs', []),
+            'dietary_considerations': dining_data.get('dietary_considerations', {}),
+            'budget_guide': dining_data.get('budget_guide', {}),
+            'dining_tips': dining_data.get('tips', []),
+        }
+    except Exception as e:
+        logger.debug(f"Local expert agent failed: {e}")
+        enhanced['local_dining'] = {}
+
+    return enhanced
+
+
 def _synthesize_narrative(*, result, origin, destination, departure_date,
-                         return_date, passengers, budget, cuisine):
-    """Use LLM to generate a day-by-day narrative itinerary from all agent results."""
+                         return_date, passengers, budget, cuisine,
+                         enhanced_data=None):
+    """Use LLM to generate a day-by-day narrative itinerary from ALL agent results."""
     from langchain_openai import ChatOpenAI
     from langchain.schema import HumanMessage
 
     rec = result.get('recommendation', {})
+    enhanced = enhanced_data or {}
 
     # ── Flight information ──
     flight_summary = ''
@@ -298,7 +417,6 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             f"{h.get('stars') or h.get('star_rating', '')} stars, "
             f"address: {h.get('address', '')}"
         )
-    # Include top 5 hotel alternatives
     top_hotels = rec.get('top_5_hotels', [])
     if top_hotels and len(top_hotels) > 1:
         hotel_summary += "\nOther Hotel Options:"
@@ -320,7 +438,6 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             f"rating: {r.get('rating', 'N/A')}/5, "
             f"address: {r.get('address', '')}"
         )
-    # Include top 5 restaurant alternatives
     top_restaurants = rec.get('top_5_restaurants', [])
     if top_restaurants:
         restaurant_summary += "\nAll Recommended Restaurants:"
@@ -360,39 +477,87 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
         if cheapest:
             budget_summary += f"\nCheapest flight: ${cheapest.get('price', 'N/A')} ({cheapest.get('status', '')})"
 
-    # ── Weather information (from WeatherTool) ──
-    weather_summary = ''
-    try:
-        from .agent_tools import WeatherTool
-        weather_data = WeatherTool.get_weather(location=destination, date=departure_date)
-        if weather_data and not weather_data.get('error'):
-            weather_summary = (
-                f"Weather at {destination}: {weather_data.get('temperature', 'N/A')}, "
-                f"{weather_data.get('condition', 'N/A')}, "
-                f"humidity: {weather_data.get('humidity', 'N/A')}, "
-                f"wind: {weather_data.get('wind_speed', 'N/A')}"
+    # ── Weather (from enhanced agents) ──
+    weather_section = ''
+    weather = enhanced.get('weather', {})
+    if weather.get('source') == 'OpenWeatherMap':
+        weather_section = (
+            f"Current weather in {destination}: {weather.get('temperature')}, "
+            f"feels like {weather.get('feels_like')}, "
+            f"{weather.get('description', weather.get('condition', ''))}, "
+            f"humidity: {weather.get('humidity')}, "
+            f"wind: {weather.get('wind_speed')}"
+        )
+    else:
+        weather_section = weather.get('note', f'Use general climate knowledge for {destination}.')
+
+    # ── Health & Safety (from enhanced agents) ──
+    safety_section = ''
+    hs = enhanced.get('health_safety', {})
+    if hs:
+        safety_section = (
+            f"Safety score: {hs.get('safety_score', 'N/A')}/10, "
+            f"crime level: {hs.get('crime_level', 'N/A')}, "
+            f"terrorism threat: {hs.get('terrorism_threat', 'N/A')}, "
+            f"political stability: {hs.get('political_stability', 'N/A')}, "
+            f"health infrastructure: {hs.get('health_infrastructure', 'N/A')}"
+        )
+        emergency = hs.get('emergency_numbers', {})
+        if emergency:
+            safety_section += f"\nEmergency numbers - Police: {emergency.get('police', '911')}, Ambulance: {emergency.get('ambulance', '911')}"
+        vacc = hs.get('vaccinations_required', [])
+        if vacc:
+            safety_section += f"\nRequired vaccinations: {', '.join(vacc)}"
+
+    # ── Visa Requirements (from enhanced agents) ──
+    visa_section = ''
+    visa = enhanced.get('visa', {})
+    if visa:
+        visa_section = (
+            f"Visa: {visa.get('visa_required', 'Check with embassy')}, "
+            f"max stay: {visa.get('max_stay', 'Varies')} days"
+        )
+        docs = visa.get('required_documents', [])
+        if docs:
+            visa_section += f"\nRequired documents: {', '.join(docs[:5])}"
+
+    # ── Local Dining Culture (from enhanced agents) ──
+    local_section = ''
+    local = enhanced.get('local_dining', {})
+    if local:
+        dishes = local.get('must_try_dishes', [])
+        if dishes:
+            local_section += f"Must-try local dishes: {', '.join(dishes)}"
+        customs = local.get('food_customs', [])
+        if customs:
+            local_section += f"\nDining customs: {', '.join(customs)}"
+        budget_guide = local.get('budget_guide', {})
+        if budget_guide:
+            local_section += (
+                f"\nMeal price guide - Budget: {budget_guide.get('budget_meal', 'N/A')}, "
+                f"Mid-range: {budget_guide.get('mid_range_meal', 'N/A')}, "
+                f"Fine dining: {budget_guide.get('fine_dining', 'N/A')}"
             )
-    except Exception as e:
-        logger.debug(f"Weather fetch for narrative: {e}")
+        tips = local.get('dining_tips', [])
+        if tips:
+            local_section += f"\nDining tips: {'; '.join(tips)}"
 
-    # ── Collect all flight options for context ──
-    all_flights_summary = ''
-    flights_data = result.get('flights', {})
-    if isinstance(flights_data, dict):
-        all_flights = flights_data.get('flights', [])
-        if all_flights:
-            all_flights_summary = f"Total flights found: {len(all_flights)}"
-
-    # ── Collect restaurant search context ──
-    all_restaurants_summary = ''
-    restaurant_data = result.get('restaurants', {})
-    if isinstance(restaurant_data, dict):
-        all_restaurants = restaurant_data.get('restaurants', [])
-        if all_restaurants:
-            all_restaurants_summary = f"Total restaurants found: {len(all_restaurants)}"
+    # ── Packing Suggestions (from enhanced agents) ──
+    packing_section = ''
+    packing = enhanced.get('packing', {})
+    if packing:
+        parts = []
+        for category, items in packing.items():
+            if items:
+                parts.append(f"{category.title()}: {', '.join(items[:5])}")
+        if parts:
+            packing_section = '\n'.join(parts)
+    packing_tips = enhanced.get('packing_tips', [])
+    if packing_tips:
+        packing_section += f"\nTips: {'; '.join(packing_tips)}"
 
     prompt = f"""Create a comprehensive, detailed day-by-day travel itinerary in markdown format.
-You are an expert travel planner creating a real, actionable trip plan.
+You are an expert travel planner creating a real, actionable trip plan using data from multiple specialized AI agents.
 
 ## Trip Details
 - Origin: {origin}
@@ -402,46 +567,62 @@ You are an expert travel planner creating a real, actionable trip plan.
 - Budget: ${budget or 'flexible'}
 {f'- Cuisine preference: {cuisine}' if cuisine else ''}
 
-## Flight Options
+## Flight Options (from Flight Search Agent)
 {flight_summary or 'No specific flight data available - suggest checking major airlines.'}
-{all_flights_summary}
 
-## Accommodation
-{hotel_summary or 'No specific hotel data available - suggest checking major hotel booking sites.'}
+## Accommodation (from Hotel Search Agent)
+{hotel_summary or 'No specific hotel data available - suggest checking major booking sites.'}
 
-## Dining Options
-{restaurant_summary or 'No specific restaurant data available - suggest local dining.'}
-{all_restaurants_summary}
+## Dining Options (from Restaurant Search Agent)
+{restaurant_summary or 'No specific restaurant data available.'}
 
-## Transportation
-{car_summary or 'No specific car rental data available - suggest public transit or ride-sharing.'}
+## Transportation (from Car Rental Agent)
+{car_summary or 'No specific car rental data - suggest public transit or ride-sharing.'}
 
-## Weather & Climate
-{weather_summary or f'Check weather for {destination} closer to travel dates.'}
+## Weather & Climate (from Weather Agent)
+{weather_section}
 
-## Budget Analysis
+## Health & Safety (from Health/Safety Agent)
+{safety_section or f'Check travel advisories for {destination} before departure.'}
+
+## Visa & Documents (from Visa Agent)
+{visa_section or f'Check visa requirements for {destination} based on your citizenship.'}
+
+## Local Dining Culture (from Local Expert Agent)
+{local_section or f'Explore local cuisine in {destination}.'}
+
+## Packing Recommendations (from Packing Agent)
+{packing_section or 'Pack according to weather and trip duration.'}
+
+## Budget Analysis (from Budget Evaluator Agent)
 {budget_summary or 'No budget analysis available.'}
 
 ---
 
-Please create a comprehensive day-by-day itinerary that includes:
+Please create a comprehensive day-by-day itinerary that incorporates ALL the agent data above:
 
-1. **Trip Overview** - A brief, exciting summary of the trip highlighting key experiences
+1. **Trip Overview** - Brief exciting summary highlighting key experiences
 
 2. **Day-by-day schedule** - For EACH day of the trip:
    - Morning activities with times (e.g., "8:00 AM - Breakfast at [restaurant name]")
    - Afternoon activities with times (sightseeing, tours, attractions specific to {destination})
    - Evening activities with times (dinner, entertainment, nightlife)
    - Include specific place names, famous landmarks, and popular attractions in {destination}
-   - Suggest specific restaurants from the data above for meals
+   - Use the restaurant data above for meal suggestions
    - Include estimated costs for each activity
    - Add transportation notes between activities
+   - **Include weather-appropriate activity suggestions** (indoor activities if rain expected, etc.)
 
-3. **Practical Tips** - Local customs, tipping, language, safety tips for {destination}
+3. **Practical Tips** incorporating agent data:
+   - Weather: what to expect and how to dress
+   - Safety: emergency numbers, crime level, health precautions
+   - Visa/documents: what to prepare
+   - Local customs: tipping, dining etiquette, language tips
+   - Packing essentials based on weather
 
 4. **Budget Summary** - Complete breakdown:
    - Flights cost
-   - Accommodation cost (per night × number of nights)
+   - Accommodation cost (per night x number of nights)
    - Daily food budget
    - Transportation/car rental
    - Activities and attractions
@@ -450,7 +631,7 @@ Please create a comprehensive day-by-day itinerary that includes:
 Use markdown ## for day headings (e.g., "## Day 1: Arrival in {destination}").
 Use specific times like "8:00 AM", "12:30 PM", "7:00 PM".
 Be specific with real place names, real attractions, and real restaurant suggestions for {destination}.
-This should read like a professional travel guide."""
+This should read like a professional travel guide that considers weather, safety, and local culture."""
 
     model = ChatOpenAI(
         model=settings.AGENT_CONFIG.get('MODEL', 'gpt-4o-mini'),
@@ -513,7 +694,22 @@ def plan_travel(request):
             cuisine=cuisine
         )
 
-        # Generate LLM day-by-day narrative itinerary
+        # Gather data from ALL enhanced agents (weather, safety, visa, packing, local expert)
+        enhanced_data = {}
+        if result.get('success'):
+            try:
+                enhanced_data = _gather_enhanced_agent_data(
+                    destination=destination,
+                    origin=origin,
+                    departure_date=departure_date,
+                    return_date=return_date,
+                    cuisine=cuisine,
+                )
+                result['enhanced_data'] = enhanced_data
+            except Exception as e:
+                logger.warning(f"Enhanced agent data gathering failed: {e}")
+
+        # Generate LLM day-by-day narrative itinerary using ALL agent data
         if result.get('success') and settings.OPENAI_API_KEY:
             try:
                 result['itinerary_text'] = _synthesize_narrative(
@@ -525,6 +721,7 @@ def plan_travel(request):
                     passengers=passengers,
                     budget=budget,
                     cuisine=cuisine,
+                    enhanced_data=enhanced_data,
                 )
             except Exception as e:
                 logger.warning(f"LLM narrative generation failed: {e}")

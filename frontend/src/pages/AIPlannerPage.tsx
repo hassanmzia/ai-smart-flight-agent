@@ -488,6 +488,158 @@ const AIPlannerPage = () => {
             </CardContent>
           </Card>
 
+          {/* Enhanced Agent Data: Weather, Safety, Visa, Packing */}
+          {result.enhanced_data && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Weather */}
+              {result.enhanced_data.weather && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>🌤️ Weather & Climate</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {result.enhanced_data.weather.source === 'OpenWeatherMap' ? (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Temperature</span>
+                          <span className="font-medium">{result.enhanced_data.weather.temperature}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Feels Like</span>
+                          <span className="font-medium">{result.enhanced_data.weather.feels_like}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Condition</span>
+                          <span className="font-medium">{result.enhanced_data.weather.description || result.enhanced_data.weather.condition}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Humidity</span>
+                          <span className="font-medium">{result.enhanced_data.weather.humidity}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Wind</span>
+                          <span className="font-medium">{result.enhanced_data.weather.wind_speed}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {result.enhanced_data.weather.note || 'Weather data included in AI itinerary based on general climate knowledge.'}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Health & Safety */}
+              {result.enhanced_data.health_safety && Object.keys(result.enhanced_data.health_safety).length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>🛡️ Health & Safety</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Safety Score</span>
+                        <span className="font-medium">{result.enhanced_data.health_safety.safety_score}/10</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Crime Level</span>
+                        <span className="font-medium capitalize">{result.enhanced_data.health_safety.crime_level}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Political Stability</span>
+                        <span className="font-medium capitalize">{result.enhanced_data.health_safety.political_stability}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Health Infrastructure</span>
+                        <span className="font-medium capitalize">{result.enhanced_data.health_safety.health_infrastructure}</span>
+                      </div>
+                      {result.enhanced_data.health_safety.emergency_numbers && (
+                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Emergency: {result.enhanced_data.health_safety.emergency_numbers.police}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Visa & Documents */}
+              {result.enhanced_data.visa && Object.keys(result.enhanced_data.visa).length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>📋 Visa & Documents</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Visa Required</span>
+                        <span className="font-medium">{result.enhanced_data.visa.visa_required}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Max Stay</span>
+                        <span className="font-medium">{result.enhanced_data.visa.max_stay} days</span>
+                      </div>
+                      {result.enhanced_data.visa.required_documents && result.enhanced_data.visa.required_documents.length > 0 && (
+                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                          <p className="font-medium mb-1">Required Documents:</p>
+                          <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                            {result.enhanced_data.visa.required_documents.slice(0, 4).map((doc: string, i: number) => (
+                              <li key={i}>• {doc}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Local Dining Culture */}
+              {result.enhanced_data.local_dining && Object.keys(result.enhanced_data.local_dining).length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>🍴 Local Dining Culture</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      {result.enhanced_data.local_dining.must_try_dishes && result.enhanced_data.local_dining.must_try_dishes.length > 0 && (
+                        <div>
+                          <p className="font-medium mb-1">Must-Try Dishes:</p>
+                          <p className="text-gray-600 dark:text-gray-400">
+                            {result.enhanced_data.local_dining.must_try_dishes.join(', ')}
+                          </p>
+                        </div>
+                      )}
+                      {result.enhanced_data.local_dining.budget_guide && (
+                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                          <p className="font-medium mb-1">Meal Prices:</p>
+                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                            <p>Budget: {result.enhanced_data.local_dining.budget_guide.budget_meal}</p>
+                            <p>Mid-range: {result.enhanced_data.local_dining.budget_guide.mid_range_meal}</p>
+                            <p>Fine dining: {result.enhanced_data.local_dining.budget_guide.fine_dining}</p>
+                          </div>
+                        </div>
+                      )}
+                      {result.enhanced_data.local_dining.dining_tips && result.enhanced_data.local_dining.dining_tips.length > 0 && (
+                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                          <p className="font-medium mb-1">Tips:</p>
+                          <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                            {result.enhanced_data.local_dining.dining_tips.slice(0, 3).map((tip: string, i: number) => (
+                              <li key={i}>• {tip}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
           {/* LLM Day-by-Day Itinerary Narrative */}
           {result.itinerary_text && (
             <Card>
