@@ -40,7 +40,7 @@ RUN pip install --upgrade pip && \
                 "langgraph>=0.1.0,<0.2.0" openai==1.54.4 langsmith==0.1.75 && \
     # Stage 6: Vector DB and embeddings
     pip install "chromadb>=0.4.22,<0.5.0" "sentence-transformers>=2.3.1,<3.0.0" \
-                langchain-chroma>=0.1.0 && \
+                "langchain-chroma>=0.1.0,<0.2.0" && \
     # Stage 7: Data processing
     pip install pandas==2.2.0 numpy==1.26.3 python-dateutil==2.8.2 && \
     # Stage 8: API integrations and utilities
