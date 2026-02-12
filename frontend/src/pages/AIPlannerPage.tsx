@@ -13,6 +13,100 @@ import {
   createItineraryItem,
 } from '@/services/itineraryService';
 
+interface ParsedActivity {
+  time: string | undefined;
+  title: string;
+  itemType: 'flight' | 'hotel' | 'restaurant' | 'attraction' | 'activity' | 'transport' | 'note';
+  estimatedCost: number | undefined;
+}
+
+interface ParsedDay {
+  dayNumber: number;
+  title: string;
+  activities: ParsedActivity[];
+}
+
+/**
+ * Parse the LLM-generated markdown itinerary into structured day/activity data.
+ */
+function parseItineraryNarrative(text: string): ParsedDay[] {
+  if (!text) return [];
+
+  const days: ParsedDay[] = [];
+  // Split by day headings: ## Day N: ... or ## Day N - ...
+  const dayPattern = /^##\s*Day\s+(\d+)\s*[:\-–]\s*(.*)$/gm;
+  const matches: { index: number; dayNum: number; title: string }[] = [];
+
+  let match;
+  while ((match = dayPattern.exec(text)) !== null) {
+    matches.push({ index: match.index, dayNum: parseInt(match[1]), title: match[2].trim() });
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const start = matches[i].index;
+    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
+    const section = text.slice(start, end);
+
+    const activities: ParsedActivity[] = [];
+
+    // Extract time-based lines: "8:00 AM - Activity" or "**8:00 AM** - Activity"
+    const timePattern = /\*{0,2}(\d{1,2}:\d{2}\s*[AaPp][Mm]?)\*{0,2}\s*[-–:]\s*(.+)/g;
+    let timeMatch;
+    while ((timeMatch = timePattern.exec(section)) !== null) {
+      const timeStr = timeMatch[1].trim();
+      let activityText = timeMatch[2].trim()
+        .replace(/\*\*/g, '')
+        .replace(/\*/g, '');
+
+      // Extract cost if present: ($XX) or ~$XX or $XX
+      let cost: number | undefined;
+      const costMatch = activityText.match(/[\(~]*\$(\d+(?:\.\d+)?)\)?/);
+      if (costMatch) {
+        cost = parseFloat(costMatch[1]);
+      }
+
+      const itemType = guessItemType(activityText);
+      activities.push({ time: timeStr, title: activityText, itemType, estimatedCost: cost });
+    }
+
+    // Also extract bullet points that aren't time-based (- Activity or * Activity)
+    const bulletPattern = /^[-*•]\s+(?!\d{1,2}:\d{2})(.+)/gm;
+    let bulletMatch;
+    while ((bulletMatch = bulletPattern.exec(section)) !== null) {
+      const text = bulletMatch[1].trim().replace(/\*\*/g, '').replace(/\*/g, '');
+      // Skip if we already captured this as a time line
+      if (activities.some(a => text.includes(a.title.slice(0, 20)))) continue;
+      // Skip markdown headers and separators
+      if (text.startsWith('#') || text.startsWith('---')) continue;
+
+      let cost: number | undefined;
+      const costMatch = text.match(/[\(~]*\$(\d+(?:\.\d+)?)\)?/);
+      if (costMatch) cost = parseFloat(costMatch[1]);
+
+      const itemType = guessItemType(text);
+      activities.push({ time: undefined, title: text, itemType, estimatedCost: cost });
+    }
+
+    days.push({
+      dayNumber: matches[i].dayNum,
+      title: matches[i].title,
+      activities,
+    });
+  }
+
+  return days;
+}
+
+function guessItemType(text: string): ParsedActivity['itemType'] {
+  const lower = text.toLowerCase();
+  if (/\b(flight|fly|airport|depart|land|board)\b/.test(lower)) return 'flight';
+  if (/\b(check.?in|check.?out|hotel|hostel|airbnb|accommodation|lodge|resort)\b/.test(lower)) return 'hotel';
+  if (/\b(breakfast|lunch|dinner|brunch|restaurant|cafe|eat|dine|dining|food|meal|cuisine)\b/.test(lower)) return 'restaurant';
+  if (/\b(museum|monument|palace|cathedral|tower|temple|castle|gallery|park|garden|landmark|visit|tour|sightsee|explore|attraction)\b/.test(lower)) return 'attraction';
+  if (/\b(taxi|uber|metro|subway|bus|train|tram|drive|car|transfer|commute|ride|transit)\b/.test(lower)) return 'transport';
+  return 'activity';
+}
+
 const AIPlannerPage = () => {
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
@@ -76,10 +170,18 @@ const AIPlannerPage = () => {
 
     setSaving(true);
     try {
-      // Calculate trip duration
       const start = departureDate;
       const end = returnDate || departureDate;
       const totalCost = result.recommendation?.total_estimated_cost;
+      const rec = result.recommendation;
+
+      // Parse the LLM narrative into structured days
+      const parsedDays = parseItineraryNarrative(result.itinerary_text || '');
+
+      // Calculate trip duration
+      const startD = new Date(start);
+      const endD = new Date(end);
+      const totalDays = Math.max(1, Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
 
       // Create itinerary
       const itinerary = await createItinerary({
@@ -90,81 +192,122 @@ const AIPlannerPage = () => {
         user: String(user.id),
         status: 'planned',
         number_of_travelers: passengers,
-        estimated_budget: totalCost ? String(totalCost) : undefined,
+        estimated_budget: totalCost ? String(totalCost) : (budget ? budget : undefined),
         currency: 'USD',
         description: `AI-planned trip from ${origin} to ${destination}. ${passengers} passenger(s).`,
       });
 
       const itineraryId = Number(itinerary.id);
 
-      // Create Day 1 with travel items
-      const day1 = await createItineraryDay({
-        itinerary: itineraryId,
-        day_number: 1,
-        date: start,
-        title: 'Arrival Day',
-      });
+      // Create all days and populate with activities from parsed narrative
+      for (let d = 1; d <= totalDays; d++) {
+        const dayDate = new Date(startD);
+        dayDate.setDate(dayDate.getDate() + d - 1);
+        const dateStr = dayDate.toISOString().split('T')[0];
 
-      // Add flight as item
-      const rec = result.recommendation;
-      if (rec?.recommended_flight) {
-        const flight = rec.recommended_flight;
-        await createItineraryItem({
-          day: day1.id!,
-          item_type: 'flight',
-          title: `${flight.airline} ${flight.flight_number || ''} - ${flight.departure_airport_code || origin} to ${flight.arrival_airport_code || destination}`,
-          description: `${flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop(s)`}${flight.duration ? ` \u00B7 ${Math.floor(flight.duration / 60)}h ${flight.duration % 60}m` : ''}`,
-          start_time: flight.departure_time?.split(' ')[1]?.slice(0, 5) || undefined,
-          estimated_cost: flight.price || undefined,
-          location_name: flight.departure_airport || origin,
+        // Find parsed day data from LLM narrative
+        const parsedDay = parsedDays.find(p => p.dayNumber === d);
+        const isFirstDay = d === 1;
+        const isLastDay = d === totalDays;
+
+        let dayTitle = parsedDay?.title
+          || (isFirstDay ? `Arrival in ${destination}` : isLastDay ? 'Departure Day' : `Explore ${destination}`);
+
+        const day = await createItineraryDay({
+          itinerary: itineraryId,
+          day_number: d,
+          date: dateStr,
+          title: dayTitle,
         });
-      }
 
-      // Add hotel check-in as item
-      if (rec?.recommended_hotel) {
-        const hotel = rec.recommended_hotel;
-        await createItineraryItem({
-          day: day1.id!,
-          item_type: 'hotel',
-          title: `Check in: ${hotel.name || hotel.hotel_name}`,
-          description: `${'⭐'.repeat(Math.round(hotel.stars || hotel.star_rating || 0))} ${hotel.check_in_time ? `Check-in: ${hotel.check_in_time}` : ''}`,
-          start_time: '15:00',
-          estimated_cost: hotel.price || hotel.price_per_night || undefined,
-          location_name: hotel.address || destination,
-        });
-      }
+        const dayId = day.id!;
+        let itemOrder = 0;
 
-      // Add restaurant as item
-      if (rec?.recommended_restaurant) {
-        const rest = rec.recommended_restaurant;
-        await createItineraryItem({
-          day: day1.id!,
-          item_type: 'restaurant',
-          title: `Dinner: ${rest.name}`,
-          description: `${rest.cuisine_type || ''} ${rest.price_range || ''}`.trim(),
-          start_time: '19:00',
-          estimated_cost: rest.average_cost_per_person || undefined,
-          location_name: rest.address || '',
-        });
-      }
+        // For Day 1, also add structured data from search agents (flight, hotel check-in)
+        if (isFirstDay) {
+          if (rec?.recommended_flight) {
+            const flight = rec.recommended_flight;
+            await createItineraryItem({
+              day: dayId,
+              item_type: 'flight',
+              order: itemOrder++,
+              title: `${flight.airline} ${flight.flight_number || ''} - ${flight.departure_airport_code || origin} to ${flight.arrival_airport_code || destination}`,
+              description: `${flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop(s)`}${flight.duration ? ` · ${Math.floor(flight.duration / 60)}h ${flight.duration % 60}m` : ''}`,
+              start_time: flight.departure_time?.split(' ')[1]?.slice(0, 5) || undefined,
+              estimated_cost: flight.price || undefined,
+              location_name: flight.departure_airport || origin,
+            });
+          }
+          if (rec?.recommended_hotel) {
+            const hotel = rec.recommended_hotel;
+            await createItineraryItem({
+              day: dayId,
+              item_type: 'hotel',
+              order: itemOrder++,
+              title: `Check in: ${hotel.name || hotel.hotel_name}`,
+              description: `${hotel.stars || hotel.star_rating || 0} stars`,
+              start_time: '15:00',
+              estimated_cost: hotel.price || hotel.price_per_night || undefined,
+              location_name: hotel.address || destination,
+            });
+          }
+        }
 
-      // If multi-day, create remaining days
-      if (returnDate && returnDate !== departureDate) {
-        const startD = new Date(start);
-        const endD = new Date(end);
-        const totalDays = Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        // For last day, add hotel checkout and return flight
+        if (isLastDay && totalDays > 1) {
+          if (rec?.recommended_hotel) {
+            const hotel = rec.recommended_hotel;
+            await createItineraryItem({
+              day: dayId,
+              item_type: 'hotel',
+              order: itemOrder++,
+              title: `Check out: ${hotel.name || hotel.hotel_name}`,
+              start_time: '10:00',
+              location_name: hotel.address || destination,
+            });
+          }
+        }
 
-        for (let d = 2; d <= totalDays; d++) {
-          const dayDate = new Date(startD);
-          dayDate.setDate(dayDate.getDate() + d - 1);
-          const dateStr = dayDate.toISOString().split('T')[0];
+        // Add activities from parsed LLM narrative
+        if (parsedDay && parsedDay.activities.length > 0) {
+          for (const activity of parsedDay.activities) {
+            // Skip if this is a duplicate of the structured items we already added
+            const lowerTitle = activity.title.toLowerCase();
+            if (isFirstDay && activity.itemType === 'flight' && itemOrder > 0) continue;
+            if (isFirstDay && lowerTitle.includes('check') && lowerTitle.includes('in') && activity.itemType === 'hotel') continue;
+            if (isLastDay && lowerTitle.includes('check') && lowerTitle.includes('out') && activity.itemType === 'hotel') continue;
 
-          const isLastDay = d === totalDays;
-          await createItineraryDay({
-            itinerary: itineraryId,
-            day_number: d,
-            date: dateStr,
-            title: isLastDay ? 'Departure Day' : `Day ${d} - Explore ${destination}`,
+            // Convert time string to HH:MM format
+            let timeHHMM: string | undefined;
+            if (activity.time) {
+              const tMatch = activity.time.match(/(\d{1,2}):(\d{2})\s*([AaPp][Mm]?)/);
+              if (tMatch) {
+                let hour = parseInt(tMatch[1]);
+                const min = tMatch[2];
+                const ampm = tMatch[3].toUpperCase();
+                if (ampm.startsWith('P') && hour !== 12) hour += 12;
+                if (ampm.startsWith('A') && hour === 12) hour = 0;
+                timeHHMM = `${hour.toString().padStart(2, '0')}:${min}`;
+              }
+            }
+
+            await createItineraryItem({
+              day: dayId,
+              item_type: activity.itemType,
+              order: itemOrder++,
+              title: activity.title,
+              start_time: timeHHMM,
+              estimated_cost: activity.estimatedCost,
+            });
+          }
+        } else if (!isFirstDay && !isLastDay) {
+          // Fallback: if no parsed activities for middle day, add a placeholder
+          await createItineraryItem({
+            day: dayId,
+            item_type: 'activity',
+            order: 0,
+            title: `Explore ${destination}`,
+            description: 'Add your planned activities for this day',
           });
         }
       }
