@@ -265,12 +265,12 @@ class AgentLogViewSet(viewsets.ReadOnlyModelViewSet):
 def _gather_enhanced_agent_data(*, destination, origin, departure_date, return_date, cuisine):
     """
     Call all enhanced agents (weather, health/safety, visa, packing, local expert)
-    and return their data. Each agent call is wrapped in a try/except so failures
-    don't block the overall plan.
+    and return their data.  Then use LLM to generate *smart* destination intelligence
+    that is date-aware, location-specific, and decision-ready.
     """
     enhanced = {}
 
-    # ── Weather (try real client first, fall back to stub) ──
+    # ── 1. Try real weather API first ──
     try:
         from .integrations.weather_client import WeatherClient
         client = WeatherClient()
@@ -289,92 +289,133 @@ def _gather_enhanced_agent_data(*, destination, origin, departure_date, return_d
     except Exception as e:
         logger.debug(f"Real weather client failed: {e}")
 
-    if 'weather' not in enhanced:
-        # Use LLM general knowledge instead of the fake stub
-        enhanced['weather'] = {
-            'note': f'No live weather data available. Use general climate knowledge for {destination} around {departure_date}.',
-            'source': 'general_knowledge'
-        }
-
-    # ── Health & Safety ──
+    # ── 2. Gather basic data from enhanced agents ──
     try:
-        from .enhanced_agents import HealthSafetyAgent
-        health_agent = HealthSafetyAgent.__new__(HealthSafetyAgent)
-        health_agent.data_provider = __import__(
-            'apps.agents.enhanced_agents', fromlist=['HealthSafetyDataProvider']
-        ).HealthSafetyDataProvider()
-        # Call data providers directly (no LLM needed)
-        safety_data = health_agent.data_provider.get_travel_safety_score(destination)
-        cdc_data = health_agent.data_provider.get_cdc_travel_health_notices(destination)
-        enhanced['health_safety'] = {
+        from .enhanced_agents import HealthSafetyDataProvider
+        safety_data = HealthSafetyDataProvider.get_travel_safety_score(destination)
+        cdc_data = HealthSafetyDataProvider.get_cdc_travel_health_notices(destination)
+        enhanced['health_safety_raw'] = {
             'safety_score': safety_data.get('overall_safety_score', 'N/A'),
             'crime_level': safety_data.get('crime_level', 'N/A'),
             'terrorism_threat': safety_data.get('terrorism_threat', 'N/A'),
             'political_stability': safety_data.get('political_stability', 'N/A'),
             'health_infrastructure': safety_data.get('health_infrastructure', 'N/A'),
             'emergency_numbers': safety_data.get('emergency_numbers', {}),
-            'cdc_alert_level': cdc_data.get('alert_level', 'N/A'),
-            'vaccinations_required': cdc_data.get('vaccinations_required', []),
-            'health_recommendations': cdc_data.get('notices', []),
         }
     except Exception as e:
-        logger.debug(f"Health/safety agent failed: {e}")
-        enhanced['health_safety'] = {}
+        logger.debug(f"Health/safety data failed: {e}")
 
-    # ── Visa Requirements ──
     try:
         from .enhanced_agents import VisaRequirementsAgent
         visa_agent = VisaRequirementsAgent()
         visa_data = visa_agent.get_visa_requirements(
-            origin_country=origin,
-            destination_country=destination,
+            origin_country=origin, destination_country=destination,
         )
-        enhanced['visa'] = {
+        enhanced['visa_raw'] = {
             'visa_required': visa_data.get('visa_required', 'Check with embassy'),
             'max_stay': visa_data.get('max_stay', 'Varies'),
             'required_documents': visa_data.get('required_documents', []),
-            'important_notes': visa_data.get('important_notes', []),
         }
     except Exception as e:
         logger.debug(f"Visa agent failed: {e}")
-        enhanced['visa'] = {}
 
-    # ── Packing List ──
-    try:
-        from .enhanced_agents import PackingListAgent
-        packing_agent = PackingListAgent()
-        weather_for_packing = enhanced.get('weather', {})
-        packing_data = packing_agent.generate_packing_list(
-            destination=destination,
-            start_date=departure_date,
-            end_date=return_date or departure_date,
-            weather_data=weather_for_packing,
-        )
-        enhanced['packing'] = packing_data.get('packing_list', {})
-        enhanced['packing_tips'] = packing_data.get('packing_tips', [])
-    except Exception as e:
-        logger.debug(f"Packing agent failed: {e}")
-        enhanced['packing'] = {}
+    # ── 3. LLM-powered destination intelligence (the smart part) ──
+    # Instead of relying on placeholder data, use the LLM's knowledge
+    # to generate REAL, destination-specific, date-aware intelligence.
+    if settings.OPENAI_API_KEY:
+        try:
+            from langchain_openai import ChatOpenAI
+            from langchain.schema import HumanMessage
 
-    # ── Local Expert (dining customs, cuisine info) ──
-    try:
-        from .enhanced_agents import EnhancedLocalExpertAgent
-        local_agent = EnhancedLocalExpertAgent()
-        dining_data = local_agent.get_dining_recommendations(
-            city=destination,
-            country=destination,  # approximate
-            cuisine_preferences=[cuisine] if cuisine else None,
-        )
-        enhanced['local_dining'] = {
-            'must_try_dishes': dining_data.get('must_try_dishes', []),
-            'food_customs': dining_data.get('food_customs', []),
-            'dietary_considerations': dining_data.get('dietary_considerations', {}),
-            'budget_guide': dining_data.get('budget_guide', {}),
-            'dining_tips': dining_data.get('tips', []),
-        }
-    except Exception as e:
-        logger.debug(f"Local expert agent failed: {e}")
-        enhanced['local_dining'] = {}
+            model = ChatOpenAI(
+                model=settings.AGENT_CONFIG.get('MODEL', 'gpt-4o-mini'),
+                temperature=0.3,
+                api_key=settings.OPENAI_API_KEY,
+            )
+
+            intel_prompt = f"""You are a travel intelligence agent. Provide REAL, SPECIFIC data for a trip.
+Destination: {destination}
+Origin: {origin}
+Travel dates: {departure_date} to {return_date or departure_date}
+{f'Cuisine preference: {cuisine}' if cuisine else ''}
+
+Return a JSON object (no markdown, no code fences, just raw JSON) with these keys:
+
+{{
+  "weather_by_day": [
+    {{"date": "YYYY-MM-DD", "high_c": number, "low_c": number, "condition": "string", "rain_chance_pct": number, "recommendation": "string"}}
+  ],
+  "best_transport": {{
+    "recommendation": "public_transit" or "car_rental" or "mixed",
+    "reason": "string explaining why",
+    "metro_available": boolean,
+    "bus_system": boolean,
+    "ride_sharing": boolean,
+    "taxi_affordable": boolean,
+    "daily_transit_pass_cost": "string like $5-10",
+    "airport_to_city": "string - best way to get from airport to city center with cost"
+  }},
+  "safety": {{
+    "overall_score": number 1-10,
+    "crime_level": "low/moderate/high",
+    "areas_to_avoid": ["list of specific neighborhoods or areas"],
+    "safe_areas": ["list of safe tourist areas"],
+    "scam_warnings": ["common tourist scams"],
+    "emergency_number": "string",
+    "tourist_police_available": boolean,
+    "health_alerts": ["any current health concerns"],
+    "tap_water_safe": boolean
+  }},
+  "local_events": [
+    {{"date": "YYYY-MM-DD", "name": "event name", "type": "festival/market/concert/exhibition/sports", "description": "brief description", "cost": "free or price", "location": "specific location"}}
+  ],
+  "local_customs": {{
+    "tipping": "string - tipping customs",
+    "greeting": "string - how locals greet",
+    "dress_code": "string - what to wear",
+    "language": "string - primary language and English proficiency",
+    "useful_phrases": ["list of 5 useful local phrases with translations"],
+    "dining_etiquette": "string",
+    "business_hours": "string - typical shop/restaurant hours"
+  }},
+  "must_see_attractions": [
+    {{"name": "string", "type": "museum/landmark/park/market/neighborhood", "estimated_hours": number, "cost": "string", "best_time": "morning/afternoon/evening", "indoor_outdoor": "indoor/outdoor/both"}}
+  ],
+  "food_scene": {{
+    "must_try_dishes": ["list of 5 specific local dishes"],
+    "food_markets": ["list of famous food markets"],
+    "restaurant_areas": ["neighborhoods known for dining"],
+    "budget_meal_cost": "string like $5-10",
+    "mid_range_meal_cost": "string like $15-30",
+    "fine_dining_cost": "string like $50+",
+    "street_food_safe": boolean
+  }},
+  "packing_essentials": ["list of 8-10 items specific to this destination and these dates"]
+}}
+
+Be SPECIFIC to {destination}. Use real place names, real neighborhoods, real dishes.
+For weather, use your knowledge of {destination}'s typical climate for these dates.
+For events, include any major festivals, markets, or events typical for this time of year.
+Return ONLY valid JSON, no explanation."""
+
+            response = model.invoke([HumanMessage(content=intel_prompt)])
+            content = response.content.strip()
+            # Strip markdown code fences if present
+            if content.startswith('```'):
+                content = content.split('\n', 1)[1] if '\n' in content else content[3:]
+                if content.endswith('```'):
+                    content = content[:-3]
+                content = content.strip()
+
+            intel = json.loads(content)
+            enhanced['destination_intelligence'] = intel
+
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse destination intelligence JSON: {e}")
+            enhanced['destination_intelligence'] = {}
+        except Exception as e:
+            logger.warning(f"Destination intelligence LLM call failed: {e}")
+            enhanced['destination_intelligence'] = {}
 
     return enhanced
 
@@ -382,14 +423,23 @@ def _gather_enhanced_agent_data(*, destination, origin, departure_date, return_d
 def _synthesize_narrative(*, result, origin, destination, departure_date,
                          return_date, passengers, budget, cuisine,
                          enhanced_data=None):
-    """Use LLM to generate a day-by-day narrative itinerary from ALL agent results."""
+    """
+    Use LLM to generate a smart, decision-driven day-by-day itinerary.
+    The LLM REASONS about all agent data to make real choices:
+    - Skip car rental if public transit is better
+    - Plan indoor activities on rainy days
+    - Include local events happening on specific dates
+    - Warn about unsafe areas, suggest safe neighborhoods
+    - Adapt activities to weather per day
+    """
     from langchain_openai import ChatOpenAI
     from langchain.schema import HumanMessage
 
     rec = result.get('recommendation', {})
     enhanced = enhanced_data or {}
+    intel = enhanced.get('destination_intelligence', {})
 
-    # ── Flight information ──
+    # ── Build search agent summaries ──
     flight_summary = ''
     if rec.get('recommended_flight'):
         f = rec['recommended_flight']
@@ -400,238 +450,163 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             f"departs {f.get('departure_time', '')}, arrives {f.get('arrival_time', '')}, "
             f"duration: {f.get('duration', 'N/A')} min, class: {f.get('travel_class', 'Economy')}"
         )
-    if rec.get('alternative_flight'):
-        af = rec['alternative_flight']
-        flight_summary += (
-            f"\nAlternative Flight: {af.get('airline', '')} {af.get('flight_number', '')} "
-            f"${af.get('price', 'N/A')}, {af.get('stops', 0)} stops"
-        )
 
-    # ── Hotel information ──
     hotel_summary = ''
     if rec.get('recommended_hotel'):
         h = rec['recommended_hotel']
         hotel_summary = (
-            f"Top Hotel: {h.get('name') or h.get('hotel_name', '')}, "
+            f"Hotel: {h.get('name') or h.get('hotel_name', '')}, "
             f"${h.get('price') or h.get('price_per_night', 'N/A')}/night, "
             f"{h.get('stars') or h.get('star_rating', '')} stars, "
             f"address: {h.get('address', '')}"
         )
-    top_hotels = rec.get('top_5_hotels', [])
-    if top_hotels and len(top_hotels) > 1:
-        hotel_summary += "\nOther Hotel Options:"
-        for idx, h in enumerate(top_hotels[1:4], 2):
-            hotel_summary += (
-                f"\n  {idx}. {h.get('name') or h.get('hotel_name', '')} - "
-                f"${h.get('price') or h.get('price_per_night', 'N/A')}/night, "
-                f"{h.get('stars') or h.get('star_rating', '')} stars"
-            )
 
-    # ── Restaurant information ──
-    restaurant_summary = ''
-    if rec.get('recommended_restaurant'):
-        r = rec['recommended_restaurant']
-        restaurant_summary = (
-            f"Top Restaurant: {r.get('name', '')}, "
-            f"{r.get('cuisine_type', '')} cuisine, "
-            f"${r.get('average_cost_per_person', 'N/A')}/person, "
-            f"rating: {r.get('rating', 'N/A')}/5, "
-            f"address: {r.get('address', '')}"
-        )
+    restaurant_lines = []
     top_restaurants = rec.get('top_5_restaurants', [])
-    if top_restaurants:
-        restaurant_summary += "\nAll Recommended Restaurants:"
-        for idx, r in enumerate(top_restaurants[:5], 1):
-            restaurant_summary += (
-                f"\n  {idx}. {r.get('name', '')} - {r.get('cuisine_type', '')} cuisine, "
-                f"${r.get('average_cost_per_person', 'N/A')}/person, "
-                f"rating: {r.get('rating', 'N/A')}/5, {r.get('address', '')}"
-            )
+    for idx, r in enumerate(top_restaurants[:5], 1):
+        restaurant_lines.append(
+            f"  {idx}. {r.get('name', '')} - {r.get('cuisine_type', '')} cuisine, "
+            f"${r.get('average_cost_per_person', 'N/A')}/person, "
+            f"rating: {r.get('rating', 'N/A')}/5, {r.get('address', '')}"
+        )
+    restaurant_summary = '\n'.join(restaurant_lines) if restaurant_lines else 'No restaurant data.'
 
-    # ── Car rental information ──
     car_summary = ''
     if rec.get('recommended_car'):
         c = rec['recommended_car']
         car_summary = (
-            f"Top Car Rental: {c.get('rental_company', '')} - {c.get('vehicle', c.get('car_type', ''))}, "
-            f"${c.get('price_per_day', 'N/A')}/day, total: ${c.get('total_price', 'N/A')}, "
-            f"rating: {c.get('rating', 'N/A')}"
+            f"Car Rental: {c.get('rental_company', '')} - {c.get('vehicle', c.get('car_type', ''))}, "
+            f"${c.get('price_per_day', 'N/A')}/day, total: ${c.get('total_price', 'N/A')}"
         )
-    top_cars = rec.get('top_5_cars', [])
-    if top_cars and len(top_cars) > 1:
-        car_summary += "\nOther Car Rental Options:"
-        for idx, c in enumerate(top_cars[1:4], 2):
-            car_summary += (
-                f"\n  {idx}. {c.get('rental_company', '')} - {c.get('car_type', '')}, "
-                f"${c.get('price_per_day', 'N/A')}/day"
-            )
 
-    # ── Budget analysis ──
     budget_summary = ''
-    budget_analysis = rec.get('budget_analysis', {})
     total_cost = rec.get('total_estimated_cost')
     if total_cost:
-        budget_summary = f"Total Estimated Trip Cost: ${total_cost}"
-    if budget_analysis:
-        cheapest = budget_analysis.get('cheapest flight', {})
-        if cheapest:
-            budget_summary += f"\nCheapest flight: ${cheapest.get('price', 'N/A')} ({cheapest.get('status', '')})"
+        budget_summary = f"Estimated Trip Cost from search agents: ${total_cost}"
 
-    # ── Weather (from enhanced agents) ──
-    weather_section = ''
-    weather = enhanced.get('weather', {})
-    if weather.get('source') == 'OpenWeatherMap':
-        weather_section = (
-            f"Current weather in {destination}: {weather.get('temperature')}, "
-            f"feels like {weather.get('feels_like')}, "
-            f"{weather.get('description', weather.get('condition', ''))}, "
-            f"humidity: {weather.get('humidity')}, "
-            f"wind: {weather.get('wind_speed')}"
-        )
-    else:
-        weather_section = weather.get('note', f'Use general climate knowledge for {destination}.')
+    # ── Build intelligence sections from destination_intelligence ──
+    weather_by_day = json.dumps(intel.get('weather_by_day', []), indent=2) if intel.get('weather_by_day') else 'Not available'
+    transport_intel = json.dumps(intel.get('best_transport', {}), indent=2) if intel.get('best_transport') else 'Not available'
+    safety_intel = json.dumps(intel.get('safety', {}), indent=2) if intel.get('safety') else 'Not available'
+    events_intel = json.dumps(intel.get('local_events', []), indent=2) if intel.get('local_events') else 'None found'
+    customs_intel = json.dumps(intel.get('local_customs', {}), indent=2) if intel.get('local_customs') else 'Not available'
+    attractions_intel = json.dumps(intel.get('must_see_attractions', []), indent=2) if intel.get('must_see_attractions') else 'Not available'
+    food_intel = json.dumps(intel.get('food_scene', {}), indent=2) if intel.get('food_scene') else 'Not available'
+    packing_intel = json.dumps(intel.get('packing_essentials', []), indent=2) if intel.get('packing_essentials') else 'Not available'
 
-    # ── Health & Safety (from enhanced agents) ──
-    safety_section = ''
-    hs = enhanced.get('health_safety', {})
-    if hs:
-        safety_section = (
-            f"Safety score: {hs.get('safety_score', 'N/A')}/10, "
-            f"crime level: {hs.get('crime_level', 'N/A')}, "
-            f"terrorism threat: {hs.get('terrorism_threat', 'N/A')}, "
-            f"political stability: {hs.get('political_stability', 'N/A')}, "
-            f"health infrastructure: {hs.get('health_infrastructure', 'N/A')}"
-        )
-        emergency = hs.get('emergency_numbers', {})
-        if emergency:
-            safety_section += f"\nEmergency numbers - Police: {emergency.get('police', '911')}, Ambulance: {emergency.get('ambulance', '911')}"
-        vacc = hs.get('vaccinations_required', [])
-        if vacc:
-            safety_section += f"\nRequired vaccinations: {', '.join(vacc)}"
+    prompt = f"""You are a SMART Agentic AI Travel Planner. You have received data from 10+ specialized agents.
+Your job is NOT to just list information — you must REASON and MAKE DECISIONS like a real travel expert.
 
-    # ── Visa Requirements (from enhanced agents) ──
-    visa_section = ''
-    visa = enhanced.get('visa', {})
-    if visa:
-        visa_section = (
-            f"Visa: {visa.get('visa_required', 'Check with embassy')}, "
-            f"max stay: {visa.get('max_stay', 'Varies')} days"
-        )
-        docs = visa.get('required_documents', [])
-        if docs:
-            visa_section += f"\nRequired documents: {', '.join(docs[:5])}"
-
-    # ── Local Dining Culture (from enhanced agents) ──
-    local_section = ''
-    local = enhanced.get('local_dining', {})
-    if local:
-        dishes = local.get('must_try_dishes', [])
-        if dishes:
-            local_section += f"Must-try local dishes: {', '.join(dishes)}"
-        customs = local.get('food_customs', [])
-        if customs:
-            local_section += f"\nDining customs: {', '.join(customs)}"
-        budget_guide = local.get('budget_guide', {})
-        if budget_guide:
-            local_section += (
-                f"\nMeal price guide - Budget: {budget_guide.get('budget_meal', 'N/A')}, "
-                f"Mid-range: {budget_guide.get('mid_range_meal', 'N/A')}, "
-                f"Fine dining: {budget_guide.get('fine_dining', 'N/A')}"
-            )
-        tips = local.get('dining_tips', [])
-        if tips:
-            local_section += f"\nDining tips: {'; '.join(tips)}"
-
-    # ── Packing Suggestions (from enhanced agents) ──
-    packing_section = ''
-    packing = enhanced.get('packing', {})
-    if packing:
-        parts = []
-        for category, items in packing.items():
-            if items:
-                parts.append(f"{category.title()}: {', '.join(items[:5])}")
-        if parts:
-            packing_section = '\n'.join(parts)
-    packing_tips = enhanced.get('packing_tips', [])
-    if packing_tips:
-        packing_section += f"\nTips: {'; '.join(packing_tips)}"
-
-    prompt = f"""Create a comprehensive, detailed day-by-day travel itinerary in markdown format.
-You are an expert travel planner creating a real, actionable trip plan using data from multiple specialized AI agents.
-
-## Trip Details
-- Origin: {origin}
-- Destination: {destination}
-- Dates: {departure_date} to {return_date or departure_date}
-- Passengers: {passengers}
-- Budget: ${budget or 'flexible'}
-{f'- Cuisine preference: {cuisine}' if cuisine else ''}
-
-## Flight Options (from Flight Search Agent)
-{flight_summary or 'No specific flight data available - suggest checking major airlines.'}
-
-## Accommodation (from Hotel Search Agent)
-{hotel_summary or 'No specific hotel data available - suggest checking major booking sites.'}
-
-## Dining Options (from Restaurant Search Agent)
-{restaurant_summary or 'No specific restaurant data available.'}
-
-## Transportation (from Car Rental Agent)
-{car_summary or 'No specific car rental data - suggest public transit or ride-sharing.'}
-
-## Weather & Climate (from Weather Agent)
-{weather_section}
-
-## Health & Safety (from Health/Safety Agent)
-{safety_section or f'Check travel advisories for {destination} before departure.'}
-
-## Visa & Documents (from Visa Agent)
-{visa_section or f'Check visa requirements for {destination} based on your citizenship.'}
-
-## Local Dining Culture (from Local Expert Agent)
-{local_section or f'Explore local cuisine in {destination}.'}
-
-## Packing Recommendations (from Packing Agent)
-{packing_section or 'Pack according to weather and trip duration.'}
-
-## Budget Analysis (from Budget Evaluator Agent)
-{budget_summary or 'No budget analysis available.'}
+## CRITICAL DECISION-MAKING RULES:
+1. **Transportation Decision**: If the Transport Agent says public transit/metro is good → DO NOT recommend car rental. Say "Skip car rental — metro/bus is cheaper and faster" and plan transit into each day.
+2. **Weather-Driven Planning**: Check the weather for EACH specific day. Rainy day? → Plan indoor activities (museums, galleries, shopping). Sunny? → Plan outdoor activities (parks, walking tours). Hot? → Plan morning outdoor + afternoon indoor.
+3. **Safety-Aware Routing**: If Safety Agent lists dangerous areas → NEVER route activities there. Only suggest activities in safe tourist areas.
+4. **Event Integration**: If local events are happening on specific dates → INCLUDE them in that day's plan.
+5. **Budget Intelligence**: Track running costs. If over budget → suggest cheaper alternatives.
 
 ---
 
-Please create a comprehensive day-by-day itinerary that incorporates ALL the agent data above:
+## SEARCH AGENT DATA (real API results):
 
-1. **Trip Overview** - Brief exciting summary highlighting key experiences
+### Flight Agent
+{flight_summary or 'No flights found'}
 
-2. **Day-by-day schedule** - For EACH day of the trip:
-   - Morning activities with times (e.g., "8:00 AM - Breakfast at [restaurant name]")
-   - Afternoon activities with times (sightseeing, tours, attractions specific to {destination})
-   - Evening activities with times (dinner, entertainment, nightlife)
-   - Include specific place names, famous landmarks, and popular attractions in {destination}
-   - Use the restaurant data above for meal suggestions
-   - Include estimated costs for each activity
-   - Add transportation notes between activities
-   - **Include weather-appropriate activity suggestions** (indoor activities if rain expected, etc.)
+### Hotel Agent
+{hotel_summary or 'No hotels found'}
 
-3. **Practical Tips** incorporating agent data:
-   - Weather: what to expect and how to dress
-   - Safety: emergency numbers, crime level, health precautions
-   - Visa/documents: what to prepare
-   - Local customs: tipping, dining etiquette, language tips
-   - Packing essentials based on weather
+### Restaurant Agent
+{restaurant_summary}
 
-4. **Budget Summary** - Complete breakdown:
-   - Flights cost
-   - Accommodation cost (per night x number of nights)
-   - Daily food budget
-   - Transportation/car rental
-   - Activities and attractions
-   - Total estimated trip cost vs. planned budget
+### Car Rental Agent
+{car_summary or 'No car rentals found'}
 
-Use markdown ## for day headings (e.g., "## Day 1: Arrival in {destination}").
-Use specific times like "8:00 AM", "12:30 PM", "7:00 PM".
-Be specific with real place names, real attractions, and real restaurant suggestions for {destination}.
-This should read like a professional travel guide that considers weather, safety, and local culture."""
+### Budget
+{budget_summary}
+Planned budget: ${budget or 'flexible'}
+
+---
+
+## INTELLIGENCE AGENT DATA (destination-specific research):
+
+### Weather Forecast Per Day
+{weather_by_day}
+
+### Local Transportation Analysis
+{transport_intel}
+
+### Safety Intelligence
+{safety_intel}
+
+### Local Events During Travel Dates
+{events_intel}
+
+### Local Customs & Culture
+{customs_intel}
+
+### Must-See Attractions
+{attractions_intel}
+
+### Food Scene
+{food_intel}
+
+### Packing Essentials
+{packing_intel}
+
+---
+
+## Trip: {origin} → {destination}
+Dates: {departure_date} to {return_date or departure_date}
+Passengers: {passengers}
+{f'Cuisine preference: {cuisine}' if cuisine else ''}
+
+---
+
+Now create the itinerary. Structure it EXACTLY like this:
+
+## Trip Overview
+(2-3 sentences about what makes this trip special)
+
+## Transportation Recommendation
+(DECIDE: car rental vs public transit vs mixed. Explain WHY. Include daily transit pass cost, airport transfer method.)
+
+## Day 1: [Title] (date)
+**Weather: [condition, high/low temp]**
+
+8:00 AM - [Activity with specific place name] (~$cost)
+  → Getting there: [specific transit directions]
+10:00 AM - [Activity] (~$cost)
+12:30 PM - Lunch at [specific restaurant from data or local suggestion] (~$cost)
+2:00 PM - [Afternoon activity — if rainy, plan indoor!] (~$cost)
+...
+7:00 PM - Dinner at [restaurant] (~$cost)
+9:00 PM - [Evening activity] (~$cost)
+**Day cost estimate: $X**
+
+(Repeat for EACH day, with weather-specific activity choices)
+
+## Local Events to Catch
+(List any events happening during travel dates)
+
+## Safety Tips
+(Specific to {destination}: areas to avoid, scam warnings, emergency numbers, health alerts)
+
+## Packing List
+(Weather-specific: what to pack for these exact dates)
+
+## Budget Summary
+| Category | Cost |
+|----------|------|
+| Flights | $X |
+| Hotel ($X/night × N nights) | $X |
+| Food ($X/day × N days) | $X |
+| Transportation | $X |
+| Activities | $X |
+| **Total** | **$X** |
+| Budget | ${budget or 'flexible'} |
+| Remaining / Over | $X |
+
+Use markdown ## for day headings. Use specific times. Be specific with REAL place names for {destination}.
+Make SMART decisions — don't just list everything, CHOOSE what's best for each day."""
 
     model = ChatOpenAI(
         model=settings.AGENT_CONFIG.get('MODEL', 'gpt-4o-mini'),

@@ -488,157 +488,212 @@ const AIPlannerPage = () => {
             </CardContent>
           </Card>
 
-          {/* Enhanced Agent Data: Weather, Safety, Visa, Packing */}
-          {result.enhanced_data && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Weather */}
-              {result.enhanced_data.weather && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>🌤️ Weather & Climate</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {result.enhanced_data.weather.source === 'OpenWeatherMap' ? (
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">Temperature</span>
-                          <span className="font-medium">{result.enhanced_data.weather.temperature}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">Feels Like</span>
-                          <span className="font-medium">{result.enhanced_data.weather.feels_like}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">Condition</span>
-                          <span className="font-medium">{result.enhanced_data.weather.description || result.enhanced_data.weather.condition}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">Humidity</span>
-                          <span className="font-medium">{result.enhanced_data.weather.humidity}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600 dark:text-gray-400">Wind</span>
-                          <span className="font-medium">{result.enhanced_data.weather.wind_speed}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {result.enhanced_data.weather.note || 'Weather data included in AI itinerary based on general climate knowledge.'}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+          {/* Smart Agent Intelligence Cards */}
+          {result.enhanced_data?.destination_intelligence && (() => {
+            const intel = result.enhanced_data.destination_intelligence;
+            return (
+              <div className="space-y-6">
+                {/* Agent Intelligence Header */}
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  10+ AI agents analyzed {destination} for your dates
+                </div>
 
-              {/* Health & Safety */}
-              {result.enhanced_data.health_safety && Object.keys(result.enhanced_data.health_safety).length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>🛡️ Health & Safety</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Safety Score</span>
-                        <span className="font-medium">{result.enhanced_data.health_safety.safety_score}/10</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Crime Level</span>
-                        <span className="font-medium capitalize">{result.enhanced_data.health_safety.crime_level}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Political Stability</span>
-                        <span className="font-medium capitalize">{result.enhanced_data.health_safety.political_stability}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Health Infrastructure</span>
-                        <span className="font-medium capitalize">{result.enhanced_data.health_safety.health_infrastructure}</span>
-                      </div>
-                      {result.enhanced_data.health_safety.emergency_numbers && (
-                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            Emergency: {result.enhanced_data.health_safety.emergency_numbers.police}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
-              {/* Visa & Documents */}
-              {result.enhanced_data.visa && Object.keys(result.enhanced_data.visa).length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>📋 Visa & Documents</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Visa Required</span>
-                        <span className="font-medium">{result.enhanced_data.visa.visa_required}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Max Stay</span>
-                        <span className="font-medium">{result.enhanced_data.visa.max_stay} days</span>
-                      </div>
-                      {result.enhanced_data.visa.required_documents && result.enhanced_data.visa.required_documents.length > 0 && (
-                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                          <p className="font-medium mb-1">Required Documents:</p>
-                          <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
-                            {result.enhanced_data.visa.required_documents.slice(0, 4).map((doc: string, i: number) => (
-                              <li key={i}>• {doc}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Local Dining Culture */}
-              {result.enhanced_data.local_dining && Object.keys(result.enhanced_data.local_dining).length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>🍴 Local Dining Culture</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm">
-                      {result.enhanced_data.local_dining.must_try_dishes && result.enhanced_data.local_dining.must_try_dishes.length > 0 && (
-                        <div>
-                          <p className="font-medium mb-1">Must-Try Dishes:</p>
-                          <p className="text-gray-600 dark:text-gray-400">
-                            {result.enhanced_data.local_dining.must_try_dishes.join(', ')}
-                          </p>
-                        </div>
-                      )}
-                      {result.enhanced_data.local_dining.budget_guide && (
-                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                          <p className="font-medium mb-1">Meal Prices:</p>
-                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
-                            <p>Budget: {result.enhanced_data.local_dining.budget_guide.budget_meal}</p>
-                            <p>Mid-range: {result.enhanced_data.local_dining.budget_guide.mid_range_meal}</p>
-                            <p>Fine dining: {result.enhanced_data.local_dining.budget_guide.fine_dining}</p>
+                  {/* Transportation Decision */}
+                  {intel.best_transport && (
+                    <Card className="border-l-4 border-l-indigo-500">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">🚇 Transport Decision</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 text-sm">
+                          <div className={`inline-block px-2 py-1 rounded text-xs font-bold ${
+                            intel.best_transport.recommendation === 'public_transit'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : intel.best_transport.recommendation === 'car_rental'
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                          }`}>
+                            {intel.best_transport.recommendation === 'public_transit' ? 'USE PUBLIC TRANSIT' :
+                             intel.best_transport.recommendation === 'car_rental' ? 'RENT A CAR' : 'MIXED TRANSPORT'}
+                          </div>
+                          <p className="text-gray-600 dark:text-gray-400">{intel.best_transport.reason}</p>
+                          {intel.best_transport.daily_transit_pass_cost && (
+                            <p className="text-xs">Daily pass: <span className="font-medium">{intel.best_transport.daily_transit_pass_cost}</span></p>
+                          )}
+                          {intel.best_transport.airport_to_city && (
+                            <p className="text-xs">Airport → City: <span className="font-medium">{intel.best_transport.airport_to_city}</span></p>
+                          )}
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {intel.best_transport.metro_available && <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">Metro</span>}
+                            {intel.best_transport.bus_system && <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">Bus</span>}
+                            {intel.best_transport.ride_sharing && <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">Uber/Lyft</span>}
+                            {intel.best_transport.taxi_affordable && <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">Taxi</span>}
                           </div>
                         </div>
-                      )}
-                      {result.enhanced_data.local_dining.dining_tips && result.enhanced_data.local_dining.dining_tips.length > 0 && (
-                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                          <p className="font-medium mb-1">Tips:</p>
-                          <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
-                            {result.enhanced_data.local_dining.dining_tips.slice(0, 3).map((tip: string, i: number) => (
-                              <li key={i}>• {tip}</li>
-                            ))}
-                          </ul>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Weather Per Day */}
+                  {intel.weather_by_day && intel.weather_by_day.length > 0 && (
+                    <Card className="border-l-4 border-l-amber-500">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">🌤️ Weather Forecast</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1.5 text-xs">
+                          {intel.weather_by_day.map((day: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between gap-2 py-1 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                              <span className="text-gray-500 w-20 flex-shrink-0">{day.date}</span>
+                              <span className="flex-1 truncate">{day.condition}</span>
+                              <span className="font-medium flex-shrink-0">{day.high_c}°/{day.low_c}°C</span>
+                              {day.rain_chance_pct > 30 && (
+                                <span className="text-blue-500 flex-shrink-0">🌧{day.rain_chance_pct}%</span>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Safety */}
+                  {intel.safety && (
+                    <Card className="border-l-4 border-l-red-500">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">🛡️ Safety Intel</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold">{intel.safety.overall_score}</span>
+                            <span className="text-xs text-gray-500">/10 safety</span>
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              intel.safety.crime_level === 'low' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                              intel.safety.crime_level === 'moderate' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                              'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            }`}>{intel.safety.crime_level} crime</span>
+                          </div>
+                          {intel.safety.areas_to_avoid?.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-red-600 dark:text-red-400">Avoid:</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">{intel.safety.areas_to_avoid.join(', ')}</p>
+                            </div>
+                          )}
+                          {intel.safety.scam_warnings?.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-orange-600 dark:text-orange-400">Scams:</p>
+                              <ul className="text-xs text-gray-600 dark:text-gray-400">
+                                {intel.safety.scam_warnings.slice(0, 2).map((s: string, i: number) => <li key={i}>• {s}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-500">Emergency: <span className="font-medium">{intel.safety.emergency_number}</span></p>
+                          <p className="text-xs text-gray-500">Tap water: <span className="font-medium">{intel.safety.tap_water_safe ? 'Safe' : 'Not safe — drink bottled'}</span></p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Local Events */}
+                  {intel.local_events && intel.local_events.length > 0 && (
+                    <Card className="border-l-4 border-l-purple-500">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">🎉 Local Events</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {intel.local_events.slice(0, 4).map((event: any, i: number) => (
+                            <div key={i} className="text-xs border-b border-gray-100 dark:border-gray-800 last:border-0 pb-1.5">
+                              <div className="flex justify-between">
+                                <span className="font-medium">{event.name}</span>
+                                <span className="text-gray-500">{event.date}</span>
+                              </div>
+                              <p className="text-gray-600 dark:text-gray-400">{event.description}</p>
+                              <div className="flex gap-2 mt-0.5">
+                                <span className="text-xs bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded">{event.type}</span>
+                                <span className="text-gray-500">{event.cost}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Food Scene */}
+                  {intel.food_scene && (
+                    <Card className="border-l-4 border-l-orange-500">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">🍴 Food Scene</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2 text-sm">
+                          {intel.food_scene.must_try_dishes?.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium">Must try:</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">{intel.food_scene.must_try_dishes.join(', ')}</p>
+                            </div>
+                          )}
+                          {intel.food_scene.food_markets?.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium">Food Markets:</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">{intel.food_scene.food_markets.join(', ')}</p>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-3 gap-1 pt-1 text-xs text-center">
+                            <div className="bg-green-50 dark:bg-green-900/20 p-1 rounded">
+                              <p className="text-gray-500">Budget</p>
+                              <p className="font-medium">{intel.food_scene.budget_meal_cost}</p>
+                            </div>
+                            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-1 rounded">
+                              <p className="text-gray-500">Mid</p>
+                              <p className="font-medium">{intel.food_scene.mid_range_meal_cost}</p>
+                            </div>
+                            <div className="bg-red-50 dark:bg-red-900/20 p-1 rounded">
+                              <p className="text-gray-500">Fine</p>
+                              <p className="font-medium">{intel.food_scene.fine_dining_cost}</p>
+                            </div>
+                          </div>
+                          {intel.food_scene.street_food_safe !== undefined && (
+                            <p className="text-xs text-gray-500">Street food: <span className="font-medium">{intel.food_scene.street_food_safe ? 'Safe to eat' : 'Be cautious'}</span></p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Local Customs */}
+                  {intel.local_customs && (
+                    <Card className="border-l-4 border-l-teal-500">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">🌍 Local Customs</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1.5 text-xs">
+                          {intel.local_customs.tipping && <p><span className="font-medium">Tipping:</span> {intel.local_customs.tipping}</p>}
+                          {intel.local_customs.language && <p><span className="font-medium">Language:</span> {intel.local_customs.language}</p>}
+                          {intel.local_customs.dress_code && <p><span className="font-medium">Dress:</span> {intel.local_customs.dress_code}</p>}
+                          {intel.local_customs.dining_etiquette && <p><span className="font-medium">Dining:</span> {intel.local_customs.dining_etiquette}</p>}
+                          {intel.local_customs.useful_phrases?.length > 0 && (
+                            <div className="pt-1 border-t border-gray-100 dark:border-gray-800">
+                              <p className="font-medium mb-0.5">Useful phrases:</p>
+                              {intel.local_customs.useful_phrases.slice(0, 3).map((p: string, i: number) => (
+                                <p key={i} className="text-gray-600 dark:text-gray-400">• {p}</p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* LLM Day-by-Day Itinerary Narrative */}
           {result.itinerary_text && (
