@@ -4,7 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Avg, Sum, Count, Q
+from django.conf import settings
 from django.utils import timezone
+import json
+import logging
 import uuid
 
 from .models import AgentSession, AgentExecution, AgentLog
@@ -17,6 +20,8 @@ from .serializers import (
     AgentExecutionCreateSerializer,
     AgentLogSerializer
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AgentSessionViewSet(viewsets.ModelViewSet):
@@ -257,6 +262,87 @@ class AgentLogViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 
+def _synthesize_narrative(*, result, origin, destination, departure_date,
+                         return_date, passengers, budget, cuisine):
+    """Use LLM to generate a day-by-day narrative itinerary from search results."""
+    from langchain_openai import ChatOpenAI
+    from langchain.schema import HumanMessage
+
+    rec = result.get('recommendation', {})
+
+    # Build context from search results
+    flight_summary = ''
+    if rec.get('recommended_flight'):
+        f = rec['recommended_flight']
+        flight_summary = (
+            f"Recommended Flight: {f.get('airline', '')} {f.get('flight_number', '')} "
+            f"from {f.get('departure_airport_code', origin)} to {f.get('arrival_airport_code', destination)}, "
+            f"${f.get('price', 'N/A')}, {f.get('stops', 0)} stops, "
+            f"departs {f.get('departure_time', '')}, arrives {f.get('arrival_time', '')}"
+        )
+
+    hotel_summary = ''
+    if rec.get('recommended_hotel'):
+        h = rec['recommended_hotel']
+        hotel_summary = (
+            f"Recommended Hotel: {h.get('name') or h.get('hotel_name', '')}, "
+            f"${h.get('price') or h.get('price_per_night', 'N/A')}/night, "
+            f"{h.get('stars') or h.get('star_rating', '')} stars, "
+            f"address: {h.get('address', '')}"
+        )
+
+    restaurant_summary = ''
+    if rec.get('recommended_restaurant'):
+        r = rec['recommended_restaurant']
+        restaurant_summary = (
+            f"Recommended Restaurant: {r.get('name', '')}, "
+            f"{r.get('cuisine_type', '')} cuisine, "
+            f"${r.get('average_cost_per_person', 'N/A')}/person, "
+            f"rating: {r.get('rating', 'N/A')}"
+        )
+
+    car_summary = ''
+    if rec.get('recommended_car'):
+        c = rec['recommended_car']
+        car_summary = (
+            f"Recommended Car: {c.get('rental_company', '')} - {c.get('vehicle', c.get('car_type', ''))}, "
+            f"${c.get('price_per_day', 'N/A')}/day"
+        )
+
+    prompt = f"""Create a detailed day-by-day travel itinerary in markdown format.
+
+**Trip Details:**
+- Origin: {origin}
+- Destination: {destination}
+- Dates: {departure_date} to {return_date or departure_date}
+- Passengers: {passengers}
+- Budget: ${budget or 'flexible'}
+{f'- Cuisine preference: {cuisine}' if cuisine else ''}
+
+**Available Bookings:**
+{flight_summary}
+{hotel_summary}
+{restaurant_summary}
+{car_summary}
+
+Please create a practical day-by-day itinerary with:
+1. **Trip Overview** - brief summary
+2. **Day-by-day schedule** - for each day include morning, afternoon, and evening activities with suggested times, places to visit, meals, and estimated costs
+3. **Budget Summary** - breakdown of estimated costs
+
+Use markdown formatting with ## for day headers. Be specific with times and place names.
+Keep it concise but actionable - this is a real travel plan."""
+
+    model = ChatOpenAI(
+        model=settings.AGENT_CONFIG.get('MODEL', 'gpt-4o-mini'),
+        temperature=0.7,
+        api_key=settings.OPENAI_API_KEY,
+    )
+
+    response = model.invoke([HumanMessage(content=prompt)])
+    return response.content
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def plan_travel(request):
@@ -307,6 +393,23 @@ def plan_travel(request):
             budget=budget,
             cuisine=cuisine
         )
+
+        # Generate LLM day-by-day narrative itinerary
+        if result.get('success') and settings.OPENAI_API_KEY:
+            try:
+                result['itinerary_text'] = _synthesize_narrative(
+                    result=result,
+                    origin=origin,
+                    destination=destination,
+                    departure_date=departure_date,
+                    return_date=return_date,
+                    passengers=passengers,
+                    budget=budget,
+                    cuisine=cuisine,
+                )
+            except Exception as e:
+                logger.warning(f"LLM narrative generation failed: {e}")
+                result['itinerary_text'] = None
 
         # Create session record if user is authenticated
         if request.user.is_authenticated:

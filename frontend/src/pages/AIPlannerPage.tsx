@@ -345,6 +345,39 @@ const AIPlannerPage = () => {
             </CardContent>
           </Card>
 
+          {/* LLM Day-by-Day Itinerary Narrative */}
+          {result.itinerary_text && (
+            <Card>
+              <CardHeader>
+                <CardTitle>📅 AI-Generated Day-by-Day Itinerary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none
+                    prose-headings:text-gray-900 dark:prose-headings:text-white
+                    prose-h2:text-lg prose-h2:font-bold prose-h2:mt-6 prose-h2:mb-2
+                    prose-h3:text-base prose-h3:font-semibold prose-h3:mt-4 prose-h3:mb-1
+                    prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:my-1
+                    prose-li:text-gray-700 dark:prose-li:text-gray-300
+                    prose-strong:text-gray-900 dark:prose-strong:text-white
+                    prose-ul:my-1 prose-ol:my-1"
+                  dangerouslySetInnerHTML={{
+                    __html: result.itinerary_text
+                      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                      .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                      .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                      .replace(/^- (.*$)/gm, '<li>$1</li>')
+                      .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+                      .replace(/\n\n/g, '</p><p>')
+                      .replace(/\n/g, '<br/>')
+                  }}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {/* Save as Itinerary Button */}
           <Card>
             <CardContent>
