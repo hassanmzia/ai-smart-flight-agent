@@ -35,7 +35,7 @@ langchain-core==0.2.38
 langchain==0.2.16
 langchain-openai==0.1.23
 langchain-community==0.2.16
-langgraph==0.2.16
+langgraph>=0.1.0,<0.2.0  # 0.2.x requires langchain-core>=1.0 which removed pydantic_v1
 openai==1.54.4
 langsmith==0.1.75  # Tracing and monitoring - pinned to compatible version
 
