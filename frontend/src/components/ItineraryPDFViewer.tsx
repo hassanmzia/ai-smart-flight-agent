@@ -4,18 +4,19 @@
  * Features: Inline viewing, download, email, theme selection
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  FileText,
-  Download,
-  Mail,
-  Eye,
-  Palette,
-  Loader2,
-  CheckCircle2,
-  AlertCircle
-} from 'lucide-react';
-import { api } from '../services/api';
+  DocumentTextIcon,
+  ArrowDownTrayIcon,
+  EnvelopeIcon,
+  EyeIcon,
+  SwatchIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import { ArrowPathIcon } from '@heroicons/react/24/solid';
+import api from '../services/api';
 
 interface ItineraryPDFViewerProps {
   itineraryId: number;
@@ -41,10 +42,10 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
   const [emailMessage, setEmailMessage] = useState('');
 
   const themes = [
-    { name: 'pumpkin', label: 'Pumpkin Orange', color: '#f78b1f' },
-    { name: 'ocean', label: 'Ocean Blue', color: '#0ea5e9' },
-    { name: 'forest', label: 'Forest Green', color: '#10b981' }
-  ] as const;
+    { name: 'pumpkin' as PDFTheme, label: 'Pumpkin Orange', color: '#f78b1f' },
+    { name: 'ocean' as PDFTheme, label: 'Ocean Blue', color: '#0ea5e9' },
+    { name: 'forest' as PDFTheme, label: 'Forest Green', color: '#10b981' }
+  ];
 
   const generatePDF = async (format: 'download' | 'inline' = 'download') => {
     setLoading(true);
@@ -63,7 +64,6 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
       const url = URL.createObjectURL(blob);
 
       if (format === 'download') {
-        // Download file
         const a = document.createElement('a');
         a.href = url;
         a.download = `itinerary_${destination.replace(/\s/g, '_')}.pdf`;
@@ -71,7 +71,6 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
         a.click();
         document.body.removeChild(a);
       } else {
-        // Show inline viewer
         setPdfUrl(url);
         setShowViewer(true);
       }
@@ -109,7 +108,6 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
         onEmailSent();
       }
 
-      // Reset status after 5 seconds
       setTimeout(() => {
         setEmailStatus('idle');
         setEmailMessage('');
@@ -118,7 +116,6 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
       setEmailStatus('error');
       setEmailMessage(error.response?.data?.error || 'Failed to send email');
 
-      // Reset status after 5 seconds
       setTimeout(() => {
         setEmailStatus('idle');
         setEmailMessage('');
@@ -127,112 +124,117 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
   };
 
   return (
-    <div className="pdf-viewer-container">
+    <div className="w-full max-w-2xl mx-auto">
       {/* PDF Options Panel */}
-      <div className="pdf-options-panel">
-        <div className="panel-header">
-          <FileText className="icon" />
-          <h3>Export Itinerary</h3>
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+        <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-gray-100">
+          <DocumentTextIcon className="w-6 h-6 text-gray-700" />
+          <h3 className="text-xl font-bold text-gray-900">Export Itinerary</h3>
         </div>
 
         {/* Theme Selection */}
-        <div className="option-group">
-          <label className="option-label">
-            <Palette className="icon-small" />
+        <div className="mb-5">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+            <SwatchIcon className="w-4 h-4" />
             PDF Theme
           </label>
-          <div className="theme-selector">
+          <div className="flex flex-col gap-2">
             {themes.map((theme) => (
               <button
                 key={theme.name}
-                className={`theme-button ${selectedTheme === theme.name ? 'active' : ''}`}
-                onClick={() => setSelectedTheme(theme.name as PDFTheme)}
+                className={`flex items-center gap-3 p-3 border-2 rounded-lg transition-all ${
+                  selectedTheme === theme.name
+                    ? 'border-opacity-100 bg-opacity-10'
+                    : 'border-gray-200 bg-white hover:shadow-md hover:-translate-y-0.5'
+                }`}
+                onClick={() => setSelectedTheme(theme.name)}
                 style={{
-                  borderColor: selectedTheme === theme.name ? theme.color : '#e5e7eb',
-                  backgroundColor: selectedTheme === theme.name ? `${theme.color}10` : 'white'
+                  borderColor: selectedTheme === theme.name ? theme.color : undefined,
+                  backgroundColor: selectedTheme === theme.name ? `${theme.color}10` : undefined
                 }}
               >
                 <div
-                  className="theme-color-dot"
+                  className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
                   style={{ backgroundColor: theme.color }}
                 />
-                {theme.label}
+                <span className="text-sm font-medium">{theme.label}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* QR Code Option */}
-        <div className="option-group">
-          <label className="checkbox-label">
+        <div className="mb-5">
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
             <input
               type="checkbox"
               checked={includeQR}
               onChange={(e) => setIncludeQR(e.target.checked)}
+              className="w-4 h-4 cursor-pointer text-orange-500 focus:ring-orange-500 rounded"
             />
             <span>Include QR code for online version</span>
           </label>
         </div>
 
         {/* Action Buttons */}
-        <div className="action-buttons">
+        <div className="flex gap-3 mb-6">
           <button
-            className="btn btn-primary"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             onClick={() => generatePDF('download')}
             disabled={loading}
           >
             {loading ? (
               <>
-                <Loader2 className="icon-spin" />
+                <ArrowPathIcon className="w-5 h-5 animate-spin" />
                 Generating...
               </>
             ) : (
               <>
-                <Download className="icon" />
+                <ArrowDownTrayIcon className="w-5 h-5" />
                 Download PDF
               </>
             )}
           </button>
 
           <button
-            className="btn btn-secondary"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={() => generatePDF('inline')}
             disabled={loading}
           >
-            <Eye className="icon" />
+            <EyeIcon className="w-5 h-5" />
             Preview
           </button>
         </div>
 
         {/* Email Section */}
-        <div className="email-section">
-          <label className="option-label">
-            <Mail className="icon-small" />
+        <div className="pt-5 border-t border-gray-200">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+            <EnvelopeIcon className="w-4 h-4" />
             Send via Email
           </label>
 
-          <div className="email-input-group">
+          <div className="flex gap-2 mb-3">
             <input
               type="email"
-              className="email-input"
+              className="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
               placeholder="recipient@example.com"
               value={emailAddress}
               onChange={(e) => setEmailAddress(e.target.value)}
               disabled={emailStatus === 'sending'}
             />
             <button
-              className="btn btn-email"
+              className="px-5 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg text-sm font-semibold flex items-center gap-2 hover:shadow-lg hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
               onClick={sendEmail}
               disabled={emailStatus === 'sending' || !emailAddress}
             >
               {emailStatus === 'sending' ? (
                 <>
-                  <Loader2 className="icon-spin" />
+                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
                   Sending...
                 </>
               ) : (
                 <>
-                  <Mail className="icon" />
+                  <EnvelopeIcon className="w-4 h-4" />
                   Send
                 </>
               )}
@@ -241,14 +243,22 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
 
           {/* Email Status Message */}
           {emailMessage && (
-            <div className={`status-message ${emailStatus}`}>
-              {emailStatus === 'success' && <CheckCircle2 className="icon-small" />}
-              {emailStatus === 'error' && <AlertCircle className="icon-small" />}
+            <div
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm mb-2 ${
+                emailStatus === 'success'
+                  ? 'bg-green-50 text-green-800'
+                  : emailStatus === 'error'
+                  ? 'bg-red-50 text-red-800'
+                  : 'bg-gray-50 text-gray-800'
+              }`}
+            >
+              {emailStatus === 'success' && <CheckCircleIcon className="w-4 h-4" />}
+              {emailStatus === 'error' && <ExclamationCircleIcon className="w-4 h-4" />}
               <span>{emailMessage}</span>
             </div>
           )}
 
-          <p className="email-note">
+          <p className="text-xs text-gray-500">
             📧 PDF will be attached with calendar file (.ics)
           </p>
         </div>
@@ -256,332 +266,33 @@ export const ItineraryPDFViewer: React.FC<ItineraryPDFViewerProps> = ({
 
       {/* PDF Inline Viewer Modal */}
       {showViewer && pdfUrl && (
-        <div className="pdf-viewer-modal" onClick={() => setShowViewer(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>PDF Preview</h3>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-5"
+          onClick={() => setShowViewer(false)}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">PDF Preview</h3>
               <button
-                className="close-button"
+                className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors"
                 onClick={() => setShowViewer(false)}
               >
-                ×
+                <XMarkIcon className="w-6 h-6 text-gray-600" />
               </button>
             </div>
-            <div className="pdf-viewer-frame">
+            <div className="flex-1 overflow-hidden">
               <iframe
                 src={pdfUrl}
-                className="pdf-iframe"
+                className="w-full h-full border-0"
                 title="PDF Preview"
               />
             </div>
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        .pdf-viewer-container {
-          width: 100%;
-          max-width: 600px;
-          margin: 0 auto;
-        }
-
-        .pdf-options-panel {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-          padding: 24px;
-          border: 1px solid #e5e7eb;
-        }
-
-        .panel-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 24px;
-          padding-bottom: 16px;
-          border-bottom: 2px solid #f3f4f6;
-        }
-
-        .panel-header h3 {
-          margin: 0;
-          font-size: 20px;
-          font-weight: 700;
-          color: #111827;
-        }
-
-        .option-group {
-          margin-bottom: 20px;
-        }
-
-        .option-label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          color: #374151;
-          margin-bottom: 12px;
-        }
-
-        .theme-selector {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .theme-button {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 16px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          background: white;
-          cursor: pointer;
-          transition: all 0.2s;
-          font-size: 14px;
-          font-weight: 500;
-        }
-
-        .theme-button:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .theme-color-dot {
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
-        }
-
-        .checkbox-label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          cursor: pointer;
-          font-size: 14px;
-          color: #374151;
-        }
-
-        .checkbox-label input[type="checkbox"] {
-          width: 18px;
-          height: 18px;
-          cursor: pointer;
-        }
-
-        .action-buttons {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 24px;
-        }
-
-        .btn {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 12px 16px;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .btn-primary {
-          background: linear-gradient(135deg, #d46d00, #f78b1f);
-          color: white;
-          box-shadow: 0 4px 12px rgba(247, 139, 31, 0.3);
-        }
-
-        .btn-primary:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(247, 139, 31, 0.4);
-        }
-
-        .btn-secondary {
-          background: #f3f4f6;
-          color: #374151;
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-          background: #e5e7eb;
-        }
-
-        .email-section {
-          padding-top: 20px;
-          border-top: 1px solid #e5e7eb;
-        }
-
-        .email-input-group {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 12px;
-        }
-
-        .email-input {
-          flex: 1;
-          padding: 10px 14px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          font-size: 14px;
-          transition: border-color 0.2s;
-        }
-
-        .email-input:focus {
-          outline: none;
-          border-color: #f78b1f;
-        }
-
-        .btn-email {
-          padding: 10px 20px;
-          background: linear-gradient(135deg, #0ea5e9, #0284c7);
-          color: white;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          transition: all 0.2s;
-        }
-
-        .btn-email:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
-        }
-
-        .btn-email:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-
-        .status-message {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 14px;
-          border-radius: 6px;
-          font-size: 13px;
-          margin-bottom: 8px;
-        }
-
-        .status-message.success {
-          background: #d1fae5;
-          color: #065f46;
-        }
-
-        .status-message.error {
-          background: #fee2e2;
-          color: #991b1b;
-        }
-
-        .email-note {
-          font-size: 12px;
-          color: #6b7280;
-          margin: 0;
-        }
-
-        .icon {
-          width: 20px;
-          height: 20px;
-        }
-
-        .icon-small {
-          width: 16px;
-          height: 16px;
-        }
-
-        .icon-spin {
-          animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        /* PDF Viewer Modal */
-        .pdf-viewer-modal {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.75);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 20px;
-        }
-
-        .modal-content {
-          background: white;
-          border-radius: 12px;
-          width: 100%;
-          max-width: 900px;
-          height: 90vh;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-
-        .modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 16px 20px;
-          border-bottom: 1px solid #e5e7eb;
-        }
-
-        .modal-header h3 {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 600;
-        }
-
-        .close-button {
-          background: none;
-          border: none;
-          font-size: 28px;
-          cursor: pointer;
-          color: #6b7280;
-          padding: 0;
-          width: 32px;
-          height: 32px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 4px;
-        }
-
-        .close-button:hover {
-          background: #f3f4f6;
-        }
-
-        .pdf-viewer-frame {
-          flex: 1;
-          overflow: hidden;
-        }
-
-        .pdf-iframe {
-          width: 100%;
-          height: 100%;
-          border: none;
-        }
-      `}</style>
     </div>
   );
 };
