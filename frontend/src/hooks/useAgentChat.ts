@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/services/api';
 import { API_ENDPOINTS, QUERY_KEYS } from '@/utils/constants';
-import { useAuthStore } from '@/store/authStore';
+import useAuthStore from '@/store/authStore';
 import type { ChatMessage } from '@/types';
 
 interface ConversationMessage {
