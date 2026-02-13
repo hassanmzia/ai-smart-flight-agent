@@ -66,25 +66,18 @@ else
     echo "✗ Redis is not ready"
 fi
 
-# Check Backend
-if curl -sf http://localhost:8109/api/health > /dev/null 2>&1; then
-    echo "✓ Backend API is ready"
+# Check Nginx (main entry point on port 3090)
+if curl -sf http://localhost:3090/api/health > /dev/null 2>&1; then
+    echo "✓ Nginx + Backend API is ready"
 else
-    echo "⚠  Backend API is starting..."
+    echo "⚠  Nginx + Backend API is starting..."
 fi
 
-# Check Frontend
+# Check Frontend (via nginx)
 if curl -sf http://localhost:3090 > /dev/null 2>&1; then
-    echo "✓ Frontend is ready"
+    echo "✓ Frontend is ready (via nginx)"
 else
     echo "⚠  Frontend is starting..."
-fi
-
-# Check MCP Server
-if curl -sf http://localhost:8107/health > /dev/null 2>&1; then
-    echo "✓ MCP Server is ready"
-else
-    echo "⚠  MCP Server is starting..."
 fi
 
 echo ""
@@ -92,12 +85,12 @@ echo "========================================="
 echo "  Services are starting up!             "
 echo "========================================="
 echo ""
-echo "Access points:"
+echo "Access points (all via nginx on port 3090):"
 echo "  🌐 Main Application:    http://108.48.39.238:3090"
-echo "  🔧 Backend API:         http://108.48.39.238:8109/api"
-echo "  📚 API Documentation:   http://108.48.39.238:8109/api/docs"
-echo "  👤 Django Admin:        http://108.48.39.238:8109/admin"
-echo "  🤖 MCP Server:          http://108.48.39.238:8107"
+echo "  🔧 Backend API:         http://108.48.39.238:3090/api"
+echo "  📚 API Documentation:   http://108.48.39.238:3090/api/docs"
+echo "  👤 Django Admin:        http://108.48.39.238:3090/admin"
+echo "  🤖 MCP Server:          http://108.48.39.238:3090/mcp"
 echo "  📊 RabbitMQ Management: http://108.48.39.238:15673"
 echo ""
 echo "Credentials:"

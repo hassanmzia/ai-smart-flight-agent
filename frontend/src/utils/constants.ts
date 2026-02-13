@@ -1,5 +1,5 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://108.48.39.238:8109';
-export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://108.48.39.238:8109';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://108.48.39.238:3090';
+export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://108.48.39.238:3090';
 export const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
 
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'AI Travel Agent';

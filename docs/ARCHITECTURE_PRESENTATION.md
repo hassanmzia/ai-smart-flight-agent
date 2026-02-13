@@ -52,7 +52,7 @@
 ┌────────┐  ┌──────────┐  ┌────────────┐
 │Frontend│  │ Backend  │  │ MCP Server │
 │React+TS│  │  Django  │  │  FastAPI   │
-│  3090  │  │   8109   │  │    8107    │
+│  3090  │  │   3090   │  │  3090/mcp  │
 └────────┘  └────┬─────┘  └────────────┘
                  │
     ┌────────────┼────────────┐
@@ -186,8 +186,8 @@ combined_score = price_utility + rating_utility
    └─► React Frontend (Port 3090)
 
 2. API Request
-   └─► Nginx Reverse Proxy (Port 80)
-       └─► Django Backend (Port 8109)
+   └─► Nginx Reverse Proxy (Port 3090)
+       └─► Django Backend (proxied)
 
 3. Agent Processing
    └─► Multi-Agent System (LangGraph)
@@ -330,9 +330,9 @@ combined_score = price_utility + rating_utility
 
 ```yaml
 Services:
-  ├─ frontend (React)     Port: 3090
-  ├─ backend (Django)     Port: 8109
-  ├─ mcp-server (FastAPI) Port: 8107
+  ├─ frontend (React)     Nginx: 3090
+  ├─ backend (Django)     Nginx: 3090
+  ├─ mcp-server (FastAPI) Nginx: 3090/mcp
   ├─ postgres             Port: 5438
   ├─ redis                Port: 6384
   ├─ rabbitmq             Port: 5673
@@ -474,7 +474,7 @@ POST   /api/bookings/            - Create booking
 POST   /api/payments/            - Process payment
 ```
 
-**Access**: http://108.48.39.238:8109/api/docs
+**Access**: http://108.48.39.238:3090/api/docs
 
 ---
 
@@ -502,7 +502,7 @@ docker-compose exec backend python manage.py createsuperuser
 
 # 6. Access application
 # Frontend: http://108.48.39.238:3090
-# Admin:    http://108.48.39.238:8109/admin
+# Admin:    http://108.48.39.238:3090/admin
 ```
 
 ### Development Tools
@@ -573,7 +573,7 @@ docker-compose exec backend python manage.py createsuperuser
 
 | Challenge | Solution |
 |-----------|----------|
-| **Port conflicts in multi-host env** | Used non-default ports (3090, 8109, 8107) |
+| **Port conflicts in multi-host env** | Unified access via nginx reverse proxy (port 3090) |
 | **SerpAPI data inconsistency** | Robust parsing with fallbacks |
 | **Hotel price missing ($0)** | Filter hotels without pricing data |
 | **Image objects vs strings** | Parse SerpAPI image objects correctly |
@@ -737,7 +737,7 @@ docker-compose exec backend python manage.py createsuperuser
 - ✅ Django's batteries-included approach
 - ✅ LangGraph for agent orchestration
 - ✅ Stripe test mode for safe development
-- ✅ Non-default ports avoided conflicts
+- ✅ Nginx reverse proxy unified access on single port
 
 **Challenges Overcome**:
 - SerpAPI data structure variations
@@ -761,7 +761,7 @@ docker-compose exec backend python manage.py createsuperuser
 **Technical Contact**:
 - GitHub: [Repository Link]
 - Documentation: `/docs` folder
-- API Docs: http://108.48.39.238:8109/api/docs
+- API Docs: http://108.48.39.238:3090/api/docs
 
 **Key Resources**:
 - `README.md` - Setup guide

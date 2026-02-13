@@ -125,7 +125,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
 Add a test mode banner to `frontend/src/pages/PaymentPage.tsx`:
 
 ```typescript
-{process.env.REACT_APP_TEST_MODE === 'true' && (
+{import.meta.env.VITE_TEST_MODE === 'true' && (
   <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
     <p className="font-bold">⚠️ TEST MODE ACTIVE</p>
     <p>No real payments will be processed. All bookings are simulated.</p>
@@ -214,7 +214,7 @@ class TestBookingService:
 
 ### Your Admin Panel
 ```
-http://108.48.39.238:8109/admin/payments/payment/
+http://108.48.39.238:3090/admin/payments/payment/
 ```
 Filter by `gateway_name = 'stripe'` and `status = 'completed'`
 

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8109';
+const API_URL = import.meta.env.VITE_API_URL || 'http://108.48.39.238:3090';
 
 export interface Restaurant {
   id: string;
