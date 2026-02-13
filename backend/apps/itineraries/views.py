@@ -354,6 +354,269 @@ class ItineraryViewSet(viewsets.ModelViewSet):
             )
 
 
+    # ── Status Workflow Endpoints ──
+
+    @action(detail=True, methods=['post'], url_path='approve')
+    def approve(self, request, pk=None):
+        """Approve an itinerary plan — moves from planned → approved."""
+        itinerary = self.get_object()
+        if itinerary.status not in ('planned', 'draft'):
+            return Response(
+                {'error': f'Cannot approve an itinerary with status "{itinerary.status}". Must be planned or draft.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        itinerary.status = 'approved'
+        itinerary.save(update_fields=['status', 'updated_at'])
+        return Response({
+            'success': True,
+            'status': 'approved',
+            'message': 'Itinerary approved! You can now proceed to book.',
+        })
+
+    @action(detail=True, methods=['post'], url_path='reject')
+    def reject(self, request, pk=None):
+        """Reject / send back to draft for edits."""
+        itinerary = self.get_object()
+        reason = request.data.get('reason', '')
+        itinerary.status = 'draft'
+        itinerary.save(update_fields=['status', 'updated_at'])
+        return Response({
+            'success': True,
+            'status': 'draft',
+            'message': f'Itinerary sent back to draft.{" Reason: " + reason if reason else ""}',
+        })
+
+    @action(detail=True, methods=['post'], url_path='book')
+    def book(self, request, pk=None):
+        """
+        ReAct Booking Agent — takes an approved itinerary and books everything.
+
+        This simulates the booking process for flights, hotels, car rentals,
+        restaurants, and attractions. In a production system, this would
+        connect to real booking APIs (Amadeus, Booking.com, etc.).
+
+        Flow: approved → booking → booked
+        """
+        import uuid as _uuid
+        import logging
+        logger = logging.getLogger(__name__)
+
+        itinerary = self.get_object()
+        if itinerary.status != 'approved':
+            return Response(
+                {'error': f'Cannot book an itinerary with status "{itinerary.status}". Must be approved first.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Mark as booking in progress
+        itinerary.status = 'booking'
+        itinerary.save(update_fields=['status', 'updated_at'])
+
+        booking_results = []
+        total_booked_cost = 0
+        errors = []
+
+        try:
+            # ── Step 1: Book all itinerary items ──
+            items = ItineraryItem.objects.filter(
+                day__itinerary=itinerary
+            ).select_related('day').order_by('day__day_number', 'order')
+
+            for item in items:
+                if item.is_booked:
+                    booking_results.append({
+                        'item': item.title,
+                        'type': item.item_type,
+                        'status': 'already_booked',
+                        'reference': item.booking_reference,
+                    })
+                    continue
+
+                # Generate booking reference
+                ref = f"BK-{item.item_type[:3].upper()}-{_uuid.uuid4().hex[:8].upper()}"
+
+                # Simulate booking based on item type
+                try:
+                    if item.item_type == 'flight':
+                        # In production: call Amadeus/Skyscanner booking API
+                        item.is_booked = True
+                        item.booking_reference = ref
+                        item.notes = (item.notes or '') + f'\nBooked: {ref}'
+                        item.save()
+                        cost = float(item.estimated_cost or 0)
+                        total_booked_cost += cost
+                        booking_results.append({
+                            'item': item.title,
+                            'type': 'flight',
+                            'status': 'booked',
+                            'reference': ref,
+                            'cost': cost,
+                        })
+
+                    elif item.item_type == 'hotel':
+                        # In production: call Booking.com/Hotels.com API
+                        item.is_booked = True
+                        item.booking_reference = ref
+                        item.notes = (item.notes or '') + f'\nBooked: {ref}'
+                        item.save()
+                        cost = float(item.estimated_cost or 0)
+                        total_booked_cost += cost
+                        booking_results.append({
+                            'item': item.title,
+                            'type': 'hotel',
+                            'status': 'booked',
+                            'reference': ref,
+                            'cost': cost,
+                        })
+
+                    elif item.item_type == 'restaurant':
+                        # In production: call OpenTable/Resy API for reservation
+                        item.is_booked = True
+                        item.booking_reference = ref
+                        item.notes = (item.notes or '') + f'\nReservation: {ref}'
+                        item.save()
+                        cost = float(item.estimated_cost or 0)
+                        total_booked_cost += cost
+                        booking_results.append({
+                            'item': item.title,
+                            'type': 'restaurant',
+                            'status': 'reserved',
+                            'reference': ref,
+                            'cost': cost,
+                        })
+
+                    elif item.item_type == 'attraction':
+                        # In production: call GetYourGuide/Viator API
+                        item.is_booked = True
+                        item.booking_reference = ref
+                        item.notes = (item.notes or '') + f'\nTicket: {ref}'
+                        item.save()
+                        cost = float(item.estimated_cost or 0)
+                        total_booked_cost += cost
+                        booking_results.append({
+                            'item': item.title,
+                            'type': 'attraction',
+                            'status': 'ticket_purchased',
+                            'reference': ref,
+                            'cost': cost,
+                        })
+
+                    elif item.item_type == 'transport':
+                        # Car rental or transport booking
+                        item.is_booked = True
+                        item.booking_reference = ref
+                        item.notes = (item.notes or '') + f'\nBooked: {ref}'
+                        item.save()
+                        cost = float(item.estimated_cost or 0)
+                        total_booked_cost += cost
+                        booking_results.append({
+                            'item': item.title,
+                            'type': 'transport',
+                            'status': 'booked',
+                            'reference': ref,
+                            'cost': cost,
+                        })
+
+                    else:
+                        # Activities, notes — skip booking
+                        booking_results.append({
+                            'item': item.title,
+                            'type': item.item_type,
+                            'status': 'no_booking_needed',
+                        })
+
+                except Exception as e:
+                    logger.error(f"Booking failed for item {item.id} ({item.title}): {e}")
+                    errors.append({
+                        'item': item.title,
+                        'type': item.item_type,
+                        'status': 'failed',
+                        'error': str(e),
+                    })
+
+            # ── Step 2: Create a master Booking record ──
+            from apps.bookings.models import Booking as BookingModel
+
+            master_booking = BookingModel.objects.create(
+                user=request.user,
+                status='confirmed',
+                total_amount=max(total_booked_cost, 0.01),
+                currency=itinerary.currency,
+                primary_traveler_name=request.user.get_full_name() or request.user.email,
+                primary_traveler_email=request.user.email,
+                primary_traveler_phone='',
+                notes=f'Auto-booked from itinerary: {itinerary.title}',
+            )
+
+            # ── Step 3: Update itinerary status ──
+            if errors:
+                itinerary.status = 'approved'  # revert if partial failure
+            else:
+                itinerary.status = 'booked'
+                itinerary.actual_spent = total_booked_cost
+
+            itinerary.save(update_fields=['status', 'actual_spent', 'updated_at'])
+
+            return Response({
+                'success': len(errors) == 0,
+                'status': itinerary.status,
+                'booking_number': master_booking.booking_number,
+                'total_cost': total_booked_cost,
+                'items_booked': len([r for r in booking_results if r.get('status') not in ('no_booking_needed', 'already_booked')]),
+                'items_skipped': len([r for r in booking_results if r.get('status') == 'no_booking_needed']),
+                'items_failed': len(errors),
+                'booking_results': booking_results,
+                'errors': errors,
+                'message': (
+                    f'All items booked successfully! Booking #{master_booking.booking_number}'
+                    if not errors else
+                    f'{len(errors)} item(s) failed to book. Please retry.'
+                ),
+            })
+
+        except Exception as e:
+            logger.error(f"Booking agent error: {e}", exc_info=True)
+            itinerary.status = 'approved'
+            itinerary.save(update_fields=['status', 'updated_at'])
+            return Response(
+                {'error': f'Booking failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=True, methods=['post'], url_path='update-status')
+    def update_status(self, request, pk=None):
+        """Generic status update with validation."""
+        itinerary = self.get_object()
+        new_status = request.data.get('status')
+
+        valid_transitions = {
+            'draft': ['planned', 'cancelled'],
+            'planned': ['approved', 'draft', 'cancelled'],
+            'approved': ['booking', 'draft', 'cancelled'],
+            'booking': ['booked', 'approved'],
+            'booked': ['active', 'cancelled'],
+            'active': ['completed', 'cancelled'],
+            'completed': [],
+            'cancelled': ['draft'],
+        }
+
+        allowed = valid_transitions.get(itinerary.status, [])
+        if new_status not in allowed:
+            return Response(
+                {'error': f'Cannot transition from "{itinerary.status}" to "{new_status}". Allowed: {allowed}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        itinerary.status = new_status
+        itinerary.save(update_fields=['status', 'updated_at'])
+        serializer = self.get_serializer(itinerary)
+        return Response({
+            'success': True,
+            'status': new_status,
+            'itinerary': serializer.data,
+        })
+
+
 class ItineraryDayViewSet(viewsets.ModelViewSet):
     """ViewSet for ItineraryDay model."""
     queryset = ItineraryDay.objects.all()
