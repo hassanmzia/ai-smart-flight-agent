@@ -191,7 +191,6 @@ const AIPlannerPage = () => {
         destination,
         start_date: start,
         end_date: end,
-        user: String(user.id),
         status: 'planned',
         number_of_travelers: passengers,
         estimated_budget: totalCost ? String(totalCost) : (budget ? budget : undefined),
