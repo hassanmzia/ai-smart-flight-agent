@@ -1096,104 +1096,60 @@ def chat(request):
             request_timeout=45,
         )
 
-        # Fetch user data from DB for the authenticated user
+        # ── RAG: Retrieve only the most relevant user data for this query ──
         user_data_section = ''
+        rag_context = ''
         try:
-            from apps.bookings.models import Booking, BookingItem
-            from apps.itineraries.models import Itinerary
+            from apps.agents.chat_rag import get_user_data_rag
 
-            # -- Bookings with their items (flights, hotels, cars, etc.) --
-            user_bookings = (
-                Booking.objects.filter(user=request.user)
-                .prefetch_related('items')
-                .order_by('-booking_date')[:15]
+            user_rag = get_user_data_rag()
+            rag_context = user_rag.retrieve(
+                user=request.user,
+                query=message,
+                n_results=8,
             )
+            rag_stats = user_rag.get_user_stats(request.user)
+            total_chunks = rag_stats.get('total_chunks', 0)
 
-            if user_bookings.exists():
-                booking_lines = []
-                for b in user_bookings:
-                    items_desc = []
-                    for item in b.items.all():
-                        date_str = ''
-                        if item.start_date:
-                            date_str = f" on {item.start_date.strftime('%Y-%m-%d')}"
-                            if item.end_date:
-                                date_str += f" to {item.end_date.strftime('%Y-%m-%d')}"
-                        items_desc.append(f"{item.item_type}: {item.item_name}{date_str} (${item.total_price})")
+            # Build user data section from RAG results
+            user_name = f"{request.user.first_name or ''} {request.user.last_name or ''}".strip() or 'Traveler'
+            user_data_section = f"Logged-in user: {user_name} ({request.user.email})\n"
 
-                    items_text = ', '.join(items_desc) if items_desc else 'no items'
-                    booking_lines.append(
-                        f"  - Booking #{b.booking_number}: {items_text} | "
-                        f"status: {b.status}, total: ${b.total_amount} {b.currency}, "
-                        f"traveler: {b.primary_traveler_name}, booked: {b.booking_date.strftime('%Y-%m-%d')}"
-                    )
-                user_data_section += f"\nUser's bookings ({user_bookings.count()} total):\n" + '\n'.join(booking_lines)
-
-            # -- Itineraries (trip plans) --
-            user_itineraries = (
-                Itinerary.objects.filter(user=request.user)
-                .order_by('-created_at')[:15]
-            )
-
-            if user_itineraries.exists():
-                itin_lines = []
-                for it in user_itineraries:
-                    origin = it.origin_city or 'unknown origin'
-                    budget_str = f"${it.estimated_budget}" if it.estimated_budget else 'not set'
-                    spent_str = f"${it.actual_spent}" if it.actual_spent else '$0'
-                    itin_lines.append(
-                        f"  - \"{it.title}\": {origin} -> {it.destination} "
-                        f"({it.start_date} to {it.end_date}, {it.number_of_travelers} travelers, "
-                        f"status: {it.status}, budget: {budget_str}, spent: {spent_str})"
-                    )
-                    if it.description:
-                        itin_lines.append(f"    Description: {it.description[:200]}")
-                user_data_section += f"\nUser's itineraries/trip plans ({user_itineraries.count()} total):\n" + '\n'.join(itin_lines)
-
-            # -- Agent sessions (past AI planning sessions) --
-            from apps.agents.models import AgentSession
-            past_sessions = (
-                AgentSession.objects.filter(user=request.user, status='completed')
-                .order_by('-completed_at')[:5]
-            )
-            if past_sessions.exists():
-                session_lines = []
-                for s in past_sessions:
-                    intent = s.user_intent[:150] if s.user_intent else 'trip planning'
-                    entities = s.detected_entities or {}
-                    dest = entities.get('destination', '')
-                    session_lines.append(
-                        f"  - Session {s.session_id[:8]}: \"{intent}\" "
-                        f"{'to ' + dest + ' ' if dest else ''}"
-                        f"(completed: {s.completed_at.strftime('%Y-%m-%d') if s.completed_at else 'N/A'})"
-                    )
-                user_data_section += f"\nUser's past AI planning sessions:\n" + '\n'.join(session_lines)
-
-            # Add user profile info
-            user_data_section = (
-                f"Logged-in user: {request.user.first_name or ''} {request.user.last_name or ''} "
-                f"({request.user.email})\n" + user_data_section
-            )
+            if rag_context:
+                user_data_section += (
+                    f"\n--- RELEVANT USER DATA (retrieved via semantic search from {total_chunks} indexed records) ---\n"
+                    f"{rag_context}\n"
+                    f"--- END RELEVANT DATA ---"
+                )
+            else:
+                user_data_section += "User has no bookings or trip plans yet."
 
         except Exception as e:
-            logger.debug(f"Could not fetch user data for chat context: {e}")
+            logger.warning(f"RAG retrieval failed, falling back to basic context: {e}")
+            # Fallback: basic user info without full data dump
+            try:
+                user_name = f"{request.user.first_name or ''} {request.user.last_name or ''}".strip() or 'Traveler'
+                user_data_section = f"Logged-in user: {user_name} ({request.user.email})"
+            except Exception:
+                user_data_section = ''
 
         if user_context:
             user_data_section += f"\nAdditional user context:\n{user_context}"
 
         system_prompt = f"""You are a friendly, knowledgeable AI travel assistant for the AI Smart Flight Agent platform.
-You are talking to an AUTHENTICATED USER. You have access to their real booking data, trip plans, and itineraries.
+You are talking to an AUTHENTICATED USER. You have access to their real booking data, trip plans, itineraries, and feedback.
+The user data below was retrieved via RAG (semantic search) — it shows the MOST RELEVANT records for the user's current question.
 Always reference their actual data when answering questions about their trips.
 
 ## YOUR CAPABILITIES:
 1. **Trip Planning**: Extract travel parameters and help plan new trips using our multi-agent AI system
-2. **Trip Q&A**: Answer questions about the user's EXISTING bookings and itineraries (use the USER DATA below)
-3. **Recommendations**: Suggest destinations, restaurants, activities, hotels based on their preferences and history
+2. **Trip Q&A**: Answer questions about the user's EXISTING bookings and itineraries (use the RETRIEVED USER DATA below)
+3. **Recommendations**: Suggest destinations, restaurants, activities, hotels based on their preferences and travel history
 4. **Travel Knowledge**: Answer questions about visa requirements, weather, safety, culture, customs
 5. **Budget Advice**: Help users optimize their travel budget and find deals
 6. **Comparison**: Compare destinations, flights, hotels, help users decide
-7. **Future Planning**: Suggest future trip ideas based on user's past trips and preferences
-8. **Site Help**: Help users navigate the platform - explain features like AI Planner, Flight Search, Hotel Booking, Car Rentals, Itinerary Builder, etc.
+7. **Future Planning**: Suggest future trip ideas based on user's past trips, feedback, and preferences
+8. **Site Help**: Help users navigate the platform features
 
 ## PLATFORM FEATURES (mention these when relevant):
 - AI Trip Planner: Plan complete trips with flights, hotels, cars, restaurants
@@ -1207,8 +1163,10 @@ Always reference their actual data when answering questions about their trips.
 - Safety Info: Get health and safety info for destinations
 - Dashboard: View all bookings and trip plans in one place
 
-## USER DATA (THIS IS REAL DATA - use it to answer questions about their trips):
+## RETRIEVED USER DATA (semantically matched to user's question — THIS IS REAL DATA):
 {user_data_section if user_data_section else 'User has no bookings or trip plans yet.'}
+
+NOTE: The data above is the most relevant subset retrieved from all of the user's records. If the user asks about something not shown above, let them know you can look up more details or suggest they check their Dashboard.
 
 ## TRAVEL PARAMETER EXTRACTION:
 When the user wants to plan a NEW trip, extract these parameters:
