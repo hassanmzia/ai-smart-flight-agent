@@ -994,37 +994,21 @@ def plan_travel(request):
 @permission_classes([AllowAny])
 def chat(request):
     """
-    NLP-powered conversational travel planning endpoint.
+    Fully conversational AI travel assistant endpoint.
 
-    The LLM extracts travel parameters from natural language, asks follow-up
-    questions when information is missing, and triggers the planning pipeline
-    once the user confirms.
-
-    Request body:
-    {
-        "message": "I want to fly from NYC to Paris next Friday for a week, budget $3000",
-        "conversation": [                 // previous messages (optional)
-            {"role": "user", "content": "..."},
-            {"role": "assistant", "content": "..."}
-        ],
-        "extracted_params": {...},         // accumulated params from prior turns
-        "confirmed": false                 // set true to trigger planning
-    }
-
-    Response:
-    {
-        "success": true,
-        "reply": "Great! I found these details: ...",
-        "extracted_params": {"origin": "JFK", ...},
-        "params_complete": true,           // all required params present
-        "ready_to_plan": false             // user hasn't confirmed yet
-    }
+    Handles:
+    - Trip planning with NLP parameter extraction
+    - Questions about user's existing trips, bookings, itineraries
+    - Travel recommendations and advice
+    - General travel knowledge questions
+    - Future travel planning suggestions
     """
     try:
         message = request.data.get('message', '')
         conversation = request.data.get('conversation', [])
         prev_params = request.data.get('extracted_params', {})
         confirmed = request.data.get('confirmed', False)
+        user_context = request.data.get('user_context', '')
 
         if not message and not confirmed:
             return Response({
@@ -1094,7 +1078,7 @@ def chat(request):
                 'ready_to_plan': True,
             })
 
-        # ── Otherwise, use LLM to extract params and chat ──
+        # ── Otherwise, use LLM for conversation ──
         if not settings.OPENAI_API_KEY:
             return Response({
                 'success': False,
@@ -1106,58 +1090,101 @@ def chat(request):
 
         model = ChatOpenAI(
             model=settings.AGENT_CONFIG.get('MODEL', 'gpt-4o-mini'),
-            temperature=0.3,
+            temperature=0.4,
             api_key=settings.OPENAI_API_KEY,
-            request_timeout=30,
+            request_timeout=45,
         )
 
-        # Build the system prompt for NLP extraction
-        system_prompt = f"""You are a friendly AI travel planning assistant. Your job is to help users plan trips through natural conversation.
+        # Fetch user data from DB for authenticated users
+        user_data_section = ''
+        if request.user.is_authenticated:
+            try:
+                from apps.bookings.models import Booking
+                from apps.itineraries.models import Itinerary
+                user_bookings = Booking.objects.filter(user=request.user).order_by('-created_at')[:10]
+                user_itineraries = Itinerary.objects.filter(user=request.user).order_by('-created_at')[:10]
 
-You need to extract these travel parameters from the conversation:
-- origin (REQUIRED): departure city or airport code (e.g., "JFK", "New York", "CDG")
-- destination (REQUIRED): arrival city or airport code (e.g., "Paris", "LAX", "Tokyo")
-- departure_date (REQUIRED): in YYYY-MM-DD format. Today is {timezone.now().strftime('%Y-%m-%d')}.
-  If user says "next Friday", "in 2 weeks", etc., calculate the exact date.
-- return_date (optional): in YYYY-MM-DD format. If user says "for 5 days", calculate from departure.
-- passengers (optional, default 1): number of travelers
-- budget (optional): total trip budget in USD (number only)
-- cuisine (optional): preferred cuisine type
+                if user_bookings.exists():
+                    booking_lines = []
+                    for b in user_bookings:
+                        booking_lines.append(
+                            f"  - {b.booking_type} booking: {getattr(b, 'destination', '')} "
+                            f"on {getattr(b, 'departure_date', getattr(b, 'created_at', ''))} "
+                            f"(status: {b.status}, total: ${getattr(b, 'total_amount', 'N/A')})"
+                        )
+                    user_data_section += "\nUser's bookings from our database:\n" + '\n'.join(booking_lines)
 
-PREVIOUSLY EXTRACTED parameters (carry these forward, update if user changes them):
+                if user_itineraries.exists():
+                    itin_lines = []
+                    for it in user_itineraries:
+                        itin_lines.append(
+                            f"  - \"{it.title}\": {it.destination} "
+                            f"({it.start_date} to {it.end_date}, status: {it.status}, "
+                            f"budget: {it.estimated_budget or 'not set'})"
+                        )
+                    user_data_section += "\nUser's itineraries from our database:\n" + '\n'.join(itin_lines)
+            except Exception as e:
+                logger.debug(f"Could not fetch user data for chat context: {e}")
+
+        if user_context:
+            user_data_section += f"\nAdditional user context:\n{user_context}"
+
+        system_prompt = f"""You are a friendly, knowledgeable AI travel assistant for the AI Smart Flight Agent platform.
+You can help users with ANY travel-related question or task.
+
+## YOUR CAPABILITIES:
+1. **Trip Planning**: Extract travel parameters and help plan new trips
+2. **Trip Q&A**: Answer questions about the user's existing bookings and itineraries
+3. **Recommendations**: Suggest destinations, restaurants, activities, hotels based on preferences
+4. **Travel Knowledge**: Answer questions about visa requirements, weather, safety, culture, customs
+5. **Budget Advice**: Help users optimize their travel budget and find deals
+6. **Comparison**: Compare destinations, flights, hotels, help users decide
+7. **Future Planning**: Suggest future trip ideas based on user history and preferences
+
+## USER DATA (use this to answer questions about their trips):
+{user_data_section if user_data_section else 'No user data available (user may not be logged in).'}
+
+## TRAVEL PARAMETER EXTRACTION:
+When the user wants to plan a NEW trip, extract these parameters:
+- origin: departure city/airport
+- destination: arrival city/airport
+- departure_date: YYYY-MM-DD format (today is {timezone.now().strftime('%Y-%m-%d')})
+- return_date: YYYY-MM-DD format
+- passengers: number of travelers (default 1)
+- budget: total budget in USD
+- cuisine: preferred cuisine
+
+PREVIOUSLY EXTRACTED parameters:
 {json.dumps(prev_params, indent=2) if prev_params else '{{}}'}
 
-RULES:
-1. After each user message, respond with TWO parts separated by "---PARAMS---":
-   Part 1: Your friendly conversational reply to the user
-   Part 2: A JSON object with ALL extracted parameters so far (merge new + previous)
+## RESPONSE FORMAT:
+Always respond with TWO parts separated by "---PARAMS---":
 
-2. If you have origin, destination, and departure_date → tell the user what you understood and ask them to confirm
-3. If required params are missing → ask for them naturally in conversation
-4. For dates: always convert relative dates ("next Monday", "March 15") to YYYY-MM-DD
-5. For cities: keep the city/airport name as-is (the search system handles resolution)
-6. Be concise and helpful. Use a warm, travel-enthusiast tone.
-7. If the user changes a previously extracted parameter, update it.
+Part 1: Your conversational reply (be warm, helpful, specific, and concise)
+Part 2: A JSON object with extracted travel parameters (or {{}} if no trip planning is happening)
 
-Example response format:
-"Great choice! Paris is beautiful in spring. When would you like to depart, and from which city?
----PARAMS---
-{{"destination": "Paris", "origin": "", "departure_date": "", "return_date": "", "passengers": 1, "budget": null, "cuisine": ""}}"
-"""
+## IMPORTANT RULES:
+- If the user asks a GENERAL question (weather, recommendations, visa, culture), just answer it helpfully. Still include ---PARAMS--- with the current params (or empty {{}}).
+- If the user asks about THEIR trips/bookings, reference the user data above.
+- If the user is planning a trip and you have origin + destination + departure_date, summarize and ask to confirm.
+- Convert relative dates ("next Friday", "in March") to exact YYYY-MM-DD dates.
+- Be concise (2-4 sentences for simple questions, more for complex ones).
+- Use a warm, travel-enthusiast tone with specific, actionable advice.
+- If asked about something outside travel, politely redirect to travel topics.
+- For recommendation questions, give specific names of places/restaurants/attractions."""
 
         # Build conversation messages for LLM
-        messages = [SystemMessage(content=system_prompt)]
-        for msg in conversation:
+        llm_messages = [SystemMessage(content=system_prompt)]
+        for msg in conversation[-20:]:
             if msg.get('role') == 'user':
-                messages.append(HumanMessage(content=msg['content']))
+                llm_messages.append(HumanMessage(content=msg['content']))
             elif msg.get('role') == 'assistant':
-                # Strip the params part if present (only send the conversational part)
                 content = msg['content'].split('---PARAMS---')[0].strip()
-                messages.append(AIMessage(content=content))
+                llm_messages.append(AIMessage(content=content))
 
-        messages.append(HumanMessage(content=message))
+        llm_messages.append(HumanMessage(content=message))
 
-        response = model.invoke(messages)
+        response = model.invoke(llm_messages)
         full_response = response.content.strip()
 
         # Parse the response
@@ -1171,7 +1198,6 @@ Example response format:
 
         # Parse extracted parameters
         try:
-            # Strip markdown code fences if present
             clean_json = params_json
             if clean_json.startswith('```'):
                 clean_json = clean_json.split('\n', 1)[1] if '\n' in clean_json else clean_json[3:]
@@ -1182,13 +1208,12 @@ Example response format:
         except json.JSONDecodeError:
             extracted = prev_params
 
-        # Merge with previous params (new values override, but don't blank out existing)
+        # Merge with previous params
         merged = {**prev_params}
         for key, value in extracted.items():
             if value is not None and value != '' and value != 0:
                 merged[key] = value
 
-        # Check if all required params are present
         params_complete = bool(
             merged.get('origin') and
             merged.get('destination') and

@@ -1,0 +1,520 @@
+<mxfile host="app.diagrams.net" modified="2026-02-13T12:00:00.000Z" agent="AI Smart Flight Agent" version="24.0.0">
+  <diagram name="Data Flow Diagram" id="data-flow-diagram">
+    <mxGraphModel dx="2200" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="2000" math="0" shadow="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ========== TITLE ========== -->
+        <mxCell id="title" value="AI Smart Flight Agent - Data Flow Diagram (DFD)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=26;fontStyle=1;fontColor=#1a237e;" vertex="1" parent="1">
+          <mxGeometry x="500" y="15" width="900" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Showing all major data flows: User Interactions, API Calls, Agent Processing, Storage, and External Services" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#546e7a;" vertex="1" parent="1">
+          <mxGeometry x="450" y="55" width="1000" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ========== FLOW 1: USER AUTHENTICATION ========== -->
+        <mxCell id="flow1-label" value="FLOW 1: User Authentication" style="text;html=1;strokeColor=none;fillColor=#1565C0;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="90" width="280" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f1-user" value="User" style="shape=umlActor;html=1;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#E3F2FD;strokeColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="140" width="40" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-login-form" value="Login/Register&#10;Form" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=9;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="170" y="145" width="100" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-api" value="POST /api/auth/login&#10;POST /api/auth/register" style="rounded=1;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="310" y="140" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-jwt" value="JWT Token&#10;Generation&#10;(SimpleJWT)" style="rounded=1;html=1;fillColor=#FFCC80;strokeColor=#EF6C00;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="500" y="140" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-db" value="PostgreSQL&#10;users table" style="shape=cylinder3;html=1;fillColor=#42A5F5;strokeColor=#0D47A1;fontColor=#fff;fontSize=8;size=8;" vertex="1" parent="1">
+          <mxGeometry x="640" y="135" width="90" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-store" value="Zustand&#10;authStore&#10;localStorage" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="770" y="140" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Flow 1 arrows -->
+        <mxCell id="f1-a1" value="email/pass" style="html=1;strokeWidth=2;strokeColor=#1565C0;fontSize=8;" edge="1" parent="1" source="f1-user" target="f1-login-form">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-a2" value="JSON body" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=8;" edge="1" parent="1" source="f1-login-form" target="f1-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-a3" value="authenticate" style="html=1;strokeWidth=2;strokeColor=#EF6C00;fontSize=8;" edge="1" parent="1" source="f1-api" target="f1-jwt">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-a4" value="verify user" style="html=1;strokeWidth=2;strokeColor=#0D47A1;fontSize=8;" edge="1" parent="1" source="f1-jwt" target="f1-db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-a5" value="accessToken&#10;refreshToken" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;dashed=1;" edge="1" parent="1" source="f1-jwt" target="f1-store">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f1-interceptor" value="Axios interceptor adds&#10;Bearer token to all requests" style="text;html=1;strokeColor=none;fillColor=#E8F5E9;align=center;verticalAlign=middle;fontSize=8;rounded=1;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="770" y="195" width="150" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- ========== FLOW 2: FLIGHT SEARCH ========== -->
+        <mxCell id="flow2-label" value="FLOW 2: Flight Search &amp; Booking" style="text;html=1;strokeColor=none;fillColor=#2E7D32;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="240" width="300" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f2-user" value="User" style="shape=umlActor;html=1;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#E3F2FD;strokeColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="290" width="40" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-search" value="FlightSearchPage&#10;origin, dest, dates&#10;passengers, class" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="170" y="290" width="130" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-service" value="flightService.ts&#10;searchFlights()" style="rounded=1;html=1;fillColor=#A5D6A7;strokeColor=#388E3C;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="340" y="295" width="110" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-api" value="GET /api/flights/&#10;search/" style="rounded=1;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="295" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-tool" value="FlightSearchTool&#10;resolve_city_to_airport()&#10;search_flights()" style="rounded=1;html=1;fillColor=#D1C4E9;strokeColor=#4527A0;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="630" y="285" width="140" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-serpapi" value="SerpAPI&#10;Google Flights&#10;engine" style="rounded=1;html=1;fillColor=#FFD54F;strokeColor=#F57F17;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="810" y="290" width="100" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-results" value="FlightResultsPage&#10;Sorted flights&#10;prices, airlines" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="170" y="370" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-booking" value="FlightBookingPage&#10;Selected flight&#10;passenger details" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="340" y="370" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-booking-api" value="POST /api/bookings/&#10;booking_type=flight" style="rounded=1;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="510" y="370" width="120" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-bookingdb" value="PostgreSQL&#10;bookings table" style="shape=cylinder3;html=1;fillColor=#42A5F5;strokeColor=#0D47A1;fontColor=#fff;fontSize=8;size=8;" vertex="1" parent="1">
+          <mxGeometry x="670" y="370" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Flow 2 arrows -->
+        <mxCell id="f2-a1" value="search params" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f2-user" target="f2-search">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-a2" value="" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f2-search" target="f2-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-a3" value="Axios GET" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=8;" edge="1" parent="1" source="f2-service" target="f2-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-a4" value="" style="html=1;strokeWidth=2;strokeColor=#4527A0;fontSize=8;" edge="1" parent="1" source="f2-api" target="f2-tool">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-a5" value="API request" style="html=1;strokeWidth=2;strokeColor=#F57F17;fontSize=8;" edge="1" parent="1" source="f2-tool" target="f2-serpapi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-a6" value="flight data" style="html=1;strokeWidth=2;strokeColor=#F57F17;fontSize=8;dashed=1;" edge="1" parent="1" source="f2-serpapi" target="f2-results">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="860" y="395" />
+              <mxPoint x="860" y="430" />
+              <mxPoint x="160" y="430" />
+              <mxPoint x="160" y="395" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f2-a7" value="select flight" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f2-results" target="f2-booking">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-a8" value="confirm" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=8;" edge="1" parent="1" source="f2-booking" target="f2-booking-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f2-a9" value="INSERT" style="html=1;strokeWidth=2;strokeColor=#0D47A1;fontSize=8;" edge="1" parent="1" source="f2-booking-api" target="f2-bookingdb">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ========== FLOW 3: AI PLANNER (MULTI-AGENT) ========== -->
+        <mxCell id="flow3-label" value="FLOW 3: AI Multi-Agent Trip Planning (LangGraph)" style="text;html=1;strokeColor=none;fillColor=#4527A0;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="450" width="400" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f3-user" value="User" style="shape=umlActor;html=1;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#E3F2FD;strokeColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="505" width="40" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-planner" value="AIPlannerPage&#10;Natural language&#10;query input" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="170" y="500" width="120" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-agent-api" value="POST /api/agents/&#10;plan-trip/" style="rounded=1;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="505" width="110" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Agent Pipeline -->
+        <mxCell id="f3-pipeline-box" value="" style="rounded=1;html=1;fillColor=#EDE7F6;strokeColor=#4527A0;strokeWidth=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="470" y="485" width="950" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-pipeline-label" value="LangGraph Sequential Pipeline" style="text;html=1;strokeColor=none;fillColor=#4527A0;align=center;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="480" y="490" width="220" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f3-state" value="TravelAgentState&#10;(Shared Dict)" style="rounded=1;html=1;fillColor=#B39DDB;strokeColor=#4527A0;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="480" y="518" width="110" height="35" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f3-flight-a" value="1. Flight&#10;Agent" style="rounded=1;html=1;fillColor=#7E57C2;strokeColor=#4527A0;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="610" y="518" width="70" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-hotel-a" value="2. Hotel&#10;Agent" style="rounded=1;html=1;fillColor=#7E57C2;strokeColor=#4527A0;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="690" y="518" width="70" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-car-a" value="3. Car&#10;Agent" style="rounded=1;html=1;fillColor=#7E57C2;strokeColor=#4527A0;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="770" y="518" width="70" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-rest-a" value="4. Restaurant&#10;Agent" style="rounded=1;html=1;fillColor=#7E57C2;strokeColor=#4527A0;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="850" y="518" width="80" height="35" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f3-goal-a" value="5. Goal-Based&#10;Evaluator" style="rounded=1;html=1;fillColor=#AB47BC;strokeColor=#6A1B9A;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="610" y="570" width="85" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-util-a" value="6. Utility-Based&#10;Evaluator" style="rounded=1;html=1;fillColor=#AB47BC;strokeColor=#6A1B9A;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="705" y="570" width="95" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-careval" value="7. Car&#10;Evaluator" style="rounded=1;html=1;fillColor=#AB47BC;strokeColor=#6A1B9A;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="810" y="570" width="70" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-resteval" value="8. Rest.&#10;Evaluator" style="rounded=1;html=1;fillColor=#AB47BC;strokeColor=#6A1B9A;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="890" y="570" width="70" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-manager" value="9. Manager Agent&#10;Compile Recommendations&#10;Calculate Total Cost" style="rounded=1;html=1;fillColor=#6A1B9A;strokeColor=#4A148C;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="980" y="528" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-end" value="END" style="ellipse;html=1;fillColor=#4A148C;strokeColor=#311B92;fontSize=9;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="540" width="45" height="28" as="geometry" />
+        </mxCell>
+
+        <!-- SerpAPI calls from agents -->
+        <mxCell id="f3-serpapi" value="SerpAPI&#10;(Google Flights, Hotels,&#10;Local)" style="rounded=1;html=1;fillColor=#FFD54F;strokeColor=#F57F17;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="710" y="628" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-openai" value="OpenAI GPT-4o-mini&#10;(NLP Processing)" style="rounded=1;html=1;fillColor=#FFD54F;strokeColor=#F57F17;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="628" width="140" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Flow 3 arrows -->
+        <mxCell id="f3-a1" value="query" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f3-user" target="f3-planner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a2" value="" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=8;" edge="1" parent="1" source="f3-planner" target="f3-agent-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a3" value="init state" style="html=1;strokeWidth=2;strokeColor=#4527A0;fontSize=8;" edge="1" parent="1" source="f3-agent-api" target="f3-state">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a4" value="" style="html=1;strokeWidth=1;strokeColor=#4527A0;fontSize=8;" edge="1" parent="1" source="f3-state" target="f3-flight-a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a5" value="" style="html=1;strokeWidth=1;strokeColor=#4527A0;fontSize=8;" edge="1" parent="1" source="f3-flight-a" target="f3-hotel-a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a6" value="" style="html=1;strokeWidth=1;strokeColor=#4527A0;fontSize=8;" edge="1" parent="1" source="f3-hotel-a" target="f3-car-a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a7" value="" style="html=1;strokeWidth=1;strokeColor=#4527A0;fontSize=8;" edge="1" parent="1" source="f3-car-a" target="f3-rest-a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a8" value="" style="html=1;strokeWidth=1;strokeColor=#6A1B9A;fontSize=8;" edge="1" parent="1" source="f3-rest-a" target="f3-goal-a">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="940" y="588" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="f3-a9" value="" style="html=1;strokeWidth=1;strokeColor=#6A1B9A;fontSize=8;" edge="1" parent="1" source="f3-goal-a" target="f3-util-a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a10" value="" style="html=1;strokeWidth=1;strokeColor=#6A1B9A;fontSize=8;" edge="1" parent="1" source="f3-util-a" target="f3-careval">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a11" value="" style="html=1;strokeWidth=1;strokeColor=#6A1B9A;fontSize=8;" edge="1" parent="1" source="f3-careval" target="f3-resteval">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a12" value="" style="html=1;strokeWidth=2;strokeColor=#4A148C;fontSize=8;" edge="1" parent="1" source="f3-resteval" target="f3-manager">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a13" value="" style="html=1;strokeWidth=2;strokeColor=#4A148C;fontSize=8;" edge="1" parent="1" source="f3-manager" target="f3-end">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a-serp" value="search data" style="html=1;strokeWidth=1;strokeColor=#F57F17;fontSize=7;dashed=1;" edge="1" parent="1" source="f3-flight-a" target="f3-serpapi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Output -->
+        <mxCell id="f3-output" value="Final Recommendation&#10;- recommended_flight&#10;- recommended_hotel&#10;- recommended_car&#10;- recommended_restaurant&#10;- budget_analysis&#10;- total_estimated_cost" style="rounded=1;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;fontSize=8;align=left;" vertex="1" parent="1">
+          <mxGeometry x="1210" y="490" width="180" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="f3-a-out" value="JSON response" style="html=1;strokeWidth=2;strokeColor=#2E7D32;fontSize=8;dashed=1;" edge="1" parent="1" source="f3-end" target="f3-output">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ========== FLOW 4: PAYMENT PROCESSING ========== -->
+        <mxCell id="flow4-label" value="FLOW 4: Payment Processing" style="text;html=1;strokeColor=none;fillColor=#C62828;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="700" width="280" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f4-user" value="User" style="shape=umlActor;html=1;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#E3F2FD;strokeColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="750" width="40" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-payment" value="PaymentPage&#10;Card details&#10;Stripe Elements" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="170" y="750" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-service" value="paymentService.ts&#10;processPayment()" style="rounded=1;html=1;fillColor=#A5D6A7;strokeColor=#388E3C;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="330" y="755" width="120" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-api" value="POST /api/payments/&#10;process/" style="rounded=1;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="755" width="110" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-stripe" value="Stripe API&#10;charge.create()" style="rounded=1;html=1;fillColor=#FFD54F;strokeColor=#F57F17;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="755" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-db" value="PostgreSQL&#10;payments table" style="shape=cylinder3;html=1;fillColor=#42A5F5;strokeColor=#0D47A1;fontColor=#fff;fontSize=8;size=8;" vertex="1" parent="1">
+          <mxGeometry x="780" y="748" width="90" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-notify" value="Celery Task&#10;send_confirmation_email()" style="rounded=1;html=1;fillColor=#FFD54F;strokeColor=#F57F17;fontSize=7;" vertex="1" parent="1">
+          <mxGeometry x="900" y="755" width="140" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Flow 4 arrows -->
+        <mxCell id="f4-a1" value="card data" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f4-user" target="f4-payment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-a2" value="" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f4-payment" target="f4-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-a3" value="POST" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=8;" edge="1" parent="1" source="f4-service" target="f4-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-a4" value="charge" style="html=1;strokeWidth=2;strokeColor=#F57F17;fontSize=8;" edge="1" parent="1" source="f4-api" target="f4-stripe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-a5" value="record" style="html=1;strokeWidth=2;strokeColor=#0D47A1;fontSize=8;" edge="1" parent="1" source="f4-stripe" target="f4-db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f4-a6" value="async" style="html=1;strokeWidth=1;strokeColor=#F57F17;fontSize=8;dashed=1;" edge="1" parent="1" source="f4-db" target="f4-notify">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ========== FLOW 5: REAL-TIME NOTIFICATIONS ========== -->
+        <mxCell id="flow5-label" value="FLOW 5: Real-Time Notifications (WebSocket)" style="text;html=1;strokeColor=none;fillColor=#E65100;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="840" width="380" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f5-event" value="System Event&#10;(booking, payment,&#10;price alert)" style="rounded=1;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="890" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-celery" value="Celery Worker&#10;process task" style="rounded=1;html=1;fillColor=#FFD54F;strokeColor=#F57F17;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="240" y="895" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-rabbitmq" value="RabbitMQ&#10;Task Queue&#10;AMQP :5673" style="shape=cylinder3;html=1;fillColor=#EF5350;strokeColor=#B71C1C;fontColor=#fff;fontSize=8;size=8;" vertex="1" parent="1">
+          <mxGeometry x="380" y="885" width="90" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-channels" value="Django Channels&#10;WebSocket&#10;Consumer" style="rounded=1;html=1;fillColor=#FFCC80;strokeColor=#EF6C00;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="510" y="890" width="110" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-redis" value="Redis&#10;Channel Layer&#10;DB 1 :6384" style="shape=cylinder3;html=1;fillColor=#FFA726;strokeColor=#E65100;fontColor=#fff;fontSize=8;size=8;" vertex="1" parent="1">
+          <mxGeometry x="660" y="885" width="90" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-ws" value="WebSocket&#10;ws://host/ws/&#10;notifications/" style="rounded=1;html=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="790" y="890" width="110" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-ui" value="NotificationsPage&#10;+ Toast (react-hot-toast)&#10;Real-time UI update" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="940" y="885" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Flow 5 arrows -->
+        <mxCell id="f5-a1" value="trigger" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=8;" edge="1" parent="1" source="f5-event" target="f5-celery">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-a2" value="enqueue" style="html=1;strokeWidth=2;strokeColor=#B71C1C;fontSize=8;" edge="1" parent="1" source="f5-celery" target="f5-rabbitmq">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-a3" value="consume" style="html=1;strokeWidth=2;strokeColor=#EF6C00;fontSize=8;" edge="1" parent="1" source="f5-rabbitmq" target="f5-channels">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-a4" value="publish" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=8;" edge="1" parent="1" source="f5-channels" target="f5-redis">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-a5" value="push" style="html=1;strokeWidth=2;strokeColor=#1565C0;fontSize=8;" edge="1" parent="1" source="f5-redis" target="f5-ws">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f5-a6" value="display" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f5-ws" target="f5-ui">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ========== FLOW 6: MCP AGENT COMMUNICATION ========== -->
+        <mxCell id="flow6-label" value="FLOW 6: MCP Agent-to-Agent Communication" style="text;html=1;strokeColor=none;fillColor=#880E4F;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="970" width="380" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f6-agent1" value="Agent A&#10;(e.g., Flight)" style="rounded=1;html=1;fillColor=#7E57C2;strokeColor=#4527A0;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1020" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-register" value="POST /agents/register&#10;{agent_id, type, capabilities}" style="rounded=1;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="1015" width="170" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-mcp" value="MCP Server&#10;FastAPI :8107" style="rounded=1;html=1;fillColor=#E91E63;strokeColor=#880E4F;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="430" y="1015" width="110" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-redis" value="Redis DB 1&#10;agent:{id}&#10;agent_queue:{id}&#10;context:{id}" style="shape=cylinder3;html=1;fillColor=#FFA726;strokeColor=#E65100;fontColor=#fff;fontSize=7;size=8;" vertex="1" parent="1">
+          <mxGeometry x="580" y="1005" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-msg" value="POST /messages/send&#10;{from, to, payload, type}" style="rounded=1;html=1;fillColor=#F48FB1;strokeColor=#AD1457;fontSize=7;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="1015" width="160" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-ws" value="WebSocket&#10;/ws/{agent_id}" style="rounded=1;html=1;fillColor=#EC407A;strokeColor=#880E4F;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1018" width="100" height="35" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-agent2" value="Agent B&#10;(e.g., Hotel)" style="rounded=1;html=1;fillColor=#7E57C2;strokeColor=#4527A0;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="1020" width="100" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Flow 6 arrows -->
+        <mxCell id="f6-a1" value="register" style="html=1;strokeWidth=2;strokeColor=#C62828;fontSize=7;" edge="1" parent="1" source="f6-agent1" target="f6-register">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-a2" value="" style="html=1;strokeWidth=2;strokeColor=#C62828;fontSize=7;" edge="1" parent="1" source="f6-register" target="f6-mcp">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-a3" value="store" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=7;" edge="1" parent="1" source="f6-mcp" target="f6-redis">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-a4" value="send msg" style="html=1;strokeWidth=2;strokeColor=#AD1457;fontSize=7;" edge="1" parent="1" source="f6-redis" target="f6-msg">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-a5" value="push" style="html=1;strokeWidth=2;strokeColor=#880E4F;fontSize=7;" edge="1" parent="1" source="f6-msg" target="f6-ws">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f6-a6" value="deliver" style="html=1;strokeWidth=2;strokeColor=#4527A0;fontSize=7;" edge="1" parent="1" source="f6-ws" target="f6-agent2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ========== FLOW 7: ITINERARY GENERATION ========== -->
+        <mxCell id="flow7-label" value="FLOW 7: Itinerary Generation &amp; PDF Export" style="text;html=1;strokeColor=none;fillColor=#00695C;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="1090" width="380" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f7-user" value="User" style="shape=umlActor;html=1;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#E3F2FD;strokeColor=#1565C0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1135" width="40" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-itin" value="ItineraryPage&#10;Create/View/Edit" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="170" y="1140" width="110" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-service" value="itineraryService.ts" style="rounded=1;html=1;fillColor=#A5D6A7;strokeColor=#388E3C;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="320" y="1145" width="110" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-api" value="/api/itineraries/" style="rounded=1;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="470" y="1145" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-enhanced" value="Enhanced Orchestrator&#10;RAG + ThreadPool(8)&#10;Synthesize Itinerary" style="rounded=1;html=1;fillColor=#9575CD;strokeColor=#4527A0;fontSize=8;fontStyle=1;fontColor=#fff;" vertex="1" parent="1">
+          <mxGeometry x="610" y="1130" width="150" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-openai" value="OpenAI&#10;GPT-4&#10;Narrative" style="rounded=1;html=1;fillColor=#FFD54F;strokeColor=#F57F17;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="800" y="1135" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-db" value="PostgreSQL&#10;itineraries" style="shape=cylinder3;html=1;fillColor=#42A5F5;strokeColor=#0D47A1;fontColor=#fff;fontSize=8;size=8;" vertex="1" parent="1">
+          <mxGeometry x="920" y="1130" width="90" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-pdf" value="PDF Export&#10;ItineraryPDFViewer&#10;DayByDayPlan" style="rounded=1;html=1;fillColor=#B2DFDB;strokeColor=#00695C;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="1135" width="120" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Flow 7 arrows -->
+        <mxCell id="f7-a1" value="" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f7-user" target="f7-itin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-a2" value="" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f7-itin" target="f7-service">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-a3" value="" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=8;" edge="1" parent="1" source="f7-service" target="f7-api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-a4" value="plan_trip()" style="html=1;strokeWidth=2;strokeColor=#4527A0;fontSize=8;" edge="1" parent="1" source="f7-api" target="f7-enhanced">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-a5" value="synthesize" style="html=1;strokeWidth=2;strokeColor=#F57F17;fontSize=8;" edge="1" parent="1" source="f7-enhanced" target="f7-openai">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-a6" value="save" style="html=1;strokeWidth=2;strokeColor=#0D47A1;fontSize=8;" edge="1" parent="1" source="f7-enhanced" target="f7-db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f7-a7" value="export" style="html=1;strokeWidth=2;strokeColor=#00695C;fontSize=8;dashed=1;" edge="1" parent="1" source="f7-db" target="f7-pdf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ========== FLOW 8: CACHING ========== -->
+        <mxCell id="flow8-label" value="FLOW 8: Caching Strategy" style="text;html=1;strokeColor=none;fillColor=#E65100;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#ffffff;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="50" y="1220" width="260" height="28" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f8-request" value="Incoming&#10;API Request" style="rounded=1;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1270" width="90" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="f8-check" value="Check Redis&#10;Cache (DB 0)" style="shape=rhombus;html=1;fillColor=#FFA726;strokeColor=#E65100;fontColor=#fff;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="210" y="1260" width="110" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f8-hit" value="Cache HIT&#10;Return cached data" style="rounded=1;html=1;fillColor=#A5D6A7;strokeColor=#388E3C;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="370" y="1245" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="f8-miss" value="Cache MISS&#10;Query DB/API" style="rounded=1;html=1;fillColor=#EF9A9A;strokeColor=#C62828;fontSize=8;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="370" y="1290" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="f8-store" value="Store in Redis&#10;with TTL" style="rounded=1;html=1;fillColor=#FFCC80;strokeColor=#EF6C00;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1290" width="100" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f8-ttls" value="Cache TTLs:&#10;Flights: 15 min | Hotels: 15 min&#10;Weather: 30 min | Trip Plans: 30 min&#10;Health/Safety: 24h | Visa: 7 days" style="rounded=1;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;fontSize=8;align=left;" vertex="1" parent="1">
+          <mxGeometry x="690" y="1258" width="200" height="65" as="geometry" />
+        </mxCell>
+
+        <mxCell id="f8-a1" value="" style="html=1;strokeWidth=2;strokeColor=#E65100;fontSize=8;" edge="1" parent="1" source="f8-request" target="f8-check">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f8-a2" value="hit" style="html=1;strokeWidth=2;strokeColor=#388E3C;fontSize=8;" edge="1" parent="1" source="f8-check" target="f8-hit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f8-a3" value="miss" style="html=1;strokeWidth=2;strokeColor=#C62828;fontSize=8;" edge="1" parent="1" source="f8-check" target="f8-miss">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="f8-a4" value="set" style="html=1;strokeWidth=2;strokeColor=#EF6C00;fontSize=8;" edge="1" parent="1" source="f8-miss" target="f8-store">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ========== LEGEND ========== -->
+        <mxCell id="legend-box" value="" style="rounded=1;html=1;fillColor=#FAFAFA;strokeColor=#9E9E9E;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="1220" width="500" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="LEGEND" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="1225" width="80" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="l1" value="Frontend (React)" style="rounded=1;html=1;fillColor=#C8E6C9;strokeColor=#388E3C;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="1248" width="90" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" value="Backend (Django)" style="rounded=1;html=1;fillColor=#FFE0B2;strokeColor=#E65100;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="1248" width="90" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" value="AI Agent" style="rounded=1;html=1;fillColor=#D1C4E9;strokeColor=#4527A0;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="1248" width="70" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" value="External API" style="rounded=1;html=1;fillColor=#FFD54F;strokeColor=#F57F17;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1500" y="1248" width="70" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" value="Database" style="shape=cylinder3;html=1;fillColor=#42A5F5;strokeColor=#0D47A1;fontColor=#fff;fontSize=8;size=6;" vertex="1" parent="1">
+          <mxGeometry x="1580" y="1240" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="l6" value="MCP Server" style="rounded=1;html=1;fillColor=#F8BBD0;strokeColor=#C62828;fontSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1650" y="1248" width="70" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="l7" value="_____ Sync flow   - - - - Async/Return flow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=9;fontColor=#424242;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="1278" width="280" height="16" as="geometry" />
+        </mxCell>
+        <mxCell id="l8" value="8 Docker Containers | 5 Persistent Volumes | 1 Bridge Network" style="text;html=1;strokeColor=none;fillColor=#E0E0E0;align=center;verticalAlign=middle;fontSize=9;rounded=1;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="1300" width="400" height="18" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

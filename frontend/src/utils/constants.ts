@@ -64,8 +64,9 @@ export const API_ENDPOINTS = {
     METHODS: '/api/payments/methods',
   },
   AGENT: {
-    CHAT: '/api/agent/chat',
-    CONTEXT: '/api/agent/context',
+    CHAT: '/api/agents/chat',
+    CONTEXT: '/api/agents/context',
+    PLAN: '/api/agents/plan',
   },
   PRICE_ALERTS: {
     CREATE: '/api/price-alerts',
