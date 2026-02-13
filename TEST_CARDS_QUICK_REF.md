@@ -57,7 +57,7 @@ Your `.env` has `sk_test_` keys = **No real money will be charged**
 ## 📊 View Test Results
 
 - **Stripe Dashboard**: https://dashboard.stripe.com/test/payments
-- **Admin Panel**: http://108.48.39.238:3090/admin/payments/payment/
+- **Admin Panel**: https://demo.eminencetechsolutions.com:3090/admin/payments/payment/
 
 ---
 

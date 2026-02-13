@@ -14,9 +14,9 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install && npm install --
 COPY . .
 
 # Set environment variables for build
-ARG VITE_API_URL=http://108.48.39.238:3090
-ARG VITE_WS_URL=ws://108.48.39.238:3090/ws
-ARG VITE_MCP_URL=http://108.48.39.238:3090/mcp
+ARG VITE_API_URL=https://demo.eminencetechsolutions.com:3090
+ARG VITE_WS_URL=wss://demo.eminencetechsolutions.com:3090/ws
+ARG VITE_MCP_URL=https://demo.eminencetechsolutions.com:3090/mcp
 
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_WS_URL=$VITE_WS_URL

@@ -15,11 +15,11 @@ export default defineConfig({
     port: 3090,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://108.48.39.238:3090',
+        target: process.env.VITE_API_URL || 'https://demo.eminencetechsolutions.com:3090',
         changeOrigin: true,
       },
       '/ws': {
-        target: process.env.VITE_WS_URL || 'ws://108.48.39.238:3090',
+        target: process.env.VITE_WS_URL || 'wss://demo.eminencetechsolutions.com:3090',
         ws: true,
       },
     },

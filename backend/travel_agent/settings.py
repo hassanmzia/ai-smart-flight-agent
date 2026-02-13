@@ -163,7 +163,7 @@ SIMPLE_JWT = {
 # CORS Settings
 CORS_ALLOWED_ORIGINS = os.environ.get(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:3090,http://108.48.39.238:3090'
+    'https://demo.eminencetechsolutions.com:3090,http://localhost:3090'
 ).split(',')
 CORS_ALLOW_CREDENTIALS = True
 
@@ -266,7 +266,7 @@ LOGGING = {
 
 # Security Settings for Production
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = False  # Nginx handles SSL termination
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True

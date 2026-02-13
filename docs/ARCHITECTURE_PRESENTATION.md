@@ -474,7 +474,7 @@ POST   /api/bookings/            - Create booking
 POST   /api/payments/            - Process payment
 ```
 
-**Access**: http://108.48.39.238:3090/api/docs
+**Access**: https://demo.eminencetechsolutions.com:3090/api/docs
 
 ---
 
@@ -501,8 +501,8 @@ docker-compose exec backend python manage.py migrate
 docker-compose exec backend python manage.py createsuperuser
 
 # 6. Access application
-# Frontend: http://108.48.39.238:3090
-# Admin:    http://108.48.39.238:3090/admin
+# Frontend: https://demo.eminencetechsolutions.com:3090
+# Admin:    https://demo.eminencetechsolutions.com:3090/admin
 ```
 
 ### Development Tools
@@ -669,7 +669,7 @@ docker-compose exec backend python manage.py createsuperuser
 7. **Dashboard** - User bookings & trips
 8. **Admin Panel** - Django admin interface
 
-*Capture actual screenshots from http://108.48.39.238:3090*
+*Capture actual screenshots from https://demo.eminencetechsolutions.com:3090*
 
 ---
 
@@ -724,7 +724,7 @@ docker-compose exec backend python manage.py createsuperuser
 - Pros: Full control, privacy
 - Cons: Maintenance burden
 
-**Current Setup**: Local Docker environment (108.48.39.238)
+**Current Setup**: Local Docker environment (demo.eminencetechsolutions.com)
 
 ---
 
@@ -761,7 +761,7 @@ docker-compose exec backend python manage.py createsuperuser
 **Technical Contact**:
 - GitHub: [Repository Link]
 - Documentation: `/docs` folder
-- API Docs: http://108.48.39.238:3090/api/docs
+- API Docs: https://demo.eminencetechsolutions.com:3090/api/docs
 
 **Key Resources**:
 - `README.md` - Setup guide

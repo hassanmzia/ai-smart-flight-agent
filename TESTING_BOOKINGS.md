@@ -214,7 +214,7 @@ class TestBookingService:
 
 ### Your Admin Panel
 ```
-http://108.48.39.238:3090/admin/payments/payment/
+https://demo.eminencetechsolutions.com:3090/admin/payments/payment/
 ```
 Filter by `gateway_name = 'stripe'` and `status = 'completed'`
 
