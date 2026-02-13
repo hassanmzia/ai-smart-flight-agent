@@ -10,6 +10,9 @@ class Itinerary(models.Model):
     STATUS_CHOICES = [
         ('draft', 'Draft'),
         ('planned', 'Planned'),
+        ('approved', 'Approved'),
+        ('booking', 'Booking in Progress'),
+        ('booked', 'Booked'),
         ('active', 'Active'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),

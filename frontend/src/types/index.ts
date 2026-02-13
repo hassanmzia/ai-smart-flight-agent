@@ -340,7 +340,7 @@ export interface Itinerary {
   destination: string;
   start_date: string;
   end_date: string;
-  status: 'draft' | 'planned' | 'active' | 'completed' | 'cancelled';
+  status: 'draft' | 'planned' | 'approved' | 'booking' | 'booked' | 'active' | 'completed' | 'cancelled';
   travelers: any[];
   number_of_travelers: number;
   estimated_budget: string | null;
