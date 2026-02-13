@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import AgentSession, AgentExecution, AgentLog
+from .models import AgentSession, AgentExecution, AgentLog, RAGDocument
 
 
 class AgentLogSerializer(serializers.ModelSerializer):
@@ -141,3 +141,37 @@ class AgentExecutionCreateSerializer(serializers.ModelSerializer):
         fields = [
             'agent_type', 'input_data', 'agent_config', 'model_used'
         ]
+
+
+class RAGDocumentSerializer(serializers.ModelSerializer):
+    """Serializer for RAGDocument model."""
+
+    uploaded_by_email = serializers.EmailField(source='uploaded_by.email', read_only=True)
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RAGDocument
+        fields = [
+            'id', 'title', 'description', 'file', 'file_url', 'file_type',
+            'file_size', 'status', 'error_message', 'chunk_count', 'scope',
+            'tags', 'uploaded_by', 'uploaded_by_email', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'file_type', 'file_size', 'status', 'error_message',
+            'chunk_count', 'uploaded_by', 'uploaded_by_email',
+            'created_at', 'updated_at',
+        ]
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return None
+
+
+class RAGDocumentUploadSerializer(serializers.ModelSerializer):
+    """Serializer for uploading a new RAG document."""
+
+    class Meta:
+        model = RAGDocument
+        fields = ['title', 'description', 'file', 'scope', 'tags']

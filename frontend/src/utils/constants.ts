@@ -67,6 +67,7 @@ export const API_ENDPOINTS = {
     CHAT: '/api/agents/chat',
     CONTEXT: '/api/agents/context',
     PLAN: '/api/agents/plan',
+    DOCUMENTS: '/api/agents/documents',
   },
   PRICE_ALERTS: {
     CREATE: '/api/price-alerts',
@@ -150,6 +151,7 @@ export const QUERY_KEYS = {
   ITINERARY: (id: string) => ['itinerary', id],
   NOTIFICATIONS: ['notifications'],
   ANALYTICS: ['analytics'],
+  RAG_DOCUMENTS: ['rag-documents'],
 } as const;
 
 // Pagination

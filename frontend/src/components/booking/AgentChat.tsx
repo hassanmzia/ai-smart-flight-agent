@@ -7,11 +7,13 @@ import {
   ArrowPathIcon,
   CheckIcon,
   StopIcon,
+  DocumentArrowUpIcon,
 } from '@heroicons/react/24/outline';
 import { useAgentChat } from '@/hooks/useAgentChat';
 import useAuthStore from '@/store/authStore';
 import { cn } from '@/utils/helpers';
 import { LoadingSpinner } from '@/components/common/Loading';
+import DocumentManager from './DocumentManager';
 
 const QUICK_PROMPTS = [
   { label: 'Plan a trip', prompt: 'I want to plan a new trip' },
@@ -25,6 +27,7 @@ const AgentChat = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [isDocManagerOpen, setIsDocManagerOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -153,6 +156,13 @@ const AgentChat = () => {
               </h3>
             </div>
             <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setIsDocManagerOpen(true)}
+                className="text-white/80 sm:text-gray-400 hover:text-white sm:hover:text-gray-600 sm:dark:hover:text-gray-300 p-1"
+                title="Upload documents to knowledge base"
+              >
+                <DocumentArrowUpIcon className="h-4 w-4" />
+              </button>
               {messages.length > 0 && (
                 <button
                   onClick={clearMessages}
@@ -359,6 +369,12 @@ const AgentChat = () => {
           </form>
         </div>
       )}
+
+      {/* Document Manager Modal */}
+      <DocumentManager
+        isOpen={isDocManagerOpen}
+        onClose={() => setIsDocManagerOpen(false)}
+      />
     </>
   );
 };

@@ -1,5 +1,9 @@
+import os
+import uuid
+
 from django.db import models
 from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from django.utils import timezone
 
 
@@ -223,3 +227,86 @@ class AgentLog(models.Model):
 
     def __str__(self):
         return f"[{self.log_level.upper()}] {self.agent_type} - {self.message[:50]}"
+
+
+def rag_document_upload_path(instance, filename):
+    """Upload documents to rag_documents/<user_id>/<uuid>_<filename>."""
+    ext = os.path.splitext(filename)[1]
+    safe_name = f"{uuid.uuid4().hex[:12]}{ext}"
+    return f"rag_documents/{instance.uploaded_by_id}/{safe_name}"
+
+
+class RAGDocument(models.Model):
+    """
+    Company/user-uploaded documents for RAG context.
+    Supports PDF, TXT, DOCX, and Markdown files.
+    Files are parsed, chunked, and embedded into ChromaDB
+    so the AI assistant can reference them during chat.
+    """
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending Processing'),
+        ('processing', 'Processing'),
+        ('indexed', 'Indexed'),
+        ('failed', 'Failed'),
+    ]
+
+    SCOPE_CHOICES = [
+        ('global', 'Global (all users)'),
+        ('user', 'User-specific'),
+    ]
+
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='rag_documents',
+    )
+
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    file = models.FileField(
+        upload_to=rag_document_upload_path,
+        validators=[FileExtensionValidator(
+            allowed_extensions=['pdf', 'txt', 'md', 'docx', 'csv']
+        )],
+    )
+    file_type = models.CharField(max_length=10, blank=True)
+    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
+
+    # Processing status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    error_message = models.TextField(blank=True)
+
+    # Indexing metadata
+    chunk_count = models.PositiveIntegerField(default=0)
+    scope = models.CharField(max_length=10, choices=SCOPE_CHOICES, default='global')
+
+    # Tags for filtering
+    tags = models.JSONField(default=list, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'rag_documents'
+        ordering = ['-created_at']
+        verbose_name = 'RAG Document'
+        verbose_name_plural = 'RAG Documents'
+        indexes = [
+            models.Index(fields=['uploaded_by', '-created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['scope']),
+        ]
+
+    def __str__(self):
+        return f"{self.title} ({self.file_type}) - {self.status}"
+
+    def save(self, *args, **kwargs):
+        if self.file and not self.file_type:
+            self.file_type = os.path.splitext(self.file.name)[1].lstrip('.').lower()
+        if self.file and not self.file_size:
+            try:
+                self.file_size = self.file.size
+            except Exception:
+                pass
+        super().save(*args, **kwargs)

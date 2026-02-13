@@ -10,7 +10,7 @@ import json
 import logging
 import uuid
 
-from .models import AgentSession, AgentExecution, AgentLog
+from .models import AgentSession, AgentExecution, AgentLog, RAGDocument
 from .serializers import (
     AgentSessionSerializer,
     AgentSessionListSerializer,
@@ -18,7 +18,9 @@ from .serializers import (
     AgentExecutionSerializer,
     AgentExecutionListSerializer,
     AgentExecutionCreateSerializer,
-    AgentLogSerializer
+    AgentLogSerializer,
+    RAGDocumentSerializer,
+    RAGDocumentUploadSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -988,6 +990,78 @@ def plan_travel(request):
             'success': False,
             'error': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RAGDocumentViewSet(viewsets.ModelViewSet):
+    """
+    API for uploading, listing, and managing RAG documents.
+    Supports PDF, TXT, DOCX, MD, and CSV files.
+    Uploaded files are parsed, chunked, and indexed into ChromaDB
+    so the AI assistant can reference them during chat.
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = RAGDocumentSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['status', 'scope', 'file_type']
+    search_fields = ['title', 'description']
+    ordering_fields = ['created_at', 'title', 'file_size']
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return RAGDocument.objects.all()
+        return RAGDocument.objects.filter(
+            Q(uploaded_by=user) | Q(scope='global')
+        )
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return RAGDocumentUploadSerializer
+        return RAGDocumentSerializer
+
+    def perform_create(self, serializer):
+        doc = serializer.save(uploaded_by=self.request.user)
+        # Process and index the document
+        try:
+            from apps.agents.document_processor import process_and_index_document
+            chunk_count = process_and_index_document(doc)
+            logger.info(f"Document '{doc.title}' uploaded and indexed: {chunk_count} chunks")
+        except Exception as e:
+            logger.error(f"Document processing failed for '{doc.title}': {e}")
+            doc.status = 'failed'
+            doc.error_message = str(e)[:500]
+            doc.save(update_fields=['status', 'error_message'])
+
+    def perform_destroy(self, instance):
+        # Delete ChromaDB chunks before deleting the model
+        try:
+            from apps.agents.document_processor import delete_document_chunks
+            delete_document_chunks(instance)
+        except Exception as e:
+            logger.warning(f"Error cleaning up document chunks: {e}")
+        # Delete the file from storage
+        if instance.file:
+            instance.file.delete(save=False)
+        instance.delete()
+
+    @action(detail=True, methods=['post'])
+    def reindex(self, request, pk=None):
+        """Re-process and re-index a document."""
+        doc = self.get_object()
+        try:
+            from apps.agents.document_processor import process_and_index_document
+            chunk_count = process_and_index_document(doc)
+            return Response({
+                'success': True,
+                'message': f'Document re-indexed with {chunk_count} chunks',
+                'chunk_count': chunk_count,
+            })
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e),
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])

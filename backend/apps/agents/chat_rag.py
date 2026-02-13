@@ -381,7 +381,8 @@ class UserDataRAG:
         data_types: Optional[List[str]] = None,
     ) -> str:
         """
-        Retrieve the most relevant user data chunks for a given query.
+        Retrieve the most relevant chunks for a given query.
+        Searches both user-specific data AND global company documents.
 
         Args:
             user: Django user object
@@ -397,43 +398,69 @@ class UserDataRAG:
         # Ensure user data is indexed (lazy indexing with cache check)
         self._ensure_indexed(user)
 
-        # Build filter
-        where_filter: Dict[str, Any] = {"user_id": user_id}
-        if data_types:
-            where_filter = {
-                "$and": [
-                    {"user_id": user_id},
-                    {"data_type": {"$in": data_types}},
-                ]
-            }
+        all_docs = []
+        all_dists = []
+        all_metas = []
 
+        # 1) Retrieve user-specific data
         try:
+            user_filter: Dict[str, Any] = {"user_id": user_id}
+            if data_types:
+                user_filter = {
+                    "$and": [
+                        {"user_id": user_id},
+                        {"data_type": {"$in": data_types}},
+                    ]
+                }
+
             results = self.collection.query(
                 query_texts=[query],
                 n_results=n_results,
-                where=where_filter,
+                where=user_filter,
             )
 
-            documents = results['documents'][0] if results['documents'] else []
-            distances = results['distances'][0] if results['distances'] else []
-            metadatas = results['metadatas'][0] if results['metadatas'] else []
+            if results['documents'] and results['documents'][0]:
+                all_docs.extend(results['documents'][0])
+                all_dists.extend(results['distances'][0])
+                all_metas.extend(results['metadatas'][0])
+        except Exception as e:
+            logger.warning(f"User data retrieval error: {e}")
 
-            if not documents:
-                return ''
+        # 2) Retrieve global company documents (accessible to all users)
+        try:
+            global_results = self.collection.query(
+                query_texts=[query],
+                n_results=4,  # Up to 4 company doc chunks
+                where={"user_id": "global"},
+            )
 
-            # Format retrieved context with relevance info
-            context_parts = []
-            for doc, dist, meta in zip(documents, distances, metadatas):
-                data_type = meta.get('data_type', 'unknown')
-                # ChromaDB distance: lower = more similar
-                relevance = 'high' if dist < 0.5 else 'medium' if dist < 1.0 else 'low'
+            if global_results['documents'] and global_results['documents'][0]:
+                all_docs.extend(global_results['documents'][0])
+                all_dists.extend(global_results['distances'][0])
+                all_metas.extend(global_results['metadatas'][0])
+        except Exception as e:
+            logger.debug(f"Global document retrieval error (may be empty): {e}")
+
+        if not all_docs:
+            return ''
+
+        # Sort by distance (most relevant first) and take top n_results
+        combined = sorted(
+            zip(all_docs, all_dists, all_metas),
+            key=lambda x: x[1],
+        )[:n_results]
+
+        # Format retrieved context
+        context_parts = []
+        for doc, dist, meta in combined:
+            data_type = meta.get('data_type', 'unknown')
+            doc_title = meta.get('document_title', '')
+            if data_type == 'company_document' and doc_title:
+                context_parts.append(f"[company_doc: {doc_title}] {doc}")
+            else:
                 context_parts.append(f"[{data_type}] {doc}")
 
-            return '\n\n'.join(context_parts)
-
-        except Exception as e:
-            logger.error(f"RAG retrieval error for user {user_id}: {e}")
-            return ''
+        return '\n\n'.join(context_parts)
 
     def _ensure_indexed(self, user):
         """Ensure user data is indexed. Uses cache to avoid re-indexing on every request."""

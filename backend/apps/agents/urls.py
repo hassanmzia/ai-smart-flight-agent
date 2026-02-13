@@ -4,6 +4,7 @@ from .views import (
     AgentSessionViewSet,
     AgentExecutionViewSet,
     AgentLogViewSet,
+    RAGDocumentViewSet,
     plan_travel,
     chat,
     text_to_speech,
@@ -15,6 +16,7 @@ router = DefaultRouter()
 router.register(r'sessions', AgentSessionViewSet, basename='session')
 router.register(r'executions', AgentExecutionViewSet, basename='execution')
 router.register(r'logs', AgentLogViewSet, basename='log')
+router.register(r'documents', RAGDocumentViewSet, basename='rag-document')
 
 urlpatterns = [
     path('', include(router.urls)),
