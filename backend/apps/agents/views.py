@@ -547,20 +547,20 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
     hotel_total = 0
     car_total = 0
     try:
-        rf = rec.get('recommended_flight', {})
+        rf = rec.get('recommended_flight') or {}
         flight_price = float(rf.get('price', 0) or 0)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, AttributeError):
         flight_price = 0
     try:
-        rh = rec.get('recommended_hotel', {})
+        rh = rec.get('recommended_hotel') or {}
         hotel_price_per_night = float(rh.get('price') or rh.get('price_per_night', 0) or 0)
         hotel_total = hotel_price_per_night * num_nights
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, AttributeError):
         hotel_total = 0
     try:
-        rc = rec.get('recommended_car', {})
+        rc = rec.get('recommended_car') or {}
         car_total = float(rc.get('total_price', 0) or 0)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, AttributeError):
         car_total = 0
 
     known_costs_total = flight_price + hotel_total + car_total
