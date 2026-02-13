@@ -9,15 +9,19 @@ import {
   ClockIcon,
   ShieldCheckIcon,
   CurrencyDollarIcon,
-  StarIcon
+  StarIcon,
+  UserPlusIcon,
+  ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import { Card } from '@/components/common';
 import { ROUTES } from '@/utils/constants';
+import useAuthStore from '@/store/authStore';
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
   const [searchType, setSearchType] = useState<'flight' | 'hotel'>('flight');
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
@@ -78,107 +82,161 @@ const HomePage = () => {
             </div>
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Actions & Search — Only for authenticated users */}
           <div className="max-w-5xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <button
-                onClick={() => navigate(ROUTES.AI_PLANNER)}
-                className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-6 text-left transition-all hover:scale-105 transform"
-              >
-                <div className="text-4xl mb-3">🤖</div>
-                <h3 className="text-lg font-bold mb-1">AI Trip Planner</h3>
-                <p className="text-sm opacity-90">Let AI create your perfect itinerary</p>
-              </button>
+            {isAuthenticated ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  <button
+                    onClick={() => navigate(ROUTES.AI_PLANNER)}
+                    className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-6 text-left transition-all hover:scale-105 transform"
+                  >
+                    <div className="text-4xl mb-3">🤖</div>
+                    <h3 className="text-lg font-bold mb-1">AI Trip Planner</h3>
+                    <p className="text-sm opacity-90">Let AI create your perfect itinerary</p>
+                  </button>
 
-              <button
-                onClick={() => navigate(ROUTES.FLIGHT_SEARCH)}
-                className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-6 text-left transition-all hover:scale-105 transform"
-              >
-                <div className="text-4xl mb-3">✈️</div>
-                <h3 className="text-lg font-bold mb-1">Search Flights</h3>
-                <p className="text-sm opacity-90">Find the best flight deals</p>
-              </button>
+                  <button
+                    onClick={() => navigate(ROUTES.FLIGHT_SEARCH)}
+                    className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-6 text-left transition-all hover:scale-105 transform"
+                  >
+                    <div className="text-4xl mb-3">✈️</div>
+                    <h3 className="text-lg font-bold mb-1">Search Flights</h3>
+                    <p className="text-sm opacity-90">Find the best flight deals</p>
+                  </button>
 
-              <button
-                onClick={() => navigate(ROUTES.HOTEL_SEARCH)}
-                className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-6 text-left transition-all hover:scale-105 transform"
-              >
-                <div className="text-4xl mb-3">🏨</div>
-                <h3 className="text-lg font-bold mb-1">Book Hotels</h3>
-                <p className="text-sm opacity-90">Discover amazing accommodations</p>
-              </button>
-            </div>
-
-            {/* Search Form */}
-            <Card className="backdrop-blur-md bg-white/95 dark:bg-gray-900/95 shadow-2xl">
-              <div className="flex flex-wrap gap-2 mb-6">
-                <button
-                  onClick={() => setSearchType('flight')}
-                  className={`px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 ${
-                    searchType === 'flight'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  ✈️ Flights
-                </button>
-                <button
-                  onClick={() => setSearchType('hotel')}
-                  className={`px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 ${
-                    searchType === 'hotel'
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  🏨 Hotels
-                </button>
-              </div>
-
-              <form onSubmit={handleSearch} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {searchType === 'flight' && (
-                    <Input
-                      label="From"
-                      value={origin}
-                      onChange={(e) => setOrigin(e.target.value)}
-                      placeholder="City or airport"
-                      leftIcon={<MapPinIcon className="h-5 w-5 text-gray-400" />}
-                      required
-                    />
-                  )}
-                  <Input
-                    label="To"
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    placeholder="City or destination"
-                    leftIcon={<MapPinIcon className="h-5 w-5 text-gray-400" />}
-                    required
-                  />
-                  <Input
-                    label={searchType === 'flight' ? 'Departure Date' : 'Check-in Date'}
-                    type="date"
-                    value={departureDate}
-                    onChange={(e) => setDepartureDate(e.target.value)}
-                    leftIcon={<CalendarIcon className="h-5 w-5 text-gray-400" />}
-                    required
-                  />
-                  <Input
-                    label={searchType === 'flight' ? 'Passengers' : 'Guests'}
-                    type="number"
-                    value={passengers}
-                    onChange={(e) => setPassengers(parseInt(e.target.value))}
-                    min="1"
-                    leftIcon={<UserGroupIcon className="h-5 w-5 text-gray-400" />}
-                    required
-                  />
+                  <button
+                    onClick={() => navigate(ROUTES.HOTEL_SEARCH)}
+                    className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-6 text-left transition-all hover:scale-105 transform"
+                  >
+                    <div className="text-4xl mb-3">🏨</div>
+                    <h3 className="text-lg font-bold mb-1">Book Hotels</h3>
+                    <p className="text-sm opacity-90">Discover amazing accommodations</p>
+                  </button>
                 </div>
 
-                <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl" size="lg">
-                  <MagnifyingGlassIcon className="h-5 w-5 mr-2 inline" />
-                  Search {searchType === 'flight' ? 'Flights' : 'Hotels'}
-                </Button>
-              </form>
-            </Card>
+                {/* Search Form */}
+                <Card className="backdrop-blur-md bg-white/95 dark:bg-gray-900/95 shadow-2xl">
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    <button
+                      onClick={() => setSearchType('flight')}
+                      className={`px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 ${
+                        searchType === 'flight'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      ✈️ Flights
+                    </button>
+                    <button
+                      onClick={() => setSearchType('hotel')}
+                      className={`px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 ${
+                        searchType === 'hotel'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      🏨 Hotels
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleSearch} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {searchType === 'flight' && (
+                        <Input
+                          label="From"
+                          value={origin}
+                          onChange={(e) => setOrigin(e.target.value)}
+                          placeholder="City or airport"
+                          leftIcon={<MapPinIcon className="h-5 w-5 text-gray-400" />}
+                          required
+                        />
+                      )}
+                      <Input
+                        label="To"
+                        value={destination}
+                        onChange={(e) => setDestination(e.target.value)}
+                        placeholder="City or destination"
+                        leftIcon={<MapPinIcon className="h-5 w-5 text-gray-400" />}
+                        required
+                      />
+                      <Input
+                        label={searchType === 'flight' ? 'Departure Date' : 'Check-in Date'}
+                        type="date"
+                        value={departureDate}
+                        onChange={(e) => setDepartureDate(e.target.value)}
+                        leftIcon={<CalendarIcon className="h-5 w-5 text-gray-400" />}
+                        required
+                      />
+                      <Input
+                        label={searchType === 'flight' ? 'Passengers' : 'Guests'}
+                        type="number"
+                        value={passengers}
+                        onChange={(e) => setPassengers(parseInt(e.target.value))}
+                        min="1"
+                        leftIcon={<UserGroupIcon className="h-5 w-5 text-gray-400" />}
+                        required
+                      />
+                    </div>
+
+                    <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl" size="lg">
+                      <MagnifyingGlassIcon className="h-5 w-5 mr-2 inline" />
+                      Search {searchType === 'flight' ? 'Flights' : 'Hotels'}
+                    </Button>
+                  </form>
+                </Card>
+              </>
+            ) : (
+              /* Auth Gate — shown to anonymous visitors */
+              <Card className="backdrop-blur-md bg-white/95 dark:bg-gray-900/95 shadow-2xl max-w-2xl mx-auto text-center">
+                <div className="py-6 px-4">
+                  <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-6 shadow-lg">
+                    <UserPlusIcon className="h-10 w-10 text-white" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                    Create an Account to Get Started
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 text-lg mb-8 max-w-md mx-auto">
+                    Sign up for free to search flights, book hotels, and plan your trips with our AI-powered travel assistant.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+                    <Button
+                      onClick={() => navigate(ROUTES.REGISTER)}
+                      size="lg"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl px-8 text-lg font-bold"
+                    >
+                      <UserPlusIcon className="h-5 w-5 mr-2 inline" />
+                      Create Free Account
+                    </Button>
+                    <Button
+                      onClick={() => navigate(ROUTES.LOGIN)}
+                      size="lg"
+                      variant="outline"
+                      className="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 px-8 text-lg font-bold"
+                    >
+                      Sign In
+                      <ArrowRightIcon className="h-5 w-5 ml-2 inline" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <div className="text-2xl mb-1">✈️</div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Search Flights</p>
+                    </div>
+                    <div>
+                      <div className="text-2xl mb-1">🏨</div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Book Hotels</p>
+                    </div>
+                    <div>
+                      <div className="text-2xl mb-1">🤖</div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">AI Trip Planner</p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>

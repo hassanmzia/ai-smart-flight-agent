@@ -7,6 +7,7 @@ import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import AgentChat from './components/booking/AgentChat';
 import Loading from './components/common/Loading';
+import RequireAuth from './components/common/RequireAuth';
 import { ROUTES } from './utils/constants';
 import { getTheme, setTheme } from './utils/helpers';
 
@@ -71,40 +72,43 @@ function App() {
           <main className="flex-1">
             <Suspense fallback={<Loading fullScreen size="lg" text="Loading..." />}>
               <Routes>
+                {/* Public routes */}
                 <Route path={ROUTES.HOME} element={<HomePage />} />
-                <Route path={ROUTES.SEARCH} element={<SearchPage />} />
-                <Route path={ROUTES.FLIGHT_SEARCH} element={<FlightSearchPage />} />
-                <Route path={ROUTES.HOTEL_SEARCH} element={<HotelSearchPage />} />
-                <Route path={ROUTES.AI_PLANNER} element={<AIPlannerPage />} />
-                <Route path={ROUTES.FLIGHT_RESULTS} element={<FlightResultsPage />} />
-                <Route path={ROUTES.HOTEL_RESULTS} element={<HotelResultsPage />} />
-                <Route path="/cars" element={<CarRentalSearchPage />} />
-                <Route path="/restaurants" element={<RestaurantSearchPage />} />
-                <Route path="/attractions" element={<TouristAttractionSearchPage />} />
-                <Route path="/weather" element={<WeatherPage />} />
-                <Route path="/events" element={<EventsPage />} />
-                <Route path="/shopping" element={<ShoppingPage />} />
-                <Route path="/safety" element={<SafetyPage />} />
-                <Route path="/commute" element={<CommutePage />} />
-                <Route path="/booking/flight" element={<FlightBookingPage />} />
-                <Route path="/booking/hotel" element={<HotelBookingPage />} />
-                <Route path={ROUTES.BOOKING} element={<BookingPage />} />
-                <Route path="/booking/:type/:id" element={<BookingPage />} />
-                <Route path={ROUTES.PAYMENT} element={<PaymentPage />} />
-                <Route path={ROUTES.ITINERARY} element={<ItineraryPage />} />
-                <Route path="/itineraries/:id" element={<ItineraryDetailPage />} />
-                <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
-                <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-                <Route path={ROUTES.ADMIN_DASHBOARD} element={<AdminDashboardPage />} />
                 <Route path={ROUTES.LOGIN} element={<LoginPage />} />
                 <Route path={ROUTES.REGISTER} element={<RegisterPage />} />
-                <Route path="/notifications" element={<NotificationsPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/help" element={<FAQPage />} />
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
+
+                {/* Protected routes — require login */}
+                <Route path={ROUTES.SEARCH} element={<RequireAuth><SearchPage /></RequireAuth>} />
+                <Route path={ROUTES.FLIGHT_SEARCH} element={<RequireAuth><FlightSearchPage /></RequireAuth>} />
+                <Route path={ROUTES.HOTEL_SEARCH} element={<RequireAuth><HotelSearchPage /></RequireAuth>} />
+                <Route path={ROUTES.AI_PLANNER} element={<RequireAuth><AIPlannerPage /></RequireAuth>} />
+                <Route path={ROUTES.FLIGHT_RESULTS} element={<RequireAuth><FlightResultsPage /></RequireAuth>} />
+                <Route path={ROUTES.HOTEL_RESULTS} element={<RequireAuth><HotelResultsPage /></RequireAuth>} />
+                <Route path="/cars" element={<RequireAuth><CarRentalSearchPage /></RequireAuth>} />
+                <Route path="/restaurants" element={<RequireAuth><RestaurantSearchPage /></RequireAuth>} />
+                <Route path="/attractions" element={<RequireAuth><TouristAttractionSearchPage /></RequireAuth>} />
+                <Route path="/weather" element={<RequireAuth><WeatherPage /></RequireAuth>} />
+                <Route path="/events" element={<RequireAuth><EventsPage /></RequireAuth>} />
+                <Route path="/shopping" element={<RequireAuth><ShoppingPage /></RequireAuth>} />
+                <Route path="/safety" element={<RequireAuth><SafetyPage /></RequireAuth>} />
+                <Route path="/commute" element={<RequireAuth><CommutePage /></RequireAuth>} />
+                <Route path="/booking/flight" element={<RequireAuth><FlightBookingPage /></RequireAuth>} />
+                <Route path="/booking/hotel" element={<RequireAuth><HotelBookingPage /></RequireAuth>} />
+                <Route path={ROUTES.BOOKING} element={<RequireAuth><BookingPage /></RequireAuth>} />
+                <Route path="/booking/:type/:id" element={<RequireAuth><BookingPage /></RequireAuth>} />
+                <Route path={ROUTES.PAYMENT} element={<RequireAuth><PaymentPage /></RequireAuth>} />
+                <Route path={ROUTES.ITINERARY} element={<RequireAuth><ItineraryPage /></RequireAuth>} />
+                <Route path="/itineraries/:id" element={<RequireAuth><ItineraryDetailPage /></RequireAuth>} />
+                <Route path={ROUTES.PROFILE} element={<RequireAuth><ProfilePage /></RequireAuth>} />
+                <Route path={ROUTES.DASHBOARD} element={<RequireAuth><DashboardPage /></RequireAuth>} />
+                <Route path={ROUTES.ADMIN_DASHBOARD} element={<RequireAuth><AdminDashboardPage /></RequireAuth>} />
+                <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
 
                 {/* 404 */}
                 <Route
