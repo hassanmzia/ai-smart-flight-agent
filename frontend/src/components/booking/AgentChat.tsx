@@ -9,6 +9,7 @@ import {
   StopIcon,
 } from '@heroicons/react/24/outline';
 import { useAgentChat } from '@/hooks/useAgentChat';
+import useAuthStore from '@/store/authStore';
 import { cn } from '@/utils/helpers';
 import { LoadingSpinner } from '@/components/common/Loading';
 
@@ -20,6 +21,7 @@ const QUICK_PROMPTS = [
 ];
 
 const AgentChat = () => {
+  const { isAuthenticated } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -35,6 +37,11 @@ const AgentChat = () => {
     extractedParams,
     paramsComplete,
   } = useAgentChat();
+
+  // Only show chat for authenticated users
+  if (!isAuthenticated) {
+    return null;
+  }
 
   // Auto-scroll to latest message
   useEffect(() => {

@@ -87,25 +87,29 @@ export const useAgentChat = (_sessionId?: string) => {
     const parts: string[] = [];
 
     if (user) {
-      parts.push(`User: ${user.first_name || user.name || 'Traveler'}`);
+      parts.push(`User: ${user.first_name || user.name || 'Traveler'} (${user.email || ''})`);
     }
 
     if (bookingsData && Array.isArray(bookingsData) && bookingsData.length > 0) {
       const summary = bookingsData.slice(0, 10).map((b: any) => {
-        const type = b.booking_type || b.type || 'trip';
-        const dest = b.destination || b.hotel_name || b.flight_destination || '';
-        const date = b.departure_date || b.check_in_date || b.created_at || '';
-        const status = b.status || '';
-        return `  - ${type}: ${dest} on ${date} (${status})`;
+        const items = b.items && Array.isArray(b.items)
+          ? b.items.map((item: any) => {
+              const dateStr = item.start_date ? ` on ${item.start_date}` : '';
+              return `${item.item_type}: ${item.item_name}${dateStr}`;
+            }).join(', ')
+          : 'no items';
+        return `  - Booking #${b.booking_number}: ${items} | status: ${b.status}, total: $${b.total_amount}`;
       }).join('\n');
-      parts.push(`\nUser's bookings:\n${summary}`);
+      parts.push(`\nUser's bookings (${bookingsData.length}):\n${summary}`);
     }
 
     if (itinerariesData && Array.isArray(itinerariesData) && itinerariesData.length > 0) {
       const summary = itinerariesData.slice(0, 10).map((it: any) => {
-        return `  - "${it.title}": ${it.destination} (${it.start_date} to ${it.end_date}, status: ${it.status})`;
+        const origin = it.origin_city || 'unknown';
+        const budget = it.estimated_budget ? `$${it.estimated_budget}` : 'not set';
+        return `  - "${it.title}": ${origin} -> ${it.destination} (${it.start_date} to ${it.end_date}, ${it.number_of_travelers || 1} travelers, status: ${it.status}, budget: ${budget})`;
       }).join('\n');
-      parts.push(`\nUser's itineraries:\n${summary}`);
+      parts.push(`\nUser's trip plans/itineraries (${itinerariesData.length}):\n${summary}`);
     }
 
     return parts.length > 0 ? parts.join('\n') : '';
