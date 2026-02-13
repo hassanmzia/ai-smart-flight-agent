@@ -128,12 +128,20 @@ const ItineraryDetailPage = () => {
 
   // ── Status Workflow Actions ──
 
+  const authHeaders = (): Record<string, string> => {
+    const token = localStorage.getItem('auth_token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
+
   const handleApprove = async () => {
     if (!id) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/itineraries/itineraries/${id}/approve/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
       });
       const data = await res.json();
       if (data.success) {
@@ -153,7 +161,7 @@ const ItineraryDetailPage = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/itineraries/itineraries/${id}/reject/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ reason: reason || '' }),
       });
       const data = await res.json();
@@ -176,7 +184,7 @@ const ItineraryDetailPage = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/itineraries/itineraries/${id}/book/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
       });
       const data = await res.json();
       setBookingResult(data);
@@ -202,7 +210,7 @@ const ItineraryDetailPage = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/itineraries/itineraries/${id}/update-status/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
