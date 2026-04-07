@@ -539,7 +539,7 @@ const AIPlannerPage = () => {
         <div className="space-y-6">
 
           {/* ── Trip Overview Banner ── */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-600 via-primary-700 to-indigo-800 text-white p-6 md:p-8 shadow-xl">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-600 via-primary-700 to-indigo-800 text-white p-4 md:p-6 lg:p-8 shadow-xl">
             <div className="absolute inset-0 opacity-10">
               <div className="absolute -right-20 -top-20 w-80 h-80 rounded-full bg-white/20"></div>
               <div className="absolute -left-10 -bottom-10 w-60 h-60 rounded-full bg-white/10"></div>
@@ -566,7 +566,7 @@ const AIPlannerPage = () => {
               </div>
 
               {/* Key Stats Row */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-3 mt-4 md:mt-6">
                 {[
                   { label: 'Est. Total', value: displayTotal, accent: true },
                   { label: 'Flights', value: rec?.summary?.flights_found || 0 },
@@ -602,7 +602,7 @@ const AIPlannerPage = () => {
                   <button
                     key={key}
                     onClick={() => setActiveTab(key)}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
                       activeTab === key
                         ? 'border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400'
                         : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
@@ -639,8 +639,8 @@ const AIPlannerPage = () => {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-100 dark:border-gray-700">
-                        <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
-                        <th className="text-right px-5 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cost</th>
+                        <th className="text-left px-3 md:px-5 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
+                        <th className="text-right px-3 md:px-5 py-2.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cost</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -650,10 +650,10 @@ const AIPlannerPage = () => {
                         const isRemaining = /remaining|over/i.test(row.category);
                         return (
                           <tr key={i} className={`border-b border-gray-50 dark:border-gray-800 ${isTotal || isBudget ? 'bg-gray-50 dark:bg-gray-900' : ''}`}>
-                            <td className={`px-5 py-2.5 ${isTotal || isBudget ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                            <td className={`px-3 md:px-5 py-2.5 ${isTotal || isBudget ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
                               {row.category}
                             </td>
-                            <td className={`px-5 py-2.5 text-right font-medium ${
+                            <td className={`px-3 md:px-5 py-2.5 text-right font-medium ${
                               isTotal ? 'text-primary-600 dark:text-primary-400 text-base font-bold' :
                               isRemaining ? (row.cost.includes('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400') :
                               'text-gray-900 dark:text-white'
@@ -828,15 +828,15 @@ const AIPlannerPage = () => {
                       </div>
                     </div>
                     {/* Route Visual */}
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl mb-5">
+                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 md:gap-4 p-3 md:p-4 bg-gray-50 dark:bg-gray-900 rounded-xl mb-4 md:mb-5">
                       <div>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
                           {rec.recommended_flight.departure_time?.split(' ')[1] || rec.recommended_flight.departure_time}
                         </p>
-                        <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">{rec.recommended_flight.departure_airport_code}</p>
+                        <p className="text-sm md:text-lg font-semibold text-gray-700 dark:text-gray-300">{rec.recommended_flight.departure_airport_code}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{rec.recommended_flight.departure_airport}</p>
                       </div>
-                      <div className="text-center px-4">
+                      <div className="text-center px-1 md:px-4">
                         <p className="text-xs text-gray-500 mb-2">
                           {rec.recommended_flight.duration ? `${Math.floor(rec.recommended_flight.duration / 60)}h ${rec.recommended_flight.duration % 60}m` : ''}
                         </p>
@@ -852,10 +852,10 @@ const AIPlannerPage = () => {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
                           {rec.recommended_flight.arrival_time?.split(' ')[1] || rec.recommended_flight.arrival_time}
                         </p>
-                        <p className="text-lg font-semibold text-gray-700 dark:text-gray-300">{rec.recommended_flight.arrival_airport_code}</p>
+                        <p className="text-sm md:text-lg font-semibold text-gray-700 dark:text-gray-300">{rec.recommended_flight.arrival_airport_code}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{rec.recommended_flight.arrival_airport}</p>
                       </div>
                     </div>
@@ -900,36 +900,36 @@ const AIPlannerPage = () => {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Airline</th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Route</th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Departure</th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Arrival</th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stops</th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Duration</th>
-                          <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
+                          <th className="text-left px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Airline</th>
+                          <th className="text-left px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Route</th>
+                          <th className="hidden sm:table-cell text-center px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Depart</th>
+                          <th className="hidden sm:table-cell text-center px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Arrive</th>
+                          <th className="text-center px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stops</th>
+                          <th className="hidden md:table-cell text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Duration</th>
+                          <th className="text-right px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
                         </tr>
                       </thead>
                       <tbody>
                         {result.flights.flights.slice(1, 8).map((f: any, idx: number) => (
                           <tr key={idx} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                            <td className="px-4 py-3">
+                            <td className="px-3 md:px-4 py-2.5">
                               <div className="flex items-center gap-2">
-                                {f.airline_logo && <img src={f.airline_logo} alt="" className="h-5 w-5 object-contain" />}
-                                <span className="font-medium text-gray-900 dark:text-white">{f.airline}</span>
+                                {f.airline_logo && <img src={f.airline_logo} alt="" className="h-4 w-4 md:h-5 md:w-5 object-contain" />}
+                                <span className="font-medium text-gray-900 dark:text-white text-xs md:text-sm">{f.airline}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{f.departure_airport_code} → {f.arrival_airport_code}</td>
-                            <td className="px-4 py-3 text-center text-gray-900 dark:text-white font-medium">{f.departure_time?.split(' ')[1] || f.departure_time}</td>
-                            <td className="px-4 py-3 text-center text-gray-900 dark:text-white font-medium">{f.arrival_time?.split(' ')[1] || f.arrival_time}</td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${f.stops === 0 ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'}`}>
+                            <td className="px-2 md:px-4 py-2.5 text-gray-600 dark:text-gray-400 text-xs md:text-sm">{f.departure_airport_code} → {f.arrival_airport_code}</td>
+                            <td className="hidden sm:table-cell px-2 md:px-4 py-2.5 text-center text-gray-900 dark:text-white font-medium text-xs md:text-sm">{f.departure_time?.split(' ')[1] || f.departure_time}</td>
+                            <td className="hidden sm:table-cell px-2 md:px-4 py-2.5 text-center text-gray-900 dark:text-white font-medium text-xs md:text-sm">{f.arrival_time?.split(' ')[1] || f.arrival_time}</td>
+                            <td className="px-2 md:px-4 py-2.5 text-center">
+                              <span className={`px-1.5 md:px-2 py-0.5 rounded-full text-xs font-medium ${f.stops === 0 ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'}`}>
                                 {f.stops === 0 ? 'Nonstop' : `${f.stops} stop${f.stops > 1 ? 's' : ''}`}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-center text-gray-600 dark:text-gray-400">
+                            <td className="hidden md:table-cell px-4 py-2.5 text-center text-gray-600 dark:text-gray-400">
                               {f.duration ? `${Math.floor(f.duration / 60)}h ${f.duration % 60}m` : '-'}
                             </td>
-                            <td className="px-4 py-3 text-right font-bold text-primary-600 dark:text-primary-400">${f.price}</td>
+                            <td className="px-3 md:px-4 py-2.5 text-right font-bold text-primary-600 dark:text-primary-400 text-xs md:text-sm">${f.price}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1029,36 +1029,36 @@ const AIPlannerPage = () => {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Hotel</th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stars</th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rating</th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
-                          <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price/Night</th>
-                          <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                          <th className="text-left px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Hotel</th>
+                          <th className="text-center px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stars</th>
+                          <th className="hidden md:table-cell text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rating</th>
+                          <th className="hidden md:table-cell text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
+                          <th className="text-right px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price/Nt</th>
+                          <th className="text-right px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
                         </tr>
                       </thead>
                       <tbody>
                         {rec.top_5_hotels.slice(1, 8).map((h: any, idx: number) => (
                           <tr key={idx} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-3">
+                            <td className="px-3 md:px-4 py-2.5">
+                              <div className="flex items-center gap-2 md:gap-3">
                                 {h.images?.[0] ? (
-                                  <img src={h.images[0]} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                  <img src={h.images[0]} alt="" className="hidden sm:block w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                 ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-lg flex-shrink-0">🏨</div>
+                                  <div className="hidden sm:flex w-10 h-10 md:w-12 md:h-12 rounded-lg bg-gray-100 dark:bg-gray-700 items-center justify-center text-base md:text-lg flex-shrink-0">🏨</div>
                                 )}
-                                <span className="font-medium text-gray-900 dark:text-white">{h.name || h.hotel_name}</span>
+                                <span className="font-medium text-gray-900 dark:text-white text-xs md:text-sm">{h.name || h.hotel_name}</span>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-center text-yellow-500">{'⭐'.repeat(Math.round(h.stars || h.star_rating || 0))}</td>
-                            <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{h.guest_rating || '-'}</td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-2 md:px-4 py-2.5 text-center text-yellow-500 text-xs">{'⭐'.repeat(Math.min(Math.round(h.stars || h.star_rating || 0), 5))}</td>
+                            <td className="hidden md:table-cell px-4 py-2.5 text-center text-gray-700 dark:text-gray-300">{h.guest_rating || '-'}</td>
+                            <td className="hidden md:table-cell px-4 py-2.5 text-center">
                               <span className="px-2 py-0.5 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 rounded-full text-xs font-medium">
                                 {h.utility_score || h.combined_utility_score || '-'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-right font-bold text-primary-600 dark:text-primary-400">${h.price || h.price_per_night}</td>
-                            <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">
+                            <td className="px-2 md:px-4 py-2.5 text-right font-bold text-primary-600 dark:text-primary-400 text-xs md:text-sm">${h.price || h.price_per_night}</td>
+                            <td className="px-3 md:px-4 py-2.5 text-right text-gray-600 dark:text-gray-400 text-xs md:text-sm">
                               {numNights > 0 ? `$${((h.price || h.price_per_night) * numNights).toFixed(0)}` : '-'}
                             </td>
                           </tr>

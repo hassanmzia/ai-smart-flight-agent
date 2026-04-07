@@ -64,9 +64,9 @@ const FlightCard = ({ flight, onSelect }: FlightCardProps) => {
           </div>
 
           {/* Route and Times */}
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4">
             <div>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
                 {formatDate(flight.departureTime, 'HH:mm')}
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400">{flight.origin.code}</p>
@@ -85,7 +85,7 @@ const FlightCard = ({ flight, onSelect }: FlightCardProps) => {
             </div>
 
             <div className="text-right">
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">
                 {formatDate(flight.arrivalTime, 'HH:mm')}
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400">{flight.destination.code}</p>
