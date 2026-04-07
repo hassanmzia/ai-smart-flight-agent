@@ -250,7 +250,7 @@ export const useAgentChat = (_sessionId?: string) => {
           extracted_params: extractedParamsRef.current,
           confirmed: true,
         },
-        { timeout: 180000 }, // 3 min timeout for full trip planning
+        { timeout: 300000 }, // 5 min timeout for full trip planning
       );
 
       const data = response.data;
