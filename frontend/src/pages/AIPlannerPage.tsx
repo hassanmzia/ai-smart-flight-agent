@@ -148,7 +148,7 @@ const AIPlannerPage = () => {
         cuisine: cuisine || undefined,
         travel_style: travelStyle || undefined,
         interests: interests || undefined,
-      }, { timeout: 120000 });
+      }, { timeout: 300000 });
       const data = response.data;
       if (data.success) {
         setResult(data);

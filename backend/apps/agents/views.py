@@ -988,8 +988,8 @@ def plan_travel(request):
         if result.get('success'):
             try:
                 enhanced_data = _gather_enhanced_agent_data(
-                    destination=destination,
-                    origin=origin,
+                    destination=destination_label,
+                    origin=origin_label,
                     departure_date=departure_date,
                     return_date=return_date,
                     cuisine=cuisine,
