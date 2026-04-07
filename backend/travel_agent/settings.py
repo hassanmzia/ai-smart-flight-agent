@@ -183,7 +183,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Channels (WebSocket)
 # Falls back to in-memory channel layer if REDIS_URL is empty (local dev without Redis)
-_redis_url = os.environ.get('REDIS_URL', 'redis://:redis_secure_pass_2026@localhost:6384/1')
+_redis_url = os.environ.get('REDIS_URL', '')
 if _redis_url:
     CHANNEL_LAYERS = {
         'default': {
@@ -211,7 +211,7 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # Cache - Redis in production, local memory fallback for dev without Redis
-_cache_url = os.environ.get('REDIS_URL', 'redis://:redis_secure_pass_2026@localhost:6384/0')
+_cache_url = os.environ.get('REDIS_URL', '')
 if _cache_url:
     CACHES = {
         'default': {
@@ -224,7 +224,7 @@ else:
         'default': {
             'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         }
-}
+    }
 
 # API Keys
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
@@ -254,7 +254,10 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@travel-agent.com')
 
-# Logging
+# Logging - ensure logs directory exists
+_logs_dir = BASE_DIR / 'logs'
+_logs_dir.mkdir(exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -271,7 +274,7 @@ LOGGING = {
         },
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs' / 'django.log',
+            'filename': _logs_dir / 'django.log',
             'maxBytes': 1024 * 1024 * 10,  # 10MB
             'backupCount': 10,
             'formatter': 'verbose',

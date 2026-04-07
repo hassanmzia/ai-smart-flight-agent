@@ -72,10 +72,11 @@ services:
       - 8.8.8.8
       - 8.8.4.4
     command: >
-      sh -c "python manage.py makemigrations --noinput &&
+      sh -c "mkdir -p /app/logs &&
+             python manage.py makemigrations --noinput &&
              python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn travel_agent.wsgi:application --bind 0.0.0.0:8109 --workers 4 --timeout 300 --reload"
+             gunicorn travel_agent.wsgi:application --bind 0.0.0.0:8109 --workers 4 --timeout 300 --reload --access-logfile - --error-logfile -"
     volumes:
       - ./backend:/app
       - static_volume:/app/staticfiles
@@ -83,7 +84,8 @@ services:
     expose:
       - "8109"
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DEBUG: "True"
       SECRET_KEY: "django-insecure-travel-agent-key-change-in-production"
@@ -105,9 +107,9 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8109/api/health"]
       interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
     restart: unless-stopped
 
   # Celery Worker for async tasks
@@ -124,7 +126,8 @@ services:
     volumes:
       - ./backend:/app
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: "postgresql://travel_admin:travel_secure_pass_2026@postgres:5432/travel_agent_db"
       REDIS_URL: "redis://:redis_secure_pass_2026@redis:6384/0"
@@ -156,7 +159,8 @@ services:
     volumes:
       - ./backend:/app
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: "postgresql://travel_admin:travel_secure_pass_2026@postgres:5432/travel_agent_db"
       REDIS_URL: "redis://:redis_secure_pass_2026@redis:6384/0"
