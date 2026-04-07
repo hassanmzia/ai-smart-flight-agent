@@ -333,6 +333,7 @@ const AIPlannerPage = () => {
 
   const rec = result?.recommendation;
   const intel = result?.enhanced_data?.destination_intelligence;
+  const intelError = result?.enhanced_data?._intel_error;
 
   // Compute trip date range string
   const formatDateRange = () => {
@@ -1286,6 +1287,11 @@ const AIPlannerPage = () => {
                     <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                     10+ AI agents analyzed {destinationLabel} for your travel dates
                   </div>
+                  {intelError && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-2 text-sm text-yellow-800 dark:text-yellow-200">
+                      <span className="font-medium">AI intelligence limited:</span> {intelError}. Showing basic data instead.
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Weather */}
