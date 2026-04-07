@@ -12,99 +12,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from utils.airport_resolver import resolve_location_to_airport_code, CITY_TO_AIRPORT
 
-# ── City-to-Airport Resolver ──
-# Maps common city names to their primary IATA airport codes.
-# SerpAPI Google Flights also accepts city names directly, but having
-# a local mapping avoids ambiguity and is faster for common cities.
-
-CITY_AIRPORT_MAP = {
-    # North America
-    "new york": "JFK", "nyc": "JFK", "manhattan": "JFK",
-    "los angeles": "LAX", "la": "LAX",
-    "chicago": "ORD", "san francisco": "SFO", "miami": "MIA",
-    "boston": "BOS", "seattle": "SEA", "dallas": "DFW",
-    "houston": "IAH", "atlanta": "ATL", "denver": "DEN",
-    "washington": "IAD", "washington dc": "IAD", "dc": "IAD",
-    "las vegas": "LAS", "orlando": "MCO", "phoenix": "PHX",
-    "toronto": "YYZ", "vancouver": "YVR", "montreal": "YUL",
-    "mexico city": "MEX", "cancun": "CUN",
-    # Europe
-    "london": "LHR", "paris": "CDG", "berlin": "BER",
-    "rome": "FCO", "madrid": "MAD", "barcelona": "BCN",
-    "amsterdam": "AMS", "frankfurt": "FRA", "munich": "MUC",
-    "zurich": "ZRH", "vienna": "VIE", "prague": "PRG",
-    "lisbon": "LIS", "dublin": "DUB", "brussels": "BRU",
-    "copenhagen": "CPH", "stockholm": "ARN", "oslo": "OSL",
-    "helsinki": "HEL", "warsaw": "WAW", "budapest": "BUD",
-    "athens": "ATH", "istanbul": "IST", "moscow": "SVO",
-    "milan": "MXP", "edinburgh": "EDI", "geneva": "GVA",
-    # Asia
-    "tokyo": "NRT", "osaka": "KIX", "seoul": "ICN",
-    "beijing": "PEK", "shanghai": "PVG", "hong kong": "HKG",
-    "singapore": "SIN", "bangkok": "BKK", "kuala lumpur": "KUL",
-    "taipei": "TPE", "manila": "MNL", "jakarta": "CGK",
-    "mumbai": "BOM", "delhi": "DEL", "new delhi": "DEL",
-    "bangalore": "BLR", "chennai": "MAA",
-    "hanoi": "HAN", "ho chi minh": "SGN", "saigon": "SGN",
-    # Middle East & Africa
-    "dubai": "DXB", "abu dhabi": "AUH", "doha": "DOH",
-    "riyadh": "RUH", "tel aviv": "TLV", "cairo": "CAI",
-    "johannesburg": "JNB", "cape town": "CPT", "nairobi": "NBO",
-    "casablanca": "CMN", "marrakech": "RAK",
-    # Oceania
-    "sydney": "SYD", "melbourne": "MEL", "brisbane": "BNE",
-    "auckland": "AKL", "perth": "PER",
-    # South America
-    "sao paulo": "GRU", "rio de janeiro": "GIG",
-    "buenos aires": "EZE", "lima": "LIM", "bogota": "BOG",
-    "santiago": "SCL", "medellin": "MDE",
-}
-
-
-def resolve_city_to_airport(city: str, country: str = "") -> str:
-    """
-    Resolve a city name to its primary IATA airport code.
-
-    Strategy:
-    1. Check if input is already a valid 3-letter IATA code
-    2. Look up in the local CITY_AIRPORT_MAP
-    3. Fall back to passing the city name directly (SerpAPI handles it)
-
-    Args:
-        city: City name or airport code
-        country: Optional country for disambiguation
-
-    Returns:
-        IATA airport code or the original city name for SerpAPI to resolve
-    """
-    if not city:
-        return city
-
-    cleaned = city.strip()
-
-    # Already an IATA code (3 uppercase letters)
-    if len(cleaned) == 3 and cleaned.isalpha():
-        return cleaned.upper()
-
-    # Try direct lookup
-    key = cleaned.lower()
-    if key in CITY_AIRPORT_MAP:
-        code = CITY_AIRPORT_MAP[key]
-        logger.info(f"Resolved '{city}' -> {code}")
-        return code
-
-    # Try with country appended for disambiguation (e.g., "Portland, Oregon" vs "Portland, Maine")
-    if country:
-        combo = f"{key}, {country.strip().lower()}"
-        if combo in CITY_AIRPORT_MAP:
-            code = CITY_AIRPORT_MAP[combo]
-            logger.info(f"Resolved '{city}, {country}' -> {code}")
-            return code
-
-    # Return the city name as-is — SerpAPI Google Flights accepts city names too
-    logger.info(f"No IATA code found for '{city}', passing to SerpAPI as-is")
-    return cleaned
+# Re-export for backwards compatibility with imports in views.py
+resolve_city_to_airport = resolve_location_to_airport_code
 
 
 class FlightSearchTool:
@@ -156,9 +67,10 @@ class FlightSearchTool:
                 logger.warning(f"Invalid travel_class '{travel_class}', defaulting to 1 (Economy)")
                 travel_class = 1
 
-            # Normalize airport codes to uppercase (SerpAPI requirement)
-            origin = origin.upper().strip()
-            destination = destination.upper().strip()
+            # Resolve city names to IATA airport codes
+            origin = resolve_location_to_airport_code(origin)
+            destination = resolve_location_to_airport_code(destination)
+            logger.info(f"Flight search resolved: origin='{origin}', destination='{destination}'")
 
             params = {
                 "api_key": settings.SERP_API_KEY,
