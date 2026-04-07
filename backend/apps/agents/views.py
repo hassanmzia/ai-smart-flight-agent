@@ -415,12 +415,109 @@ Return ONLY valid JSON, no explanation."""
 
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse destination intelligence JSON: {e}")
+            logger.warning(f"Raw LLM response was: {content[:500] if content else 'empty'}")
             enhanced['destination_intelligence'] = {}
         except Exception as e:
-            logger.warning(f"Destination intelligence LLM call failed: {e}")
+            logger.error(f"Destination intelligence LLM call failed: {e}", exc_info=True)
             enhanced['destination_intelligence'] = {}
 
+    # Always provide basic destination intelligence even if LLM is unavailable
+    if not enhanced.get('destination_intelligence'):
+        enhanced['destination_intelligence'] = _build_static_intelligence(
+            destination=destination,
+            origin=origin,
+            departure_date=departure_date,
+            return_date=return_date,
+        )
+
     return enhanced
+
+
+def _build_static_intelligence(*, destination, origin, departure_date, return_date):
+    """Build basic destination intelligence without LLM, using available data."""
+    from datetime import datetime, timedelta
+
+    intel = {}
+
+    # Generate weather_by_day stub from dates
+    try:
+        start = datetime.strptime(departure_date, '%Y-%m-%d')
+        end = datetime.strptime(return_date, '%Y-%m-%d') if return_date else start + timedelta(days=3)
+        days = (end - start).days or 1
+        intel['weather_by_day'] = [
+            {
+                "date": (start + timedelta(days=i)).strftime('%Y-%m-%d'),
+                "high_c": "N/A",
+                "low_c": "N/A",
+                "condition": "Check local forecast",
+                "rain_chance_pct": 0,
+                "recommendation": f"Check weather forecast for {destination} closer to your travel date",
+            }
+            for i in range(min(days, 7))
+        ]
+    except Exception:
+        intel['weather_by_day'] = []
+
+    # Safety stub
+    intel['safety'] = {
+        "overall_score": "N/A",
+        "crime_level": "Check local advisories",
+        "areas_to_avoid": [],
+        "safe_areas": [f"Major tourist areas in {destination}"],
+        "scam_warnings": ["Be cautious with unlicensed taxis", "Verify prices before purchasing"],
+        "emergency_number": "Check local emergency number",
+        "tourist_police_available": False,
+        "health_alerts": [],
+        "tap_water_safe": False,
+    }
+
+    # Transport stub
+    intel['best_transport'] = {
+        "recommendation": "mixed",
+        "reason": f"Research local transport options in {destination} before your trip",
+        "metro_available": False,
+        "bus_system": True,
+        "ride_sharing": True,
+        "taxi_affordable": True,
+        "daily_transit_pass_cost": "Check locally",
+        "airport_to_city": f"Check airport transfer options for {destination}",
+    }
+
+    # Local customs stub
+    intel['local_customs'] = {
+        "tipping": "Check local tipping customs",
+        "language": "Research the local language before traveling",
+        "dress_code": "Dress modestly when visiting religious sites",
+        "dining_etiquette": "Observe local customs at restaurants",
+        "useful_phrases": [
+            "Hello / Thank you / Please / Excuse me / Where is...?",
+        ],
+    }
+
+    # Food scene stub
+    intel['food_scene'] = {
+        "must_try_dishes": [f"Research local cuisine of {destination}"],
+        "food_markets": [],
+        "restaurant_areas": [],
+        "budget_meal_cost": "Varies",
+        "mid_range_meal_cost": "Varies",
+        "fine_dining_cost": "Varies",
+        "street_food_safe": True,
+    }
+
+    # Packing
+    intel['packing_essentials'] = [
+        "Passport and travel documents",
+        "Adapter plug for local outlets",
+        "Comfortable walking shoes",
+        "Sunscreen and sunglasses",
+        "Light layers for variable weather",
+        "Copies of important documents",
+        "Basic first-aid kit",
+        "Reusable water bottle",
+    ]
+
+    return intel
 
 
 def _synthesize_narrative(*, result, origin, destination, departure_date,
