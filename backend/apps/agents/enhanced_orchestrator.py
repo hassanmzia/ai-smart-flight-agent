@@ -378,6 +378,7 @@ class EnhancedTravelOrchestrator:
             queries = [
                 f"What are the must-see attractions in {destination}?",
                 f"What is the local culture and customs in {destination}?",
+            ] + [
                 f"What are the best {interest} activities in {destination}?"
                 for interest in (interests or ['general'])[:3]
             ]
