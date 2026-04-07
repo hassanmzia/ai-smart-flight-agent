@@ -4,6 +4,8 @@ Uses LangGraph for agent orchestration
 Implements Flight Agent, Hotel Agent, Manager Agent, Goal-Based Agent, and Utility-Based Agent
 """
 from typing import Dict, Any, List, Optional, TypedDict, Annotated
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import copy
 from langchain_openai import ChatOpenAI
 from langchain.tools import Tool
 from langchain.agents import AgentExecutor, create_openai_functions_agent
@@ -692,27 +694,75 @@ class MultiAgentTravelSystem:
         # Build the graph
         self.graph = self._build_graph()
 
+    def _parallel_search(self, state: TravelAgentState) -> TravelAgentState:
+        """Run flight, hotel, car rental, and restaurant searches in parallel"""
+        logger.info("Starting parallel search across all agents")
+
+        agents = {
+            "flight": self.flight_agent,
+            "hotel": self.hotel_agent,
+            "car_rental": self.car_rental_agent,
+            "restaurant": self.restaurant_agent,
+        }
+
+        results = {}
+
+        def run_agent(name, agent, agent_state):
+            """Run a single agent with its own copy of state"""
+            try:
+                local_state = copy.copy(agent_state)
+                local_state['messages'] = list(agent_state['messages'])
+                return name, agent.execute(local_state)
+            except Exception as e:
+                logger.error(f"Parallel {name} agent error: {e}")
+                return name, None
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(run_agent, name, agent, state): name
+                for name, agent in agents.items()
+            }
+            for future in as_completed(futures):
+                name, result_state = future.result()
+                if result_state:
+                    results[name] = result_state
+
+        # Merge results back into main state
+        if "flight" in results:
+            state['flight_results'] = results["flight"].get('flight_results')
+        if "hotel" in results:
+            state['hotel_results'] = results["hotel"].get('hotel_results')
+        if "car_rental" in results:
+            state['car_rental_results'] = results["car_rental"].get('car_rental_results')
+        if "restaurant" in results:
+            state['restaurant_results'] = results["restaurant"].get('restaurant_results')
+
+        # Collect messages from all agents
+        for name in ["flight", "hotel", "car_rental", "restaurant"]:
+            if name in results:
+                for msg in results[name].get('messages', []):
+                    if msg not in state['messages']:
+                        state['messages'].append(msg)
+
+        state['current_agent'] = 'goal_evaluator'
+        logger.info("Parallel search complete")
+        return state
+
     def _build_graph(self) -> StateGraph:
-        """Build the LangGraph workflow with car rental and restaurant support"""
+        """Build the LangGraph workflow with parallel search and sequential evaluation"""
         workflow = StateGraph(TravelAgentState)
 
-        # Add nodes
-        workflow.add_node("flight", self.flight_agent.execute)
-        workflow.add_node("hotel", self.hotel_agent.execute)
-        workflow.add_node("car_rental", self.car_rental_agent.execute)
-        workflow.add_node("restaurant", self.restaurant_agent.execute)
+        # Single node runs all 4 searches in parallel via ThreadPoolExecutor
+        workflow.add_node("parallel_search", self._parallel_search)
         workflow.add_node("goal_evaluator", self.goal_agent.execute)
         workflow.add_node("utility_evaluator", self.utility_agent.execute)
         workflow.add_node("car_evaluator", self.car_evaluator_agent.execute)
         workflow.add_node("restaurant_evaluator", self.restaurant_evaluator_agent.execute)
         workflow.add_node("manager", self.manager_agent.execute)
 
-        # Define edges (sequential workflow)
-        workflow.set_entry_point("flight")
-        workflow.add_edge("flight", "hotel")
-        workflow.add_edge("hotel", "car_rental")
-        workflow.add_edge("car_rental", "restaurant")
-        workflow.add_edge("restaurant", "goal_evaluator")
+        # Parallel search first, then sequential evaluation
+        workflow.set_entry_point("parallel_search")
+        workflow.add_edge("parallel_search", "goal_evaluator")
         workflow.add_edge("goal_evaluator", "utility_evaluator")
         workflow.add_edge("utility_evaluator", "car_evaluator")
         workflow.add_edge("car_evaluator", "restaurant_evaluator")
