@@ -185,10 +185,35 @@ const AIPlannerPage = () => {
   };
 
   const handleSaveAsItinerary = async () => {
-    if (!result || !isAuthenticated || !user) {
+    let token = localStorage.getItem('auth_token');
+    if (!result || !user) {
       showError('Please log in to save itineraries');
       return;
     }
+
+    // Ensure we have a valid token — try refreshing if missing/expired
+    if (!token) {
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          const parsed = JSON.parse(refreshToken);
+          const resp = await api.post('/api/auth/refresh', { refreshToken: parsed });
+          const newToken = resp.data.accessToken;
+          if (newToken) {
+            localStorage.setItem('auth_token', JSON.stringify(newToken));
+            token = JSON.stringify(newToken);
+          }
+        }
+      } catch {
+        // refresh failed
+      }
+    }
+
+    if (!token) {
+      showError('Your session has expired. Please log in again to save itineraries.');
+      return;
+    }
+
     setSaving(true);
     try {
       const start = departureDate;
