@@ -14,6 +14,7 @@ import operator
 import logging
 from django.conf import settings
 
+from utils.airport_resolver import resolve_airport_to_city
 from .agent_tools import (
     FlightSearchTool,
     HotelSearchTool,
@@ -163,35 +164,7 @@ Focus on hotels near the destination airport or city center.
 
     def _get_hotel_search_location(self, destination: str) -> str:
         """Convert airport code to city/location for hotel search"""
-        # Common airport code to city mappings
-        airport_to_city = {
-            'LAX': 'Los Angeles Airport',
-            'JFK': 'New York JFK Airport',
-            'LGA': 'New York LaGuardia Airport',
-            'EWR': 'Newark Airport',
-            'ORD': 'Chicago O\'Hare Airport',
-            'SFO': 'San Francisco Airport',
-            'MIA': 'Miami Airport',
-            'DFW': 'Dallas Fort Worth Airport',
-            'SEA': 'Seattle Airport',
-            'BOS': 'Boston Airport',
-            'ATL': 'Atlanta Airport',
-            'DEN': 'Denver Airport',
-            'IAD': 'Washington DC Dulles Airport',
-            'DCA': 'Washington DC Reagan Airport',
-            'LAS': 'Las Vegas Airport',
-            'PHX': 'Phoenix Airport',
-            'IAH': 'Houston Airport',
-            'MCO': 'Orlando Airport',
-            'CDG': 'Paris Charles de Gaulle Airport',
-            'LHR': 'London Heathrow Airport',
-            'BER': 'Berlin Airport',
-            'FCO': 'Rome Fiumicino Airport',
-            'NRT': 'Tokyo Narita Airport',
-        }
-
-        # Return mapped city or use destination as-is
-        return airport_to_city.get(destination.upper(), f"{destination} Airport")
+        return resolve_airport_to_city(destination)
 
 
 class CarRentalAgent:
@@ -254,34 +227,7 @@ Focus on finding cost-effective and reliable options.
 
     def _get_car_rental_location(self, destination: str) -> str:
         """Convert destination to car rental search location (city names only for SERP API)"""
-        # Map airport codes to city names (no airport suffix for car rental API)
-        airport_to_city = {
-            'LAX': 'Los Angeles',
-            'JFK': 'New York',
-            'LGA': 'New York',
-            'EWR': 'Newark',
-            'ORD': 'Chicago',
-            'SFO': 'San Francisco',
-            'MIA': 'Miami',
-            'DFW': 'Dallas',
-            'SEA': 'Seattle',
-            'BOS': 'Boston',
-            'ATL': 'Atlanta',
-            'DEN': 'Denver',
-            'IAD': 'Washington',
-            'DCA': 'Washington',
-            'LAS': 'Las Vegas',
-            'PHX': 'Phoenix',
-            'IAH': 'Houston',
-            'MCO': 'Orlando',
-            'CDG': 'Paris',
-            'LHR': 'London',
-            'BER': 'Berlin',
-            'FCO': 'Rome',
-            'NRT': 'Tokyo',
-        }
-
-        return airport_to_city.get(destination.upper(), destination)
+        return resolve_airport_to_city(destination)
 
 
 class CarRentalEvaluatorAgent:
@@ -380,34 +326,7 @@ class RestaurantAgent:
 
     def _get_restaurant_location(self, destination: str) -> str:
         """Convert destination to restaurant search location"""
-        # Use same airport mappings as car rental
-        airport_to_city = {
-            'LAX': 'Los Angeles',
-            'JFK': 'New York',
-            'LGA': 'New York',
-            'EWR': 'Newark',
-            'ORD': 'Chicago',
-            'SFO': 'San Francisco',
-            'MIA': 'Miami',
-            'DFW': 'Dallas',
-            'SEA': 'Seattle',
-            'BOS': 'Boston',
-            'ATL': 'Atlanta',
-            'DEN': 'Denver',
-            'IAD': 'Washington DC',
-            'DCA': 'Washington DC',
-            'LAS': 'Las Vegas',
-            'PHX': 'Phoenix',
-            'IAH': 'Houston',
-            'MCO': 'Orlando',
-            'CDG': 'Paris',
-            'LHR': 'London',
-            'BER': 'Berlin',
-            'FCO': 'Rome',
-            'NRT': 'Tokyo',
-        }
-
-        return airport_to_city.get(destination.upper(), destination)
+        return resolve_airport_to_city(destination)
 
 
 class RestaurantEvaluatorAgent:

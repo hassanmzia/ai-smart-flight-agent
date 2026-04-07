@@ -177,6 +177,101 @@ CITY_TO_AIRPORT = {
     'medellin': 'MDE',
 }
 
+# Reverse mapping: IATA code → human-readable city name (for hotel, car, restaurant searches)
+# Picks the most recognizable city name for each code.
+AIRPORT_TO_CITY = {
+    # US
+    'JFK': 'New York', 'LGA': 'New York', 'EWR': 'Newark',
+    'LAX': 'Los Angeles', 'ORD': 'Chicago', 'SFO': 'San Francisco',
+    'MIA': 'Miami', 'DFW': 'Dallas', 'IAH': 'Houston',
+    'SEA': 'Seattle', 'BOS': 'Boston', 'ATL': 'Atlanta',
+    'DEN': 'Denver', 'LAS': 'Las Vegas', 'MCO': 'Orlando',
+    'IAD': 'Washington DC', 'DCA': 'Washington DC', 'BWI': 'Baltimore',
+    'PHL': 'Philadelphia', 'DTW': 'Detroit', 'MSP': 'Minneapolis',
+    'PHX': 'Phoenix', 'SAN': 'San Diego', 'PDX': 'Portland',
+    'HNL': 'Honolulu', 'ANC': 'Anchorage', 'CLT': 'Charlotte',
+    'SLC': 'Salt Lake City', 'BNA': 'Nashville', 'AUS': 'Austin',
+    'TPA': 'Tampa', 'MSY': 'New Orleans', 'PIT': 'Pittsburgh',
+    'IND': 'Indianapolis', 'SAT': 'San Antonio', 'STL': 'St Louis',
+    'FLL': 'Fort Lauderdale', 'RDU': 'Raleigh', 'MCI': 'Kansas City',
+    'CMH': 'Columbus', 'CLE': 'Cleveland', 'SMF': 'Sacramento',
+    'SJC': 'San Jose', 'MKE': 'Milwaukee', 'JAX': 'Jacksonville',
+    'MEM': 'Memphis', 'RIC': 'Richmond', 'BUF': 'Buffalo',
+    # Canada
+    'YYZ': 'Toronto', 'YVR': 'Vancouver', 'YUL': 'Montreal',
+    # Mexico
+    'MEX': 'Mexico City', 'CUN': 'Cancun',
+    # Europe
+    'LHR': 'London', 'CDG': 'Paris', 'BER': 'Berlin',
+    'FCO': 'Rome', 'MAD': 'Madrid', 'BCN': 'Barcelona',
+    'AMS': 'Amsterdam', 'FRA': 'Frankfurt', 'MUC': 'Munich',
+    'ZRH': 'Zurich', 'VIE': 'Vienna', 'PRG': 'Prague',
+    'LIS': 'Lisbon', 'DUB': 'Dublin', 'BRU': 'Brussels',
+    'CPH': 'Copenhagen', 'ARN': 'Stockholm', 'OSL': 'Oslo',
+    'HEL': 'Helsinki', 'WAW': 'Warsaw', 'BUD': 'Budapest',
+    'OTP': 'Bucharest', 'ATH': 'Athens', 'IST': 'Istanbul',
+    'SVO': 'Moscow', 'MXP': 'Milan', 'VCE': 'Venice',
+    'EDI': 'Edinburgh', 'GVA': 'Geneva',
+    # Asia
+    'NRT': 'Tokyo', 'HND': 'Tokyo', 'KIX': 'Osaka',
+    'ICN': 'Seoul', 'PEK': 'Beijing', 'PVG': 'Shanghai',
+    'HKG': 'Hong Kong', 'SIN': 'Singapore', 'BKK': 'Bangkok',
+    'KUL': 'Kuala Lumpur', 'TPE': 'Taipei', 'MNL': 'Manila',
+    'CGK': 'Jakarta', 'BOM': 'Mumbai', 'DEL': 'Delhi',
+    'BLR': 'Bangalore', 'CCU': 'Kolkata', 'MAA': 'Chennai',
+    'HYD': 'Hyderabad', 'HAN': 'Hanoi', 'SGN': 'Ho Chi Minh City',
+    # Bangladesh
+    'DAC': 'Dhaka', 'CGP': 'Chittagong', 'ZYL': 'Sylhet',
+    # Pakistan
+    'ISB': 'Islamabad', 'KHI': 'Karachi', 'LHE': 'Lahore',
+    # Other South Asia
+    'KTM': 'Kathmandu', 'CMB': 'Colombo', 'MLE': 'Male',
+    # Middle East
+    'DXB': 'Dubai', 'AUH': 'Abu Dhabi', 'DOH': 'Doha',
+    'RUH': 'Riyadh', 'JED': 'Jeddah', 'TLV': 'Tel Aviv',
+    'BEY': 'Beirut', 'AMM': 'Amman',
+    # Africa
+    'CAI': 'Cairo', 'JNB': 'Johannesburg', 'CPT': 'Cape Town',
+    'NBO': 'Nairobi', 'CMN': 'Casablanca', 'RAK': 'Marrakech',
+    'ADD': 'Addis Ababa', 'LOS': 'Lagos', 'ACC': 'Accra',
+    'DAR': 'Dar es Salaam',
+    # Oceania
+    'SYD': 'Sydney', 'MEL': 'Melbourne', 'BNE': 'Brisbane',
+    'PER': 'Perth', 'AKL': 'Auckland',
+    # South America
+    'GRU': 'Sao Paulo', 'GIG': 'Rio de Janeiro',
+    'EZE': 'Buenos Aires', 'LIM': 'Lima', 'BOG': 'Bogota',
+    'SCL': 'Santiago', 'MDE': 'Medellin',
+}
+
+
+def resolve_airport_to_city(code: str) -> str:
+    """
+    Convert an IATA airport code to a human-readable city name.
+
+    Used for hotel, car rental, and restaurant searches where city names
+    produce better results than airport codes.
+
+    Args:
+        code: IATA airport code or city name
+
+    Returns:
+        City name if code is recognized, otherwise the input as-is
+    """
+    if not code:
+        return code
+
+    stripped = code.strip()
+    upper = stripped.upper()
+
+    if upper in AIRPORT_TO_CITY:
+        city = AIRPORT_TO_CITY[upper]
+        logger.info(f"Resolved airport code '{stripped}' -> '{city}'")
+        return city
+
+    # If it doesn't look like a 3-letter code, it's probably already a city name
+    return stripped
+
 
 def resolve_location_to_airport_code(location: str, country: str = "") -> str:
     """
