@@ -333,7 +333,7 @@ def _gather_enhanced_agent_data(*, destination, origin, departure_date, return_d
                 model=settings.AGENT_CONFIG.get('MODEL', 'gpt-4o-mini'),
                 temperature=0.3,
                 api_key=settings.OPENAI_API_KEY,
-                request_timeout=30,
+                request_timeout=60,
             )
 
             intel_prompt = f"""You are a travel intelligence agent. Provide REAL, SPECIFIC data for a trip.
@@ -401,10 +401,17 @@ For weather, use your knowledge of {destination}'s typical climate for these dat
 For events, include any major festivals, markets, or events typical for this time of year.
 Return ONLY valid JSON, no explanation."""
 
+            logger.info(f"Calling LLM for destination intelligence (key starts with: {settings.OPENAI_API_KEY[:10]}...)")
             response = model.invoke([HumanMessage(content=intel_prompt)])
             content = response.content.strip()
-            # Strip markdown code fences if present
-            if content.startswith('```'):
+            logger.info(f"LLM destination intelligence response received ({len(content)} chars)")
+
+            # Strip markdown code fences if present (handles ```json ... ``` etc)
+            import re
+            fence_match = re.search(r'```(?:json)?\s*\n?(.*?)```', content, re.DOTALL)
+            if fence_match:
+                content = fence_match.group(1).strip()
+            elif content.startswith('```'):
                 content = content.split('\n', 1)[1] if '\n' in content else content[3:]
                 if content.endswith('```'):
                     content = content[:-3]
@@ -412,14 +419,17 @@ Return ONLY valid JSON, no explanation."""
 
             intel = json.loads(content)
             enhanced['destination_intelligence'] = intel
+            logger.info(f"Destination intelligence parsed successfully with keys: {list(intel.keys())}")
 
         except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse destination intelligence JSON: {e}")
-            logger.warning(f"Raw LLM response was: {content[:500] if content else 'empty'}")
+            logger.error(f"Failed to parse destination intelligence JSON: {e}")
+            logger.error(f"Raw LLM response was: {content[:1000] if content else 'empty'}")
             enhanced['destination_intelligence'] = {}
+            enhanced['_intel_error'] = f"JSON parse error: {str(e)}"
         except Exception as e:
-            logger.error(f"Destination intelligence LLM call failed: {e}", exc_info=True)
+            logger.error(f"Destination intelligence LLM call failed: {type(e).__name__}: {e}", exc_info=True)
             enhanced['destination_intelligence'] = {}
+            enhanced['_intel_error'] = f"{type(e).__name__}: {str(e)}"
 
     # Always provide basic destination intelligence even if LLM is unavailable
     if not enhanced.get('destination_intelligence'):
