@@ -44,25 +44,25 @@ const HomePage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 dark:from-blue-800 dark:via-purple-800 dark:to-pink-800 text-white py-32 overflow-hidden">
+      <div className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 dark:from-blue-800 dark:via-purple-800 dark:to-pink-800 text-white py-12 md:py-24 lg:py-32 overflow-hidden">
         {/* Animated Background Pattern */}
         <div className="absolute inset-0 opacity-20">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnptMCAzNmMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnpNMTIgNmMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNnoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9nPjwvc3ZnPg==')] animate-pulse"></div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
-              <SparklesIcon className="h-5 w-5" />
-              <span className="text-sm font-medium">Powered by Advanced AI</span>
+          <div className="text-center mb-8 md:mb-16">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 md:px-4 md:py-2 rounded-full mb-4 md:mb-6">
+              <SparklesIcon className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="text-xs md:text-sm font-medium">Powered by Advanced AI</span>
             </div>
-            <h1 className="text-6xl md:text-7xl font-extrabold mb-6 leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-purple-100">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold mb-4 md:mb-6 leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-purple-100">
               Plan Your Dream Trip
             </h1>
-            <p className="text-xl md:text-2xl opacity-95 max-w-3xl mx-auto font-light mb-4">
+            <p className="text-base md:text-xl lg:text-2xl opacity-95 max-w-3xl mx-auto font-light mb-3 md:mb-4">
               Complete travel planning powered by AI - flights, hotels, restaurants, attractions & more
             </p>
-            <div className="flex flex-wrap justify-center gap-4 mt-8">
+            <div className="flex flex-wrap justify-center gap-3 md:gap-4 mt-6 md:mt-8">
               <div className="flex items-center gap-2 text-sm">
                 <ShieldCheckIcon className="h-5 w-5" />
                 <span>Secure Booking</span>
@@ -86,31 +86,31 @@ const HomePage = () => {
           <div className="max-w-5xl mx-auto">
             {isAuthenticated ? (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
                   <button
                     onClick={() => navigate(ROUTES.AI_PLANNER)}
-                    className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-6 text-left transition-all hover:scale-105 transform"
+                    className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-4 md:p-6 text-left transition-all hover:scale-105 transform"
                   >
-                    <div className="text-4xl mb-3">🤖</div>
-                    <h3 className="text-lg font-bold mb-1">AI Trip Planner</h3>
+                    <div className="text-3xl md:text-4xl mb-2 md:mb-3">🤖</div>
+                    <h3 className="text-base md:text-lg font-bold mb-1">AI Trip Planner</h3>
                     <p className="text-sm opacity-90">Let AI create your perfect itinerary</p>
                   </button>
 
                   <button
                     onClick={() => navigate(ROUTES.FLIGHT_SEARCH)}
-                    className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-6 text-left transition-all hover:scale-105 transform"
+                    className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-4 md:p-6 text-left transition-all hover:scale-105 transform"
                   >
-                    <div className="text-4xl mb-3">✈️</div>
-                    <h3 className="text-lg font-bold mb-1">Search Flights</h3>
+                    <div className="text-3xl md:text-4xl mb-2 md:mb-3">✈️</div>
+                    <h3 className="text-base md:text-lg font-bold mb-1">Search Flights</h3>
                     <p className="text-sm opacity-90">Find the best flight deals</p>
                   </button>
 
                   <button
                     onClick={() => navigate(ROUTES.HOTEL_SEARCH)}
-                    className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-6 text-left transition-all hover:scale-105 transform"
+                    className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-2xl p-4 md:p-6 text-left transition-all hover:scale-105 transform"
                   >
-                    <div className="text-4xl mb-3">🏨</div>
-                    <h3 className="text-lg font-bold mb-1">Book Hotels</h3>
+                    <div className="text-3xl md:text-4xl mb-2 md:mb-3">🏨</div>
+                    <h3 className="text-base md:text-lg font-bold mb-1">Book Hotels</h3>
                     <p className="text-sm opacity-90">Discover amazing accommodations</p>
                   </button>
                 </div>
@@ -335,7 +335,7 @@ const HomePage = () => {
               <div className="w-1 h-8 bg-gradient-to-b from-purple-600 to-pink-600 rounded-full"></div>
               Explore & Experience
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-4">
               {[
                 { icon: '🍽️', title: 'Restaurants', desc: 'Fine dining & local cuisine', path: '/restaurants', color: 'rose' },
                 { icon: '🗽', title: 'Attractions', desc: 'Must-see destinations', path: '/attractions', color: 'orange' },
@@ -346,10 +346,10 @@ const HomePage = () => {
                 <div
                   key={idx}
                   onClick={() => navigate(service.path)}
-                  className={`group bg-white dark:bg-gray-800 rounded-xl p-6 cursor-pointer border-2 border-gray-100 dark:border-gray-700 hover:border-${service.color}-300 dark:hover:border-${service.color}-600 hover:shadow-xl hover:-translate-y-1 transition-all duration-300`}
+                  className={`group bg-white dark:bg-gray-800 rounded-xl p-3 md:p-6 cursor-pointer border-2 border-gray-100 dark:border-gray-700 hover:border-${service.color}-300 dark:hover:border-${service.color}-600 hover:shadow-xl hover:-translate-y-1 transition-all duration-300`}
                 >
-                  <div className="text-4xl mb-3 group-hover:scale-110 transition-transform">{service.icon}</div>
-                  <h4 className="font-bold text-gray-900 dark:text-white mb-1">{service.title}</h4>
+                  <div className="text-2xl md:text-4xl mb-2 md:mb-3 group-hover:scale-110 transition-transform">{service.icon}</div>
+                  <h4 className="font-bold text-gray-900 dark:text-white mb-1 text-sm md:text-base">{service.title}</h4>
                   <p className="text-xs text-gray-600 dark:text-gray-400">{service.desc}</p>
                 </div>
               ))}
@@ -455,7 +455,7 @@ const HomePage = () => {
           </div>
 
           {/* Stats Section */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 max-w-5xl mx-auto">
             <div className="text-center">
               <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
                 2M+

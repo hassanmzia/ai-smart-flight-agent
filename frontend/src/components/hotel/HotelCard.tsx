@@ -37,9 +37,9 @@ const HotelCard = ({ hotel, onSelect }: HotelCardProps) => {
 
   return (
     <Card hover className="p-0 overflow-hidden">
-      <div className="flex">
+      <div className="flex flex-col md:flex-row">
         {/* Image */}
-        <div className="w-64 h-48 flex-shrink-0">
+        <div className="w-full md:w-64 h-48 flex-shrink-0">
           {hotel.images && hotel.images.length > 0 ? (
             <img
               src={hotel.images[0]}
@@ -54,12 +54,12 @@ const HotelCard = ({ hotel, onSelect }: HotelCardProps) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-6">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
+        <div className="flex-1 p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div className="flex-1 min-w-0">
               {/* Name, Property Type, and Stars */}
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="font-semibold text-xl text-gray-900 dark:text-white">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <h3 className="font-semibold text-lg md:text-xl text-gray-900 dark:text-white">
                   {hotel.name}
                 </h3>
                 {hotel.property_type && (
@@ -70,7 +70,7 @@ const HotelCard = ({ hotel, onSelect }: HotelCardProps) => {
                 )}
               </div>
 
-              <div className="flex items-center space-x-3 mb-2">
+              <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
                 <div className="flex items-center space-x-1">
                   <div className="flex">
                     {[...Array(hotel.stars || hotel.star_rating || 3)].map((_, i) => (
@@ -200,8 +200,8 @@ const HotelCard = ({ hotel, onSelect }: HotelCardProps) => {
             </div>
 
             {/* Price and Book */}
-            <div className="ml-6 text-right">
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+            <div className="sm:ml-6 text-left sm:text-right flex sm:flex-col items-center sm:items-end gap-3 sm:gap-0">
+              <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-0 sm:mb-1">
                 {formatCurrency(hotel.pricePerNight, hotel.currency)}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">per night</p>
