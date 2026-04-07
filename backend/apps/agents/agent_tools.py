@@ -674,36 +674,10 @@ class CarRentalSearchTool:
             JSON string with car rental results
         """
         try:
-            # Convert airport codes to city names for Google Local search
-            # Use broader city names (not airport-specific) for better search results
-            airport_to_city = {
-                'LAX': 'Los Angeles, CA',
-                'JFK': 'New York, NY',
-                'LGA': 'New York, NY',
-                'EWR': 'Newark, NJ',
-                'ORD': 'Chicago, IL',
-                'SFO': 'San Francisco, CA',
-                'MIA': 'Miami, FL',
-                'DFW': 'Dallas, TX',
-                'SEA': 'Seattle, WA',
-                'BOS': 'Boston, MA',
-                'ATL': 'Atlanta, GA',
-                'DEN': 'Denver, CO',
-                'IAD': 'Washington, DC',
-                'DCA': 'Washington, DC',
-                'LAS': 'Las Vegas, NV',
-                'PHX': 'Phoenix, AZ',
-                'IAH': 'Houston, TX',
-                'MCO': 'Orlando, FL',
-                'CDG': 'Paris, France',
-                'LHR': 'London, UK',
-                'BER': 'Berlin, Germany',
-                'FCO': 'Rome, Italy',
-                'NRT': 'Tokyo, Japan',
-            }
+            from utils.airport_resolver import resolve_airport_to_city
 
-            # Convert location if it's an airport code
-            search_location = airport_to_city.get(pickup_location.upper(), pickup_location)
+            # Convert airport codes to city names for Google Local search
+            search_location = resolve_airport_to_city(pickup_location)
             logger.info(f"Searching car rentals: {pickup_location} -> {search_location}, {pickup_date} to {dropoff_date}")
 
             # Build SerpAPI parameters
@@ -1063,36 +1037,12 @@ class RestaurantSearchTool:
             JSON string with restaurant results
         """
         try:
+            from utils.airport_resolver import resolve_airport_to_city
+
             logger.info(f"Searching restaurants: {city}, cuisine: {cuisine or 'any'}")
 
             # Convert airport codes to city names
-            airport_to_city = {
-                'LAX': 'Los Angeles, CA',
-                'JFK': 'New York, NY',
-                'LGA': 'New York, NY',
-                'EWR': 'Newark, NJ',
-                'ORD': 'Chicago, IL',
-                'SFO': 'San Francisco, CA',
-                'MIA': 'Miami, FL',
-                'DFW': 'Dallas, TX',
-                'SEA': 'Seattle, WA',
-                'BOS': 'Boston, MA',
-                'ATL': 'Atlanta, GA',
-                'DEN': 'Denver, CO',
-                'IAD': 'Washington, DC',
-                'DCA': 'Washington, DC',
-                'LAS': 'Las Vegas, NV',
-                'PHX': 'Phoenix, AZ',
-                'IAH': 'Houston, TX',
-                'MCO': 'Orlando, FL',
-                'CDG': 'Paris, France',
-                'LHR': 'London, UK',
-                'BER': 'Berlin, Germany',
-                'FCO': 'Rome, Italy',
-                'NRT': 'Tokyo, Japan',
-            }
-
-            search_city = airport_to_city.get(city.upper(), city)
+            search_city = resolve_airport_to_city(city)
 
             # Build search query
             search_query = f"restaurants {search_city}"
