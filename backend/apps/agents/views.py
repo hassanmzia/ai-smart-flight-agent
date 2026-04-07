@@ -324,7 +324,7 @@ def _gather_enhanced_agent_data(*, destination, origin, departure_date, return_d
     # ── 3. LLM-powered destination intelligence (the smart part) ──
     # Instead of relying on placeholder data, use the LLM's knowledge
     # to generate REAL, destination-specific, date-aware intelligence.
-    if settings.OPENAI_API_KEY:
+    if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY not in ('your_openai_api_key_here', ''):
         try:
             from langchain_openai import ChatOpenAI
             from langchain.schema import HumanMessage
@@ -333,7 +333,7 @@ def _gather_enhanced_agent_data(*, destination, origin, departure_date, return_d
                 model=settings.AGENT_CONFIG.get('MODEL', 'gpt-4o-mini'),
                 temperature=0.3,
                 api_key=settings.OPENAI_API_KEY,
-                request_timeout=90,
+                request_timeout=30,
             )
 
             intel_prompt = f"""You are a travel intelligence agent. Provide REAL, SPECIFIC data for a trip.
@@ -1207,8 +1207,8 @@ def chat(request):
                 except Exception as e:
                     logger.warning(f"Enhanced agent data gathering failed: {e}")
 
-            # Generate narrative
-            if result.get('success') and settings.OPENAI_API_KEY:
+            # Generate narrative (only if we have a real API key)
+            if result.get('success') and settings.OPENAI_API_KEY and settings.OPENAI_API_KEY not in ('your_openai_api_key_here', ''):
                 try:
                     result['itinerary_text'] = _synthesize_narrative(
                         result=result,
@@ -1223,10 +1223,17 @@ def chat(request):
                     )
                 except Exception as e:
                     logger.error(f"LLM narrative failed: {e}", exc_info=True)
-                    result['itinerary_text'] = (
-                        f"## Trip Overview\n\nAI-planned trip from {p['origin']} to {p['destination']}.\n\n"
-                        f"*Detailed itinerary generation encountered an error. See search results below.*"
-                    )
+
+            # Always ensure we have an itinerary, even without LLM
+            if result.get('success') and not result.get('itinerary_text'):
+                result['itinerary_text'] = _generate_fallback_itinerary(
+                    result=result,
+                    origin=p['origin'],
+                    destination=p['destination'],
+                    departure_date=p['departure_date'],
+                    return_date=p.get('return_date'),
+                    passengers=p.get('passengers', 1),
+                )
 
             return Response({
                 'success': True,
