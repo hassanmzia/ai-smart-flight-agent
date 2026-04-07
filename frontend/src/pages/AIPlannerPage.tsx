@@ -360,6 +360,11 @@ const AIPlannerPage = () => {
   const intel = result?.enhanced_data?.destination_intelligence;
   const intelError = result?.enhanced_data?._intel_error;
 
+  // Use the budget table total if available (more accurate, includes all categories),
+  // otherwise fall back to the recommendation's estimated cost
+  const budgetTotal = budgetRows.find(r => /total/i.test(r.category))?.cost;
+  const displayTotal = budgetTotal || (rec?.total_estimated_cost ? `$${rec.total_estimated_cost}` : 'N/A');
+
   // Compute trip date range string
   const formatDateRange = () => {
     if (!departureDate) return '';
@@ -563,7 +568,7 @@ const AIPlannerPage = () => {
               {/* Key Stats Row */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
                 {[
-                  { label: 'Est. Total', value: rec?.total_estimated_cost ? `$${rec.total_estimated_cost}` : 'N/A', accent: true },
+                  { label: 'Est. Total', value: displayTotal, accent: true },
                   { label: 'Flights', value: rec?.summary?.flights_found || 0 },
                   { label: 'Hotels', value: rec?.summary?.hotels_found || 0 },
                   { label: 'Cars', value: rec?.summary?.cars_found || 0 },
