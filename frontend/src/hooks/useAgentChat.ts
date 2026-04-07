@@ -53,7 +53,8 @@ export const useAgentChat = (_sessionId?: string) => {
     extractedParamsRef.current = extractedParams;
   }, [extractedParams]);
 
-  // Fetch user's bookings to give the assistant context
+  // Fetch user's bookings to give the assistant context (only when truly authenticated)
+  const hasToken = isAuthenticated && !!useAuthStore.getState().tokens?.accessToken;
   const { data: bookingsData } = useQuery({
     queryKey: QUERY_KEYS.BOOKINGS,
     queryFn: async () => {
@@ -62,8 +63,9 @@ export const useAgentChat = (_sessionId?: string) => {
         return res.data?.results || res.data || [];
       } catch { return []; }
     },
-    enabled: isAuthenticated,
+    enabled: hasToken,
     staleTime: 60_000,
+    retry: false,
   });
 
   // Fetch user's itineraries for context
@@ -75,8 +77,9 @@ export const useAgentChat = (_sessionId?: string) => {
         return res.data?.results || res.data || [];
       } catch { return []; }
     },
-    enabled: isAuthenticated,
+    enabled: hasToken,
     staleTime: 60_000,
+    retry: false,
   });
 
   /**
