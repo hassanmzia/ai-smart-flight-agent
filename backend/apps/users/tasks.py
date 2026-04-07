@@ -40,7 +40,7 @@ def cleanup_expired_sessions(self):
         cutoff_date = timezone.now() - timedelta(days=7)
         unverified_users = User.objects.filter(
             is_active=False,
-            email_verified=False,
+            is_verified=False,
             date_joined__lt=cutoff_date
         )
         unverified_count = unverified_users.count()

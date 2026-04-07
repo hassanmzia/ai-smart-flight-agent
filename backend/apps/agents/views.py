@@ -823,6 +823,92 @@ IMPORTANT REMINDERS:
         raise
 
 
+def _generate_fallback_itinerary(*, result, origin, destination, departure_date, return_date, passengers):
+    """
+    Generate a structured day-by-day itinerary from search results without LLM.
+    Used when OPENAI_API_KEY is not configured.
+    """
+    from datetime import datetime, timedelta
+
+    rec = result.get('recommendation', {})
+    flights = result.get('flights', {})
+    flight_list = flights.get('flights', []) if isinstance(flights, dict) else []
+
+    # Calculate trip duration
+    try:
+        dep = datetime.strptime(departure_date, '%Y-%m-%d')
+        ret = datetime.strptime(return_date, '%Y-%m-%d') if return_date else dep + timedelta(days=3)
+        num_days = max(1, (ret - dep).days + 1)
+    except (ValueError, TypeError):
+        dep = datetime.now()
+        ret = dep + timedelta(days=3)
+        num_days = 4
+
+    # Extract top recommendations
+    rec_flight = rec.get('recommended_flight', {}) or {}
+    rec_hotel = rec.get('recommended_hotel', {}) or {}
+    rec_restaurant = rec.get('recommended_restaurant', {}) or {}
+    rec_car = rec.get('recommended_car', {}) or {}
+
+    flight_price = rec_flight.get('price', 0)
+    hotel_name = rec_hotel.get('name', 'your hotel')
+    hotel_price = rec_hotel.get('price', 0)
+
+    lines = []
+    lines.append(f"## Trip: {origin} → {destination}")
+    lines.append(f"**Dates:** {departure_date} to {return_date or 'TBD'} ({num_days} days, {passengers} traveler(s))\n")
+
+    # Budget summary
+    total = rec.get('total_estimated_cost', 0) or 0
+    lines.append(f"| Category | Estimated Cost |")
+    lines.append(f"|----------|---------------|")
+    lines.append(f"| Flights | ${float(flight_price):.0f} |")
+    lines.append(f"| Hotels ({num_days - 1} nights) | ${float(hotel_price) * max(1, num_days - 1):.0f} |")
+    lines.append(f"| **Total** | **${float(total):.0f}** |")
+    lines.append("")
+
+    for day_num in range(1, num_days + 1):
+        current_date = dep + timedelta(days=day_num - 1)
+        date_str = current_date.strftime('%B %d, %Y')
+
+        if day_num == 1:
+            lines.append(f"## Day {day_num}: Arrival in {destination} ({date_str})")
+            lines.append("")
+            if rec_flight:
+                airline = rec_flight.get('airline', 'Flight')
+                flight_num = rec_flight.get('flight_number', '')
+                dep_code = rec_flight.get('departure_airport_code', origin)
+                arr_code = rec_flight.get('arrival_airport_code', destination)
+                lines.append(f"- **Flight:** {airline} {flight_num} ({dep_code} → {arr_code}), ${float(flight_price):.0f}")
+            else:
+                lines.append(f"- Depart from {origin}")
+            lines.append(f"- Arrive in {destination}")
+            lines.append(f"- Check in to {hotel_name}")
+            lines.append(f"- Explore the area and settle in")
+            if rec_restaurant:
+                lines.append(f"- **Dinner:** {rec_restaurant.get('name', 'local restaurant')} ({rec_restaurant.get('cuisine', 'local cuisine')})")
+        elif day_num == num_days:
+            lines.append(f"## Day {day_num}: Departure from {destination} ({date_str})")
+            lines.append("")
+            lines.append(f"- Check out of {hotel_name}")
+            lines.append(f"- Last-minute shopping or sightseeing")
+            lines.append(f"- Head to airport for departure")
+            lines.append(f"- Return flight to {origin}")
+        else:
+            lines.append(f"## Day {day_num}: Explore {destination} ({date_str})")
+            lines.append("")
+            lines.append(f"- Morning: Explore local attractions and landmarks")
+            lines.append(f"- Lunch: Try local cuisine")
+            lines.append(f"- Afternoon: Cultural activities or guided tours")
+            if rec_car and rec_car.get('company'):
+                lines.append(f"- **Transportation:** {rec_car.get('company', 'car rental')} ({rec_car.get('car_type', 'standard')})")
+            lines.append(f"- Evening: Dinner and leisure time")
+
+        lines.append("")
+
+    return '\n'.join(lines)
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def plan_travel(request):
@@ -913,7 +999,7 @@ def plan_travel(request):
                 logger.warning(f"Enhanced agent data gathering failed: {e}")
 
         # Generate LLM day-by-day narrative itinerary using ALL agent data
-        if result.get('success') and settings.OPENAI_API_KEY:
+        if result.get('success') and settings.OPENAI_API_KEY and settings.OPENAI_API_KEY not in ('your_openai_api_key_here', ''):
             try:
                 result['itinerary_text'] = _synthesize_narrative(
                     result=result,
@@ -930,19 +1016,17 @@ def plan_travel(request):
                 )
             except Exception as e:
                 logger.error(f"LLM narrative generation failed: {e}", exc_info=True)
-                # Provide a fallback plan so the user still sees something
-                result['itinerary_text'] = (
-                    f"## Trip Overview\n\n"
-                    f"AI-planned trip from {origin} to {destination}, "
-                    f"{departure_date} to {return_date or departure_date}.\n\n"
-                    f"## Day 1: Arrival\n\n"
-                    f"- Arrive in {destination}\n"
-                    f"- Check in to hotel\n"
-                    f"- Explore the area\n\n"
-                    f"*Note: Detailed AI itinerary generation encountered an error. "
-                    f"Please try again or check your search results below for "
-                    f"flight, hotel, and restaurant recommendations.*"
-                )
+
+        # Always provide a fallback itinerary if itinerary_text was not set
+        if result.get('success') and not result.get('itinerary_text'):
+            result['itinerary_text'] = _generate_fallback_itinerary(
+                result=result,
+                origin=origin_label,
+                destination=destination_label,
+                departure_date=departure_date,
+                return_date=return_date,
+                passengers=passengers,
+            )
 
         # Create session record if user is authenticated
         if request.user.is_authenticated:
