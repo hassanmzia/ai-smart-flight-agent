@@ -1,4 +1,4 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://demo.eminencetechsolutions.com:3090';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 export const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'wss://demo.eminencetechsolutions.com:3090';
 export const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLIC_KEY || '';
 
