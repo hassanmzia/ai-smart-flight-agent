@@ -16,7 +16,7 @@ import operator
 import logging
 from django.conf import settings
 
-from utils.airport_resolver import resolve_airport_to_city
+from utils.airport_resolver import resolve_airport_to_city, get_hub_airport, AIRPORT_TO_CITY
 from .agent_tools import (
     FlightSearchTool,
     HotelSearchTool,
@@ -83,23 +83,81 @@ Return flight details in a structured format.
 """
 
     def execute(self, state: TravelAgentState) -> TravelAgentState:
-        """Execute flight search"""
+        """Execute flight search, with hub-airport fallback for small cities"""
         try:
-            logger.info(f"FlightAgent executing for: {state['user_query']}")
+            origin = state.get('origin', 'CDG')
+            destination = state.get('destination', 'BER')
+            logger.info(f"FlightAgent executing: {origin} -> {destination}")
 
-            # Search for flights
+            # Search for direct flights
             flight_results = self.tool.search_flights(
-                origin=state.get('origin', 'CDG'),
-                destination=state.get('destination', 'BER'),
+                origin=origin,
+                destination=destination,
                 date=state.get('departure_date', '2025-10-10'),
                 trip_type=2 if not state.get('return_date') else 1,
                 return_date=state.get('return_date'),
                 passengers=state.get('passengers', 1)
             )
 
+            flights_found = len(flight_results.get('flights', []))
+
+            # If no flights found, try via hub airports
+            if flights_found == 0:
+                dest_hub = get_hub_airport(destination)
+                origin_hub = get_hub_airport(origin)
+
+                hub_destination = dest_hub or destination
+                hub_origin = origin_hub or origin
+
+                # Only retry if at least one hub is different
+                if hub_destination != destination or hub_origin != origin:
+                    hub_route = f"{hub_origin or origin} -> {hub_destination}"
+                    logger.info(f"No direct flights found. Trying hub route: {hub_route}")
+
+                    hub_results = self.tool.search_flights(
+                        origin=hub_origin or origin,
+                        destination=hub_destination,
+                        date=state.get('departure_date', '2025-10-10'),
+                        trip_type=2 if not state.get('return_date') else 1,
+                        return_date=state.get('return_date'),
+                        passengers=state.get('passengers', 1)
+                    )
+
+                    hub_flights = hub_results.get('flights', [])
+                    if hub_flights:
+                        # Build transit info for the user
+                        transit_notes = []
+                        if dest_hub and dest_hub != destination:
+                            dest_city = AIRPORT_TO_CITY.get(destination, destination)
+                            hub_city = AIRPORT_TO_CITY.get(dest_hub, dest_hub)
+                            transit_notes.append(
+                                f"Fly to {hub_city} ({dest_hub}), then take a domestic flight or ground transport to {dest_city} ({destination})"
+                            )
+                        if origin_hub and origin_hub != origin:
+                            origin_city = AIRPORT_TO_CITY.get(origin, origin)
+                            hub_city = AIRPORT_TO_CITY.get(origin_hub, origin_hub)
+                            transit_notes.append(
+                                f"From {origin_city}: travel to {hub_city} ({origin_hub}) for international departure"
+                            )
+
+                        flight_results = hub_results
+                        flight_results['hub_route'] = True
+                        flight_results['original_destination'] = destination
+                        flight_results['hub_destination'] = hub_destination
+                        flight_results['transit_notes'] = transit_notes
+                        flights_found = len(hub_flights)
+                        logger.info(f"Found {flights_found} flights via hub route: {hub_route}")
+
             state['flight_results'] = flight_results
             state['current_agent'] = 'hotel'
-            state['messages'].append(AIMessage(content=f"Found {len(flight_results.get('flights', []))} flight options"))
+
+            msg = f"Found {flights_found} flight options"
+            if flight_results.get('hub_route'):
+                hub_city = AIRPORT_TO_CITY.get(flight_results['hub_destination'], flight_results['hub_destination'])
+                msg += f" (via {hub_city} hub)"
+                if flight_results.get('transit_notes'):
+                    msg += ". " + " | ".join(flight_results['transit_notes'])
+            state['messages'].append(AIMessage(content=msg))
 
             return state
 

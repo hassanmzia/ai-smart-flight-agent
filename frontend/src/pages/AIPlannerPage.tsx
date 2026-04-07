@@ -790,6 +790,20 @@ const AIPlannerPage = () => {
           {/* ══════ TAB: FLIGHTS ══════ */}
           {activeTab === 'flights' && (
             <div className="space-y-6">
+              {/* Hub Route Notice */}
+              {result?.flights?.hub_route && result?.flights?.transit_notes?.length > 0 && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">Connecting Route via Hub Airport</h3>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-1">
+                    No direct international flights found to your destination. Showing flights via the nearest major hub:
+                  </p>
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    {result.flights.transit_notes.map((note: string, i: number) => (
+                      <li key={i} className="flex gap-2"><span>→</span> {note}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {/* Recommended Flight */}
               {rec?.recommended_flight && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">

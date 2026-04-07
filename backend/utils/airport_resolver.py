@@ -127,6 +127,11 @@ CITY_TO_AIRPORT = {
     'dhaka': 'DAC', 'dacca': 'DAC',
     'chittagong': 'CGP', 'chattogram': 'CGP',
     'sylhet': 'ZYL',
+    'jessore': 'JSR', 'jashore': 'JSR',
+    'rajshahi': 'RJH',
+    'barisal': 'BZL', 'barishal': 'BZL',
+    'cox\'s bazar': 'CXB', 'coxs bazar': 'CXB',
+    'saidpur': 'SPD',
 
     # Pakistan
     'islamabad': 'ISB',
@@ -222,6 +227,8 @@ AIRPORT_TO_CITY = {
     'HYD': 'Hyderabad', 'HAN': 'Hanoi', 'SGN': 'Ho Chi Minh City',
     # Bangladesh
     'DAC': 'Dhaka', 'CGP': 'Chittagong', 'ZYL': 'Sylhet',
+    'JSR': 'Jessore', 'RJH': 'Rajshahi', 'BZL': 'Barisal',
+    'CXB': "Cox's Bazar", 'SPD': 'Saidpur',
     # Pakistan
     'ISB': 'Islamabad', 'KHI': 'Karachi', 'LHE': 'Lahore',
     # Other South Asia
@@ -243,6 +250,55 @@ AIRPORT_TO_CITY = {
     'EZE': 'Buenos Aires', 'LIM': 'Lima', 'BOG': 'Bogota',
     'SCL': 'Santiago', 'MDE': 'Medellin',
 }
+
+
+# Hub airport mapping: small/domestic airports → nearest major international hub
+# Used for fallback flight search when direct flights aren't found
+AIRPORT_TO_HUB = {
+    # Bangladesh domestic → Dhaka
+    'JSR': 'DAC',  # Jessore → Dhaka
+    'RJH': 'DAC',  # Rajshahi → Dhaka
+    'BZL': 'DAC',  # Barisal → Dhaka
+    'CXB': 'DAC',  # Cox's Bazar → Dhaka
+    'SPD': 'DAC',  # Saidpur → Dhaka
+    'ZYL': 'DAC',  # Sylhet → Dhaka
+    'CGP': 'DAC',  # Chittagong → Dhaka (for international)
+    # India domestic → Delhi/Mumbai
+    'IXA': 'DEL',  # Agartala → Delhi
+    'GAU': 'DEL',  # Guwahati → Delhi
+    'IXR': 'DEL',  # Ranchi → Delhi
+    'PAT': 'DEL',  # Patna → Delhi
+    'VNS': 'DEL',  # Varanasi → Delhi
+    'JAI': 'DEL',  # Jaipur → Delhi
+    'IXC': 'DEL',  # Chandigarh → Delhi
+    'LKO': 'DEL',  # Lucknow → Delhi
+    'GOI': 'BOM',  # Goa → Mumbai
+    'PNQ': 'BOM',  # Pune → Mumbai
+    'IXE': 'BOM',  # Mangalore → Mumbai
+    # Pakistan domestic → Islamabad/Karachi
+    'PEW': 'ISB',  # Peshawar → Islamabad
+    'MUX': 'LHE',  # Multan → Lahore
+    'SKT': 'LHE',  # Sialkot → Lahore
+    'UET': 'KHI',  # Quetta → Karachi
+    # Sri Lanka
+    'HRI': 'CMB',  # Mattala → Colombo
+    # Nepal
+    'BWA': 'KTM',  # Bhairahawa → Kathmandu
+    'PKR': 'KTM',  # Pokhara → Kathmandu
+    # Thailand domestic
+    'CNX': 'BKK',  # Chiang Mai → Bangkok (for some international)
+    'HDY': 'BKK',  # Hat Yai → Bangkok
+    'USM': 'BKK',  # Koh Samui → Bangkok
+    # Indonesia domestic
+    'DPS': 'CGK',  # Bali → Jakarta (for some routes)
+    'JOG': 'CGK',  # Yogyakarta → Jakarta
+    'SUB': 'CGK',  # Surabaya → Jakarta
+}
+
+
+def get_hub_airport(code: str) -> str | None:
+    """Get the nearest major international hub for a small/domestic airport."""
+    return AIRPORT_TO_HUB.get(code.upper().strip()) if code else None
 
 
 def resolve_airport_to_city(code: str) -> str:
