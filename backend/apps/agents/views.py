@@ -370,8 +370,9 @@ Return a JSON object (no markdown, no code fences, just raw JSON) with these key
     "tap_water_safe": boolean
   }},
   "local_events": [
-    {{"date": "YYYY-MM-DD", "name": "event name", "type": "festival/market/concert/exhibition/sports", "description": "brief description", "cost": "free or price", "location": "specific location"}}
+    {{"date": "YYYY-MM-DD", "name": "event name", "type": "festival/market/concert/exhibition/sports/religious", "description": "brief description", "cost": "free or price", "location": "specific location"}}
   ],
+  IMPORTANT: Include local events, festivals, weekly markets, and cultural happenings that occur during the travel dates ({departure_date} to {return_date or departure_date}). Include recurring events like weekend markets, weekly bazaars, etc.
   "local_customs": {{
     "tipping": "string - tipping customs",
     "greeting": "string - how locals greet",
@@ -382,8 +383,9 @@ Return a JSON object (no markdown, no code fences, just raw JSON) with these key
     "business_hours": "string - typical shop/restaurant hours"
   }},
   "must_see_attractions": [
-    {{"name": "string", "type": "museum/landmark/park/market/neighborhood", "estimated_hours": number, "cost": "string", "best_time": "morning/afternoon/evening", "indoor_outdoor": "indoor/outdoor/both"}}
+    {{"name": "string (REAL place name)", "type": "museum/landmark/park/market/neighborhood/temple/beach/fort/palace", "description": "1-2 sentence description", "estimated_hours": number, "cost": "string", "best_time": "morning/afternoon/evening", "indoor_outdoor": "indoor/outdoor/both"}}
   ],
+  IMPORTANT: Include at least 8-10 must_see_attractions with REAL, SPECIFIC names of famous landmarks, temples, museums, parks, markets, and neighborhoods in {destination}. These are the most popular tourist attractions that every visitor should know about.
   "food_scene": {{
     "must_try_dishes": ["list of 5 specific local dishes"],
     "food_markets": ["list of famous food markets"],
@@ -526,6 +528,18 @@ def _build_static_intelligence(*, destination, origin, departure_date, return_da
         "Basic first-aid kit",
         "Reusable water bottle",
     ]
+
+    # Must-see attractions (generic but prompts LLM to fill in real ones)
+    intel['must_see_attractions'] = [
+        {"name": f"Top landmark in {destination}", "type": "landmark", "estimated_hours": 2, "cost": "Check locally", "best_time": "morning", "indoor_outdoor": "outdoor"},
+        {"name": f"Main museum in {destination}", "type": "museum", "estimated_hours": 2, "cost": "Check locally", "best_time": "afternoon", "indoor_outdoor": "indoor"},
+        {"name": f"Popular market in {destination}", "type": "market", "estimated_hours": 1.5, "cost": "Free entry", "best_time": "morning", "indoor_outdoor": "both"},
+        {"name": f"Historic district of {destination}", "type": "neighborhood", "estimated_hours": 3, "cost": "Free", "best_time": "afternoon", "indoor_outdoor": "outdoor"},
+        {"name": f"Scenic viewpoint or park in {destination}", "type": "park", "estimated_hours": 1.5, "cost": "Free", "best_time": "evening", "indoor_outdoor": "outdoor"},
+    ]
+
+    # Local events stub
+    intel['local_events'] = []
 
     return intel
 
@@ -824,14 +838,15 @@ Your output will be displayed directly to travelers, so make it clear, detailed,
 ### Safety Information
 {safety_intel}
 
-### Local Events
+### Local Events (schedule these into the right days!)
 {events_intel}
 
 ### Local Customs & Culture
 {customs_intel}
 
-### Must-See Attractions
+### Must-See Attractions (USE THESE in the day-by-day plan — spread across all days)
 {attractions_intel}
+If the above attractions data is limited, use your knowledge to add the top 8-10 most famous tourist attractions, landmarks, temples, historical sites, and popular local markets in {destination}. Every traveler should visit these.
 
 ### Food Scene
 {food_intel}
@@ -864,7 +879,11 @@ Your output will be displayed directly to travelers, so make it clear, detailed,
 
 7. **DEPARTURE DAY IS COMPLETE**: The last day must include check-out, any morning activities, travel to airport with timing, and the return flight. Never end abruptly.
 
-{'8. **TAILOR TO INTERESTS**: The traveler enjoys ' + interests + '. Prioritize activities that match these interests.' if interests else ''}
+8. **MUST INCLUDE LOCAL ATTRACTIONS**: Every day MUST include at least 2-3 specific tourist attractions, landmarks, temples, museums, parks, or markets from the Must-See Attractions list. Use their REAL names. Never say "visit local attractions" — name the specific place, describe what makes it worth visiting, and include admission cost. Spread the top attractions across different days.
+
+9. **INCLUDE LOCAL EVENTS**: If there are any local events, festivals, markets, or cultural happenings during the travel dates, schedule them into the appropriate day. Weekly markets and recurring events should be included on the right day of the week.
+
+{'10. **TAILOR TO INTERESTS**: The traveler enjoys ' + interests + '. Prioritize activities that match these interests.' if interests else ''}
 
 ---
 
