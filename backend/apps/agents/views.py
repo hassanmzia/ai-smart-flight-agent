@@ -713,94 +713,42 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
         hotel_name_for_prompt = h.get('name') or h.get('hotel_name', 'the hotel')
         hotel_checkout = h.get('check_out_time', '11:00 AM') or '11:00 AM'
 
-    prompt = f"""You are a SMART Agentic AI Travel Planner. You have data from 10+ specialized agents.
-Your job is to create a COMPLETE, ACTIONABLE day-by-day travel plan that integrates ALL search results.
+    prompt = f"""You are an expert Travel Planner AI creating a polished, ready-to-follow travel itinerary for a public travel website.
+Write in a warm, professional, and conversational tone — like a knowledgeable travel advisor writing for a real person.
+Your output will be displayed directly to travelers, so make it clear, detailed, and genuinely useful.
 
-## !!!!! MANDATORY INTEGRATION RULES (YOU MUST FOLLOW THESE) !!!!!
+## YOUR DATA SOURCES (from 10+ specialized AI agents):
 
-### Rule 1: FLIGHT — Day 1 MUST start with the exact flight details
-- Start Day 1 with: "[Departure time] - Depart on [Airline] Flight [Flight Number] from [Departure Airport] to [Arrival Airport]"
-- Include arrival time and duration
-- After arrival, include "Getting to your hotel" with transit/taxi directions from the arrival airport to {hotel_name_for_prompt or 'the hotel'}
-
-### Rule 2: HOTEL — Reference BY NAME throughout the plan
-- Day 1 MUST include: "Check in at {hotel_name_for_prompt}" with the hotel address and check-in time
-- Each morning MUST start with: "Start from {hotel_name_for_prompt}" with brief transit directions to the first activity
-- Last day MUST include: "Check out of {hotel_name_for_prompt}" with the check-out time
-- When returning to the hotel mid-day, say: "Return to {hotel_name_for_prompt}"
-
-### Rule 3: RESTAURANTS — Distribute ALL {len(top_restaurants)} recommended restaurants across meal slots BY NAME
-- You have {len(top_restaurants)} restaurants from the search agent. You MUST use their EXACT names and addresses.
-- Assign each restaurant to a specific meal on a specific day (e.g., "Lunch at [Restaurant Name], [address]")
-- Include the cost per person and cuisine type
-- For remaining meals, suggest local dishes from the Food Scene data
-- NEVER use generic "find a local restaurant" — always name a specific place
-
-### Rule 4: CAR RENTAL vs TRANSIT — Make a clear decision
-- If transport analysis says public transit is good → DO NOT mention car rental. Plan metro/bus/taxi into directions.
-- If car rental is recommended → Include pickup on Day 1 (after airport arrival) and dropoff on last day
-- Include "Getting there:" directions for EVERY activity
-
-### Rule 5: LAST DAY — MANDATORY departure logistics (DO NOT SKIP THIS DAY)
-- This is the MOST IMPORTANT day to get right. You MUST include ALL of these steps:
-- Step 1: "[Check-out time from hotel data] - Check out of {hotel_name_for_prompt}, store luggage at front desk if needed"
-- Step 2: If time before flight → plan a morning activity nearby (light sightseeing, café, shopping)
-- Step 3: "[Time] - Travel from {hotel_name_for_prompt} to airport [explain how: taxi/metro/shuttle with cost estimate]"
-- Step 4: "[Time] - Arrive at airport (recommend arriving 2-3 hours before international, 1.5 hours domestic)"
-- Step 5: "[Time] - Departure flight back to {origin}" with estimated arrival time
-- Step 6: Include "Getting home from airport" tip (taxi/transit from arrival airport)
-- If car was rented: include car dropoff at the airport BEFORE check-in
-- NEVER end the plan abruptly — the last day MUST be as detailed as Day 1
-
-### Rule 6: BUDGET — ALWAYS show real dollar amounts for EVERY cost
-- Include a (~$cost) estimate for EVERY activity, meal, and transport mentioned in the plan
-- In the Budget Summary table, calculate ACTUAL totals by summing daily costs from the plan
-- Flight and Hotel costs are KNOWN (use exact values from search data below)
-- Food costs: sum all restaurant meal costs from daily plans (use restaurant price data)
-- Transport: sum taxi, metro, shuttle costs from daily "Getting there" directions
-- Activities: sum entry fees and tour costs
-- NEVER use "$X" or leave placeholders — compute real estimated numbers
-- If no budget was set, show "flexible" for the Budget row and "N/A" for Remaining
-- If a budget was set, show whether the total is under or over budget
-
----
-
-## SEARCH AGENT DATA (these are REAL bookings — use exact names/details):
-
-### Flight Agent Result
+### Flight Details
 {flight_summary}
 
-### Hotel Agent Result
+### Hotel Details
 {hotel_summary}
 
-### Restaurant Agent Results (USE ALL OF THESE BY NAME)
+### Recommended Restaurants (use these EXACT names)
 {restaurant_summary}
 
-### Car Rental Agent Result
+### Car Rental Options
 {car_summary}
 
-### Budget Data
+### Budget Analysis
 {budget_summary}
 
 ### User Preferences
-{f'Interests: {interests}' if interests else 'No specific interests provided.'}
+{f'Interests: {interests}' if interests else 'No specific interests.'}
 {f'Travel style: {travel_style}' if travel_style else ''}
-{'IMPORTANT: Tailor activities, attractions, and experiences to match the users interests above. Prioritize activities that align with what they enjoy.' if interests else ''}
+{f'Cuisine preference: {cuisine}' if cuisine else ''}
 
----
-
-## INTELLIGENCE AGENT DATA:
-
-### Weather Forecast Per Day
+### Weather Forecast
 {weather_by_day}
 
-### Local Transportation Analysis
+### Local Transportation
 {transport_intel}
 
-### Safety Intelligence
+### Safety Information
 {safety_intel}
 
-### Local Events During Travel Dates
+### Local Events
 {events_intel}
 
 ### Local Customs & Culture
@@ -812,106 +760,103 @@ Your job is to create a COMPLETE, ACTIONABLE day-by-day travel plan that integra
 ### Food Scene
 {food_intel}
 
-### Packing Essentials
+### Packing Recommendations
 {packing_intel}
 
 ---
 
-## Trip: {origin} → {destination}
-Dates: {departure_date} to {return_date or departure_date} ({num_nights} night{'s' if num_nights > 1 else ''})
-Passengers: {passengers}
-{f'Cuisine preference: {cuisine}' if cuisine else ''}
+## TRIP DETAILS
+- Route: {origin} → {destination}
+- Dates: {departure_date} to {return_date or departure_date} ({num_nights} night{'s' if num_nights > 1 else ''})
+- Travelers: {passengers}
 
 ---
 
-## OUTPUT FORMAT (follow exactly):
+## WRITING RULES
+
+1. **FLIGHT TIMES DRIVE THE SCHEDULE**: Day 1 starts with the actual departure time from the flight data. Plan afternoon activities ONLY after the flight lands and the traveler reaches the hotel. On the departure day, plan activities BEFORE the flight and ensure enough time to get to the airport.
+
+2. **USE REAL NAMES**: Always use the exact hotel name "{hotel_name_for_prompt}" and the exact restaurant names from search results. Never say "a local restaurant" — name specific places.
+
+3. **REALISTIC TIME FLOW**: Every activity must have a specific time (e.g., "9:30 AM"). Times should flow logically — account for travel between locations (15-45 min), meal duration (45-90 min), and activity duration. Don't schedule 5 attractions in 3 hours.
+
+4. **EVERY COST IS A REAL NUMBER**: Write (~$15) or (~$45/person) for every item. Never use placeholders like "$X" or "[cost]". Estimate realistically based on the destination.
+
+5. **WEATHER-SMART**: Check the weather data for each day. Suggest indoor activities on rainy days, outdoor on sunny days. Mention the weather naturally ("It's a sunny 28°C day, perfect for...").
+
+6. **PRACTICAL DIRECTIONS**: For each activity, briefly mention how to get there from the previous location ("a 10-minute walk" or "take the metro Line 2, about 20 minutes").
+
+7. **DEPARTURE DAY IS COMPLETE**: The last day must include check-out, any morning activities, travel to airport with timing, and the return flight. Never end abruptly.
+
+{'8. **TAILOR TO INTERESTS**: The traveler enjoys ' + interests + '. Prioritize activities that match these interests.' if interests else ''}
+
+---
+
+## OUTPUT FORMAT (follow this structure exactly):
 
 ## Trip Overview
-(2-3 sentences. Mention the hotel name and neighborhood.)
+Write 2-3 welcoming sentences about this trip. Mention the hotel name and its neighborhood, the vibe of the destination, and what makes this trip special.
 
-## Transportation Recommendation
-(DECIDE: car rental vs public transit. Explain WHY. Include airport transfer method and cost, daily transit pass info.)
+## Getting Around
+Recommend car rental OR public transit (pick one based on the transport data). Explain why, mention costs, and describe how to get from the airport to the hotel.
 
-## Day 1: Arrival in {destination} ({departure_date})
-**Weather: [condition, high/low temp]**
+## Day 1: Arrival in {destination}
+**{departure_date} · [Weather summary from data]**
 
-[Flight departure time] - Depart on [Airline] Flight [#] from [Airport] (~$[price])
-[Flight arrival time] - Arrive at [Airport]
-[Time] - Travel to {hotel_name_for_prompt or 'hotel'} [explain how: taxi/metro/bus with cost] (~$cost)
-[Check-in time] - Check in at {hotel_name_for_prompt or 'hotel'}, [address] (~$[price]/night)
-[Time] - [Afternoon activity in the hotel neighborhood] (~$cost)
-  → Getting there: [directions from hotel]
-[Time] - Dinner at [RESTAURANT #1 NAME from search results], [address] (~$cost/person)
-  → Getting there: [directions from hotel]
-**Day cost estimate: $[sum of all (~$cost) items above — MUST be a real number]**
+[Use the actual flight departure time] - Depart on [Airline] [Flight #] from [Origin Airport] (~${flight_price:.0f})
+[Use the actual flight arrival time] - Land at [Destination Airport] after a [duration] flight
+[Time after landing + 30-45 min] - Head to {hotel_name_for_prompt or 'your hotel'} by [taxi/metro/bus] (~$cost)
+[Time] - Check in at **{hotel_name_for_prompt or 'your hotel'}**, [address] (~${hotel_price_per_night:.0f}/night)
+[Afternoon time] - [First activity — something easy near the hotel to start the trip] (~$cost)
+[Evening time] - Dinner at **[Restaurant Name from search data]**, [cuisine type], [address] (~$cost/person)
+**Day total: ~$[real sum]**
 
-## Day 2: [Title] (next date)
-**Weather: [condition, high/low temp]**
+## Day 2: [Descriptive Title]
+**[Next date] · [Weather]**
 
-8:00 AM - Breakfast at {hotel_name_for_prompt or 'hotel'} or nearby café (~$cost)
-9:30 AM - [Morning activity — choose indoor/outdoor based on weather] (~$cost)
-  → Getting there: [directions from hotel]
-12:30 PM - Lunch at [RESTAURANT #2 NAME from search results], [address] (~$cost/person)
-  → Getting there: [directions]
-...continue with afternoon and evening...
-7:30 PM - Dinner at [RESTAURANT #3 NAME from search results], [address] (~$cost/person)
-  → Getting there: [directions]
-**Day cost estimate: $[sum of all (~$cost) items above — MUST be a real number]**
+8:00 AM - Breakfast at {hotel_name_for_prompt or 'the hotel'} or a nearby café (~$cost)
+[Continue with a full day of timed activities, meals at named restaurants, and practical directions]
+**Day total: ~$[real sum]**
 
-(Continue for ALL {num_nights + 1} days, using remaining restaurants from the list)
+[Continue for each day — every day should have 6-10 timed entries covering morning, afternoon, and evening]
 
-## Day {num_nights + 1}: Departure from {destination} ({return_date or departure_date})
-**Weather: [condition, high/low temp]**
+## Day {num_nights + 1}: Departure Day
+**{return_date or departure_date} · [Weather]**
 
-{hotel_checkout or '11:00 AM'} - Check out of {hotel_name_for_prompt or 'hotel'}, [address]. Store luggage at front desk.
-[Time] - [Quick morning activity near hotel — café, last-minute shopping, park walk] (~$cost)
-  → Getting there: [walking distance from hotel]
-[Time] - Pick up luggage from {hotel_name_for_prompt or 'hotel'}
-[Time] - Travel to [Airport Name] [explain how: taxi/metro/shuttle from hotel with cost] (~$cost)
-  → Tip: Allow [X] hours for airport transit and check-in
-[Time] - Arrive at airport, check in for flight back to {origin}
-[Time] - Estimated departure (based on typical evening/afternoon return flights)
-[Time] - Arrive back in {origin}
-  → Getting home: [taxi/metro/ride-share from arrival airport]
-**Day cost estimate: $[sum of all (~$cost) items above — MUST be a real number]**
+[Early time] - Check out of **{hotel_name_for_prompt or 'your hotel'}** (checkout by {hotel_checkout or '11:00 AM'})
+[If time allows] - [Quick morning activity — café, walk, or last-minute shopping] (~$cost)
+[Time] - Head to [Airport] by [transport method] (~$cost). Allow 2-3 hours before your flight.
+[Time] - Return flight to {origin}, arriving at approximately [time]
+**Day total: ~$[real sum]**
 
-## Local Events to Catch
-(Events happening during the travel dates)
+## Don't Miss
+- [2-3 local events happening during the travel dates, or seasonal highlights]
 
-## Safety Tips
-(Areas to avoid, scam warnings, emergency numbers)
+## Good to Know
+- [3-4 practical safety tips, local customs, or helpful advice for this destination]
 
-## Packing List
-(Weather-specific for these dates)
+## Packing Checklist
+- [5-8 weather-specific and destination-specific items]
 
 ## Budget Summary
 | Category | Cost |
 |----------|------|
 | Flights | ${flight_price:.0f} |
-| Hotel (${hotel_price_per_night:.0f}/night x {num_nights} nights) | ${hotel_total:.0f} |
+| Hotel ({num_nights} nights @ ${hotel_price_per_night:.0f}) | ${hotel_total:.0f} |
 | Car Rental | ${car_total:.0f} |
-| Food & Dining | $[CALCULATE from restaurant prices in the plan] |
-| Transportation (local) | $[CALCULATE from transit/taxi costs in the plan] |
-| Activities & Attractions | $[CALCULATE from entry fees and activity costs in the plan] |
-| **Total** | **$[SUM all above rows]** |
+| Food & Dining | $[sum all meal costs from the daily plans] |
+| Local Transport | $[sum all taxi/metro/bus costs] |
+| Activities & Attractions | $[sum all entry fees and tour costs] |
+| **Total** | **$[sum of all rows above]** |
 | Budget | {budget_display} |
-| Remaining / Over | $[Budget minus Total, or "N/A" if flexible] |
+| Remaining | $[budget minus total, or "Flexible" if no budget set] |
 
-CRITICAL: Replace every [CALCULATE...] and [SUM...] with ACTUAL dollar amounts.
-Add up every food cost, taxi/metro fare, and activity fee from the daily plans above.
-Never leave placeholders — compute real numbers.
-
-IMPORTANT REMINDERS:
-- Use the EXACT hotel name "{hotel_name_for_prompt}" every time you reference the hotel
-- Use the EXACT restaurant names from the search results for meals
-- Include "Getting there:" transit directions for every activity
-- Include specific times and costs (~$XX) for EVERY activity, meal, and transport
-- Every **Day cost estimate:** MUST be a real dollar sum of that day's costs
-- The Budget Summary table MUST have REAL dollar amounts — NEVER $X placeholders
-- Flights = ${flight_price:.0f}, Hotel = ${hotel_total:.0f} — these are FIXED from search data
-- Food, Transport, Activities — SUM the individual costs from each day's plan
-- Make weather-driven activity choices (indoor on rainy days, outdoor on sunny)
-- Avoid unsafe areas mentioned in the safety data"""
+CRITICAL REMINDERS:
+- Every [bracketed instruction] must be replaced with real content — never output brackets
+- Budget Summary must contain REAL dollar amounts — add up the costs from your daily plans
+- Fixed costs: Flights = ${flight_price:.0f}, Hotel = ${hotel_total:.0f}
+- Use ALL {len(top_restaurants)} restaurant names from the search data across different meals
+- Make the plan feel like a real travel guide someone would follow step by step"""
 
     model = ChatOpenAI(
         model=settings.AGENT_CONFIG.get('MODEL', 'gpt-4o-mini'),
@@ -962,55 +907,78 @@ def _generate_fallback_itinerary(*, result, origin, destination, departure_date,
     hotel_price = rec_hotel.get('price', 0)
 
     lines = []
-    lines.append(f"## Trip: {origin} → {destination}")
-    lines.append(f"**Dates:** {departure_date} to {return_date or 'TBD'} ({num_days} days, {passengers} traveler(s))\n")
+    lines.append(f"## Trip Overview")
+    lines.append(f"Your trip from {origin} to {destination} spans {num_days} days and {num_days - 1} night{'s' if num_days > 2 else ''}.")
+    if hotel_name and hotel_name != 'your hotel':
+        lines.append(f"You'll be staying at **{hotel_name}**.")
+    lines.append("")
 
     # Budget summary
     total = rec.get('total_estimated_cost', 0) or 0
-    lines.append(f"| Category | Estimated Cost |")
-    lines.append(f"|----------|---------------|")
+    hotel_total = float(hotel_price) * max(1, num_days - 1)
+    lines.append(f"## Budget Summary")
+    lines.append(f"| Category | Cost |")
+    lines.append(f"|----------|------|")
     lines.append(f"| Flights | ${float(flight_price):.0f} |")
-    lines.append(f"| Hotels ({num_days - 1} nights) | ${float(hotel_price) * max(1, num_days - 1):.0f} |")
+    lines.append(f"| Hotel ({num_days - 1} nights @ ${float(hotel_price):.0f}) | ${hotel_total:.0f} |")
     lines.append(f"| **Total** | **${float(total):.0f}** |")
     lines.append("")
 
     for day_num in range(1, num_days + 1):
         current_date = dep + timedelta(days=day_num - 1)
-        date_str = current_date.strftime('%B %d, %Y')
+        date_str = current_date.strftime('%A, %B %d, %Y')
 
         if day_num == 1:
-            lines.append(f"## Day {day_num}: Arrival in {destination} ({date_str})")
-            lines.append("")
+            lines.append(f"## Day {day_num}: Arrival in {destination}")
+            lines.append(f"**{date_str}**\n")
             if rec_flight:
                 airline = rec_flight.get('airline', 'Flight')
                 flight_num = rec_flight.get('flight_number', '')
                 dep_code = rec_flight.get('departure_airport_code', origin)
                 arr_code = rec_flight.get('arrival_airport_code', destination)
-                lines.append(f"- **Flight:** {airline} {flight_num} ({dep_code} → {arr_code}), ${float(flight_price):.0f}")
+                dep_time = rec_flight.get('departure_time', '')
+                arr_time = rec_flight.get('arrival_time', '')
+                if dep_time:
+                    lines.append(f"{dep_time} - Depart on **{airline} {flight_num}** from {dep_code} (~${float(flight_price):.0f})")
+                else:
+                    lines.append(f"Morning - Depart on **{airline} {flight_num}** from {dep_code} → {arr_code} (~${float(flight_price):.0f})")
+                if arr_time:
+                    lines.append(f"{arr_time} - Arrive at {arr_code}")
+                else:
+                    lines.append(f"Afternoon - Arrive in {destination}")
             else:
-                lines.append(f"- Depart from {origin}")
-            lines.append(f"- Arrive in {destination}")
-            lines.append(f"- Check in to {hotel_name}")
-            lines.append(f"- Explore the area and settle in")
+                lines.append(f"Morning - Depart from {origin}")
+                lines.append(f"Afternoon - Arrive in {destination}")
+            lines.append(f"3:00 PM - Check in at **{hotel_name}** (~${float(hotel_price):.0f}/night)")
+            lines.append(f"4:00 PM - Settle in and explore the neighborhood around your hotel (~$0)")
             if rec_restaurant:
-                lines.append(f"- **Dinner:** {rec_restaurant.get('name', 'local restaurant')} ({rec_restaurant.get('cuisine', 'local cuisine')})")
+                r_name = rec_restaurant.get('name', 'a local restaurant')
+                r_cuisine = rec_restaurant.get('cuisine', 'local cuisine')
+                r_price = rec_restaurant.get('price', '$')
+                lines.append(f"7:00 PM - Dinner at **{r_name}** ({r_cuisine}) (~$25/person)")
         elif day_num == num_days:
-            lines.append(f"## Day {day_num}: Departure from {destination} ({date_str})")
-            lines.append("")
-            lines.append(f"- Check out of {hotel_name}")
-            lines.append(f"- Last-minute shopping or sightseeing")
-            lines.append(f"- Head to airport for departure")
-            lines.append(f"- Return flight to {origin}")
+            lines.append(f"## Day {day_num}: Departure from {destination}")
+            lines.append(f"**{date_str}**\n")
+            lines.append(f"8:00 AM - Breakfast at the hotel or a nearby café (~$10)")
+            lines.append(f"9:00 AM - Last-minute sightseeing or souvenir shopping near the hotel (~$20)")
+            lines.append(f"11:00 AM - Check out of **{hotel_name}** and store luggage if needed")
+            lines.append(f"12:00 PM - Head to the airport by taxi or public transit (~$20)")
+            lines.append(f"2:00 PM - Arrive at airport for check-in and security")
+            lines.append(f"4:00 PM - Return flight to {origin}")
         else:
-            lines.append(f"## Day {day_num}: Explore {destination} ({date_str})")
-            lines.append("")
-            lines.append(f"- Morning: Explore local attractions and landmarks")
-            lines.append(f"- Lunch: Try local cuisine")
-            lines.append(f"- Afternoon: Cultural activities or guided tours")
+            lines.append(f"## Day {day_num}: Explore {destination}")
+            lines.append(f"**{date_str}**\n")
+            lines.append(f"8:00 AM - Breakfast at **{hotel_name}** or nearby café (~$10)")
+            lines.append(f"9:30 AM - Visit local attractions and landmarks (~$15)")
+            lines.append(f"12:30 PM - Lunch — try local cuisine at a recommended spot (~$20/person)")
+            lines.append(f"2:00 PM - Afternoon cultural activities or guided tour (~$25)")
             if rec_car and rec_car.get('company'):
-                lines.append(f"- **Transportation:** {rec_car.get('company', 'car rental')} ({rec_car.get('car_type', 'standard')})")
-            lines.append(f"- Evening: Dinner and leisure time")
+                lines.append(f"4:00 PM - Drive to a scenic spot with your {rec_car.get('company', '')} {rec_car.get('car_type', 'rental car')}")
+            else:
+                lines.append(f"4:00 PM - Explore a different neighborhood or park (~$5)")
+            lines.append(f"7:30 PM - Dinner at a local restaurant (~$25/person)")
 
+        lines.append(f"**Day total: ~$100**")
         lines.append("")
 
     return '\n'.join(lines)

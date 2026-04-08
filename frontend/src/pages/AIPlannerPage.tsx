@@ -13,6 +13,7 @@ import {
   createItineraryItem,
 } from '@/services/itineraryService';
 import TravelChat from '@/components/TravelChat';
+import AirportAutocomplete from '@/components/common/AirportAutocomplete';
 
 type OrderMode = 'form' | 'chat' | 'voice';
 type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'cars' | 'dining' | 'intelligence';
@@ -417,21 +418,28 @@ const AIPlannerPage = () => {
           <CardHeader><CardTitle>Travel Details</CardTitle></CardHeader>
           <CardContent>
             <form onSubmit={handlePlan} className="space-y-4">
-              {/* Origin */}
-              <div>
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Where are you traveling from?</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input label="Origin City" value={originCity} onChange={(e) => setOriginCity(e.target.value)} placeholder="e.g., New York, Paris, Tokyo" required />
-                  <Input label="Country" value={originCountry} onChange={(e) => setOriginCountry(e.target.value)} placeholder="e.g., United States, France" />
-                </div>
-              </div>
-              {/* Destination */}
-              <div>
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Where do you want to go?</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Input label="Destination City" value={destinationCity} onChange={(e) => setDestinationCity(e.target.value)} placeholder="e.g., Berlin, Bangkok, London" required />
-                  <Input label="Country" value={destinationCountry} onChange={(e) => setDestinationCountry(e.target.value)} placeholder="e.g., Germany, Thailand" />
-                </div>
+              {/* Origin & Destination with Autocomplete */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <AirportAutocomplete
+                  label="From (Origin)"
+                  value={originCity}
+                  onChange={(val, airport) => {
+                    setOriginCity(airport ? airport.city : val);
+                    if (airport) setOriginCountry(airport.country);
+                  }}
+                  placeholder="Search city or airport..."
+                  required
+                />
+                <AirportAutocomplete
+                  label="To (Destination)"
+                  value={destinationCity}
+                  onChange={(val, airport) => {
+                    setDestinationCity(airport ? airport.city : val);
+                    if (airport) setDestinationCountry(airport.country);
+                  }}
+                  placeholder="Search city or airport..."
+                  required
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input label="Departure Date" type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} required />
@@ -670,68 +678,136 @@ const AIPlannerPage = () => {
 
               {/* Day-by-Day Timeline */}
               {parsedDays.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {parsedDays.map((day) => {
                     const isExpanded = expandedDay === day.dayNumber;
                     const dayTotal = day.activities.reduce((sum, a) => sum + (a.estimatedCost || 0), 0);
+                    // Calculate the actual date for this day
+                    const dayDate = departureDate ? (() => {
+                      const d = new Date(departureDate);
+                      d.setDate(d.getDate() + day.dayNumber - 1);
+                      return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+                    })() : '';
+                    const isFirstDay = day.dayNumber === 1;
+                    const isLastDay = day.dayNumber === parsedDays.length;
+
                     return (
-                      <div key={day.dayNumber} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-all">
+                      <div key={day.dayNumber} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden transition-all">
                         {/* Day Header */}
                         <button
                           onClick={() => setExpandedDay(isExpanded ? null : day.dayNumber)}
-                          className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+                          className="w-full flex items-center justify-between px-4 md:px-6 py-4 md:py-5 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 flex items-center justify-center font-bold text-sm">
-                              D{day.dayNumber}
+                          <div className="flex items-center gap-3 md:gap-4">
+                            <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex flex-col items-center justify-center font-bold text-xs md:text-sm ${
+                              isFirstDay ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' :
+                              isLastDay ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300' :
+                              'bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300'
+                            }`}>
+                              <span className="text-[10px] uppercase tracking-wide opacity-70">Day</span>
+                              <span className="text-lg md:text-xl font-extrabold leading-none">{day.dayNumber}</span>
                             </div>
                             <div>
-                              <h3 className="font-semibold text-gray-900 dark:text-white">Day {day.dayNumber}: {day.title}</h3>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {day.activities.length} activit{day.activities.length === 1 ? 'y' : 'ies'}
-                                {dayTotal > 0 && ` · ~$${dayTotal.toFixed(0)}`}
-                              </p>
+                              <h3 className="font-bold text-gray-900 dark:text-white text-sm md:text-base">
+                                {day.title}
+                                {isFirstDay && <span className="ml-2 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">Arrival</span>}
+                                {isLastDay && <span className="ml-2 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-2 py-0.5 rounded-full">Departure</span>}
+                              </h3>
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                {dayDate && <span className="text-xs text-gray-500 dark:text-gray-400">{dayDate}</span>}
+                                <span className="text-xs text-gray-400 dark:text-gray-500">|</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {day.activities.length} activit{day.activities.length === 1 ? 'y' : 'ies'}
+                                </span>
+                                {dayTotal > 0 && (
+                                  <>
+                                    <span className="text-xs text-gray-400 dark:text-gray-500">|</span>
+                                    <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">~${dayTotal.toFixed(0)}</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </button>
 
-                        {/* Day Activities */}
+                        {/* Day Activities - Timeline Layout */}
                         {isExpanded && (
-                          <div className="border-t border-gray-100 dark:border-gray-700 px-5 py-4">
-                            <div className="space-y-2.5">
-                              {day.activities.map((activity, idx) => {
-                                const config = ITEM_TYPE_CONFIG[activity.itemType] || ITEM_TYPE_CONFIG.activity;
-                                return (
-                                  <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border ${config.bg} transition-all`}>
-                                    {/* Timeline dot */}
-                                    <div className="flex-shrink-0 mt-0.5">
-                                      <span className="text-lg">{config.icon}</span>
-                                    </div>
-                                    {/* Content */}
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-start justify-between gap-2">
-                                        <p className={`text-sm font-medium ${config.color}`}>{activity.title}</p>
-                                        {activity.estimatedCost !== undefined && activity.estimatedCost > 0 && (
-                                          <span className="flex-shrink-0 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 px-2 py-0.5 rounded-md shadow-sm">
-                                            ${activity.estimatedCost}
+                          <div className="border-t border-gray-100 dark:border-gray-700">
+                            <div className="relative px-4 md:px-6 py-4 md:py-5">
+                              {/* Vertical timeline line */}
+                              <div className="absolute left-[2.15rem] md:left-[2.65rem] top-4 bottom-4 w-px bg-gray-200 dark:bg-gray-700" />
+
+                              <div className="space-y-1">
+                                {day.activities.map((activity, idx) => {
+                                  const config = ITEM_TYPE_CONFIG[activity.itemType] || ITEM_TYPE_CONFIG.activity;
+                                  // Check if this is a sub-item (directions/tips starting with arrow)
+                                  const isSubItem = activity.title.startsWith('→') || activity.title.startsWith('Getting there') || activity.title.startsWith('Tip:');
+
+                                  if (isSubItem) {
+                                    return (
+                                      <div key={idx} className="ml-10 md:ml-12 pl-4 py-1">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 italic">{activity.title}</p>
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                    <div key={idx} className="flex items-start gap-3 md:gap-4 py-2 group">
+                                      {/* Time Column */}
+                                      <div className="flex-shrink-0 w-14 md:w-16 text-right pt-2.5">
+                                        {activity.time ? (
+                                          <span className="text-xs font-bold text-gray-900 dark:text-white tracking-tight">
+                                            {activity.time}
                                           </span>
+                                        ) : (
+                                          <span className="text-xs text-gray-400">--:--</span>
                                         )}
                                       </div>
-                                    </div>
-                                    {/* Time Badge */}
-                                    {activity.time && (
-                                      <div className="flex-shrink-0">
-                                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-700 px-2 py-1 rounded-md shadow-sm">
-                                          {activity.time}
-                                        </span>
+
+                                      {/* Timeline dot */}
+                                      <div className="flex-shrink-0 relative z-10 mt-2">
+                                        <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-sm shadow-sm border-2 border-white dark:border-gray-800 ${
+                                          activity.itemType === 'flight' ? 'bg-blue-100 dark:bg-blue-900' :
+                                          activity.itemType === 'hotel' ? 'bg-purple-100 dark:bg-purple-900' :
+                                          activity.itemType === 'restaurant' ? 'bg-orange-100 dark:bg-orange-900' :
+                                          activity.itemType === 'transport' ? 'bg-cyan-100 dark:bg-cyan-900' :
+                                          activity.itemType === 'attraction' ? 'bg-emerald-100 dark:bg-emerald-900' :
+                                          'bg-indigo-100 dark:bg-indigo-900'
+                                        }`}>
+                                          {config.icon}
+                                        </div>
                                       </div>
-                                    )}
+
+                                      {/* Activity Card */}
+                                      <div className={`flex-1 min-w-0 rounded-xl p-3 md:p-4 border ${config.bg} group-hover:shadow-md transition-shadow`}>
+                                        <div className="flex items-start justify-between gap-2">
+                                          <p className={`text-sm md:text-base font-medium ${config.color} leading-snug`}>
+                                            {activity.title}
+                                          </p>
+                                          {activity.estimatedCost !== undefined && activity.estimatedCost > 0 && (
+                                            <span className="flex-shrink-0 text-xs font-bold text-gray-800 dark:text-gray-200 bg-white/80 dark:bg-gray-700/80 px-2.5 py-1 rounded-lg shadow-sm">
+                                              ${activity.estimatedCost}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Day Total Footer */}
+                              {dayTotal > 0 && (
+                                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 ml-10 md:ml-12">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Day {day.dayNumber} Total</span>
+                                    <span className="text-sm font-bold text-primary-600 dark:text-primary-400">${dayTotal.toFixed(0)}</span>
                                   </div>
-                                );
-                              })}
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}
