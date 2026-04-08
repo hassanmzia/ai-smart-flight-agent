@@ -1083,6 +1083,8 @@ def plan_travel(request):
             user_query=enriched_query,
             origin=origin,
             destination=destination,
+            destination_country=destination_country,
+            origin_country=origin_country,
             departure_date=departure_date,
             return_date=return_date,
             passengers=passengers,
