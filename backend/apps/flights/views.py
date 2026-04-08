@@ -327,6 +327,29 @@ def search_flights(request):
     }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_airports(request):
+    """
+    Airport autocomplete search endpoint.
+    Returns matching airports for typeahead suggestions.
+
+    Query params:
+        q: Search query (city name, airport code, or country)
+        limit: Max results (default 10)
+    """
+    from utils.airports_db import search_airports as do_search
+
+    query = request.query_params.get('q', '').strip()
+    limit = min(int(request.query_params.get('limit', '10')), 20)
+
+    if len(query) < 1:
+        return Response([])
+
+    results = do_search(query, limit=limit)
+    return Response(results)
+
+
 class FlightViewSet(viewsets.ModelViewSet):
     """
     ViewSet for Flight model.

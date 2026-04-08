@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MagnifyingGlassIcon, CalendarIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { CalendarIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import Button from '@/components/common/Button';
 import Input from '@/components/common/Input';
 import { Card } from '@/components/common';
+import AirportAutocomplete from '@/components/common/AirportAutocomplete';
 import { ROUTES } from '@/utils/constants';
 
 const FlightSearchPage = () => {
@@ -36,30 +37,28 @@ const FlightSearchPage = () => {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          ✈️ Search Flights
+          Search Flights
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Find the best flights for your next trip
+          Find the best flights for your next trip. Start typing a city, airport code, or country.
         </p>
       </div>
 
       <Card className="p-6">
         <form onSubmit={handleFlightSearch} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
+            <AirportAutocomplete
               label="From"
               value={origin}
-              onChange={(e) => setOrigin(e.target.value)}
-              placeholder="City or airport"
-              leftIcon={<MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />}
+              onChange={(val) => setOrigin(val)}
+              placeholder="Search city or airport..."
               required
             />
-            <Input
+            <AirportAutocomplete
               label="To"
               value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="City or airport"
-              leftIcon={<MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />}
+              onChange={(val) => setDestination(val)}
+              placeholder="Search city or airport..."
               required
             />
             <Input
