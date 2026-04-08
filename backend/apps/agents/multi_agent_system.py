@@ -39,6 +39,8 @@ class TravelAgentState(TypedDict):
     user_query: str
     origin: Optional[str]
     destination: Optional[str]
+    destination_country: Optional[str]
+    origin_country: Optional[str]
     departure_date: Optional[str]
     return_date: Optional[str]
     passengers: int
@@ -202,9 +204,10 @@ Return flight details in a structured format.
             return state
 
         except Exception as e:
-            logger.error(f"FlightAgent error: {str(e)}")
-            state['error'] = str(e)
-            state['current_agent'] = 'error'
+            logger.error(f"FlightAgent error: {str(e)}", exc_info=True)
+            state['flight_results'] = {"flights": [], "error": str(e)}
+            state['current_agent'] = 'hotel'
+            state['messages'].append(AIMessage(content=f"Flight search failed: {str(e)}"))
             return state
 
 
@@ -236,10 +239,12 @@ Focus on hotels near the destination airport or city center.
         """Execute hotel search with hub-city fallback for small towns"""
         try:
             destination = state.get('destination', 'Berlin')
-            logger.info(f"HotelAgent executing for destination: {destination}")
+            country = state.get('destination_country', '')
+            logger.info(f"HotelAgent executing for destination: {destination}, country: {country}")
 
-            # Convert airport code to city name for better hotel search
-            location_query = self._get_hotel_search_location(destination)
+            # Convert airport code to city name, append country for better SERP results
+            city_name = self._get_hotel_search_location(destination)
+            location_query = f"{city_name}, {country}" if country else city_name
             logger.info(f"Hotel search location: {location_query}")
 
             # Search for hotels - wrap in try/except so hub fallback runs even if primary search throws
@@ -262,33 +267,34 @@ Focus on hotels near the destination airport or city center.
                 hub_code = get_hub_airport(destination)
                 if hub_code:
                     hub_city = resolve_airport_to_city(hub_code)
-                    logger.info(f"No hotels in '{location_query}'. Trying hub city: '{hub_city}'")
+                    hub_query = f"{hub_city}, {country}" if country else hub_city
+                    logger.info(f"No hotels in '{location_query}'. Trying hub city: '{hub_query}'")
 
                     try:
                         hub_results = self.tool.search_hotels(
-                            location=hub_city,
+                            location=hub_query,
                             check_in_date=state.get('departure_date', '2025-10-10'),
                             check_out_date=state.get('return_date', '2025-10-12'),
                             adults=state.get('passengers', 2)
                         )
 
                         hub_hotels = hub_results.get('hotels', [])
-                        logger.info(f"Hub hotel search for '{hub_city}': found {len(hub_hotels)} hotels")
+                        logger.info(f"Hub hotel search for '{hub_query}': found {len(hub_hotels)} hotels")
 
                         if hub_hotels:
                             hotel_results = hub_results
                             hotel_results['fallback_city'] = hub_city
-                            hotel_results['original_city'] = location_query
+                            hotel_results['original_city'] = city_name
                             hotels_found = len(hub_hotels)
                     except Exception as hub_err:
-                        logger.error(f"Hub hotel search failed for '{hub_city}': {hub_err}")
+                        logger.error(f"Hub hotel search failed for '{hub_query}': {hub_err}")
 
             state['hotel_results'] = hotel_results
             state['current_agent'] = 'goal_evaluator'
 
             msg = f"Found {hotels_found} hotel options"
             if hotel_results.get('fallback_city'):
-                msg += f" in nearby {hotel_results['fallback_city']} (no hotels found in {hotel_results.get('original_city', location_query)})"
+                msg += f" in nearby {hotel_results['fallback_city']} (no hotels found in {hotel_results.get('original_city', city_name)})"
             state['messages'].append(AIMessage(content=msg))
 
             return state
@@ -301,7 +307,7 @@ Focus on hotels near the destination airport or city center.
             return state
 
     def _get_hotel_search_location(self, destination: str) -> str:
-        """Convert airport code to city/location for hotel search"""
+        """Convert airport code to city name for hotel search"""
         return resolve_airport_to_city(destination)
 
 
@@ -332,10 +338,12 @@ Focus on finding cost-effective and reliable options.
         try:
             import json
             destination = state.get('destination', 'Berlin')
-            logger.info(f"CarRentalAgent executing for destination: {destination}")
+            country = state.get('destination_country', '')
+            logger.info(f"CarRentalAgent executing for destination: {destination}, country: {country}")
 
-            # Use destination/airport as pickup location
-            pickup_location = self._get_car_rental_location(destination)
+            # Use destination/airport as pickup location with country for better results
+            city_name = self._get_car_rental_location(destination)
+            pickup_location = f"{city_name}, {country}" if country else city_name
             logger.info(f"Car rental search location: {pickup_location}")
 
             # Search for car rentals - wrap so hub fallback runs even if primary throws
@@ -359,10 +367,11 @@ Focus on finding cost-effective and reliable options.
                 hub_code = get_hub_airport(destination)
                 if hub_code:
                     hub_city = resolve_airport_to_city(hub_code)
-                    logger.info(f"No cars in {pickup_location}. Trying hub city: {hub_city}")
+                    hub_query = f"{hub_city}, {country}" if country else hub_city
+                    logger.info(f"No cars in {pickup_location}. Trying hub city: {hub_query}")
                     try:
                         hub_raw = self.tool._run(
-                            pickup_location=hub_city,
+                            pickup_location=hub_query,
                             pickup_date=state.get('departure_date', '2025-10-10'),
                             dropoff_date=state.get('return_date', '2025-10-12'),
                             car_type=None
@@ -372,9 +381,9 @@ Focus on finding cost-effective and reliable options.
                             car_results = hub_results
                             car_results['fallback_city'] = hub_city
                             cars_found = len(car_results['cars'])
-                            logger.info(f"Hub car search for '{hub_city}': found {cars_found} cars")
+                            logger.info(f"Hub car search for '{hub_query}': found {cars_found} cars")
                     except Exception as hub_err:
-                        logger.error(f"Hub car rental search failed for '{hub_city}': {hub_err}")
+                        logger.error(f"Hub car rental search failed for '{hub_query}': {hub_err}")
 
             state['car_rental_results'] = car_results
             state['current_agent'] = 'goal_evaluator'
@@ -458,10 +467,12 @@ class RestaurantAgent:
         try:
             import json
             destination = state.get('destination', 'Berlin')
+            country = state.get('destination_country', '')
             cuisine = state.get('cuisine')
             logger.info(f"RestaurantAgent executing for destination: {destination}, cuisine: {cuisine}")
 
-            search_city = self._get_restaurant_location(destination)
+            city_name = self._get_restaurant_location(destination)
+            search_city = f"{city_name}, {country}" if country else city_name
             logger.info(f"Restaurant search location: {search_city}")
 
             # Wrap primary search so hub fallback runs even if primary throws
@@ -480,17 +491,18 @@ class RestaurantAgent:
                 hub_code = get_hub_airport(destination)
                 if hub_code:
                     hub_city = resolve_airport_to_city(hub_code)
-                    logger.info(f"No restaurants in {search_city}. Trying hub city: {hub_city}")
+                    hub_query = f"{hub_city}, {country}" if country else hub_city
+                    logger.info(f"No restaurants in {search_city}. Trying hub city: {hub_query}")
                     try:
-                        hub_raw = self.tool._run(city=hub_city, cuisine=cuisine)
+                        hub_raw = self.tool._run(city=hub_query, cuisine=cuisine)
                         hub_data = json.loads(hub_raw) if isinstance(hub_raw, str) else hub_raw
                         if hub_data.get('restaurants'):
                             restaurant_data = hub_data
                             restaurant_data['fallback_city'] = hub_city
                             restaurants_found = len(restaurant_data['restaurants'])
-                            logger.info(f"Hub restaurant search for '{hub_city}': found {restaurants_found} restaurants")
+                            logger.info(f"Hub restaurant search for '{hub_query}': found {restaurants_found} restaurants")
                     except Exception as hub_err:
-                        logger.error(f"Hub restaurant search failed for '{hub_city}': {hub_err}")
+                        logger.error(f"Hub restaurant search failed for '{hub_query}': {hub_err}")
 
             state['restaurant_results'] = restaurant_data
             state['current_agent'] = 'restaurant_evaluator'
@@ -970,6 +982,8 @@ class MultiAgentTravelSystem:
                 "user_query": user_query,
                 "origin": kwargs.get('origin'),
                 "destination": kwargs.get('destination'),
+                "destination_country": kwargs.get('destination_country', ''),
+                "origin_country": kwargs.get('origin_country', ''),
                 "departure_date": kwargs.get('departure_date'),
                 "return_date": kwargs.get('return_date'),
                 "passengers": kwargs.get('passengers', 1),

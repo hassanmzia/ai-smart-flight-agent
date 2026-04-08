@@ -794,12 +794,13 @@ const AIPlannerPage = () => {
               {result?.flights?.hub_route && result?.flights?.transit_notes?.length > 0 && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
                   <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">Connecting Route via Hub Airport</h3>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-1">
-                    No direct international flights found to your destination. Showing flights via the nearest major hub:
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                    No direct international flights found to {destinationLabel}. Showing flights to the nearest major hub airport.
+                    You will need to arrange onward transport from the hub to your final destination.
                   </p>
-                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1.5">
                     {result.flights.transit_notes.map((note: string, i: number) => (
-                      <li key={i} className="flex gap-2"><span>→</span> {note}</li>
+                      <li key={i} className="flex gap-2 items-start"><span className="mt-0.5">→</span> <span>{note}</span></li>
                     ))}
                   </ul>
                 </div>
@@ -873,6 +874,12 @@ const AIPlannerPage = () => {
                         </div>
                       ))}
                     </div>
+                    {/* Hub Route Note on recommended flight */}
+                    {result?.flights?.hub_route && (
+                      <div className="mt-4 p-3 rounded-lg text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
+                        This flight goes to the nearest hub airport. Onward transport to {destinationLabel} will be needed.
+                      </div>
+                    )}
                     {/* Budget Status */}
                     {rec.recommended_flight.goal_score !== undefined && (
                       <div className={`mt-4 p-3 rounded-lg text-sm ${
