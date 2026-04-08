@@ -549,6 +549,12 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
     # ── Build DETAILED search agent summaries ──
 
     # --- Flight details (rich) ---
+    flight_data = result.get('flights', {}) if isinstance(result.get('flights'), dict) else {}
+    hub_route = flight_data.get('hub_route', False)
+    transit_notes = flight_data.get('transit_notes', [])
+    hub_destination_code = flight_data.get('hub_destination', '')
+    original_destination_code = flight_data.get('original_destination', '')
+
     flight_summary = 'No flights found by search agent.'
     if rec.get('recommended_flight'):
         f = rec['recommended_flight']
@@ -571,6 +577,30 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             f"  Class: {f.get('travel_class', 'Economy')}\n"
             f"  Price: ${f.get('price', 'N/A')} per person"
         )
+
+    # Add hub routing info if flights go through a hub airport
+    if hub_route:
+        hub_info = "\n\nIMPORTANT - HUB ROUTING:\n"
+        hub_info += f"  There are NO direct international flights to {destination}.\n"
+        hub_info += f"  The flight above goes to the nearest major hub airport ({hub_destination_code}).\n"
+        hub_info += f"  The traveler must then take ONWARD TRANSPORT from {hub_destination_code} to {original_destination_code}.\n"
+        for note in transit_notes:
+            hub_info += f"  → {note}\n"
+        hub_info += "  In your itinerary Day 1, after landing at the hub airport, include the onward journey.\n"
+        hub_info += "  On the departure day, include travel back to the hub airport for the return flight."
+        flight_summary += hub_info
+    elif not rec.get('recommended_flight'):
+        # No flights found at all — give the LLM context about the route
+        from utils.airport_resolver import get_hub_airport, AIRPORT_TO_CITY
+        dest_hub = get_hub_airport(destination) if destination else None
+        if dest_hub:
+            hub_city = AIRPORT_TO_CITY.get(dest_hub, dest_hub)
+            dest_city = AIRPORT_TO_CITY.get(destination, destination)
+            flight_summary += (
+                f"\n\nNOTE: No flights were found. The nearest international airport to {dest_city} ({destination}) "
+                f"is {hub_city} ({dest_hub}). Suggest the traveler book a flight to {hub_city} and then take "
+                f"domestic transport to {dest_city}."
+            )
 
     # --- Hotel details (rich) ---
     hotel_summary = 'No hotel found by search agent.'

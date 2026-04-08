@@ -761,6 +761,31 @@ Your responsibilities:
                         'budget_difference': expensive.get('difference', 0)
                     })
 
+            # Get evaluated hotels, falling back to raw hotels if evaluator returned nothing
+            ranked_hotels = (utility_eval.get('ranked_hotels', []) if utility_eval else [])
+            if not ranked_hotels and hotels:
+                logger.warning(f"Hotel evaluator returned empty but {len(hotels)} raw hotels exist — using raw hotels")
+                ranked_hotels = hotels
+
+            recommended_hotel = (utility_eval.get('top_recommendation') if utility_eval else None)
+            if not recommended_hotel and ranked_hotels:
+                recommended_hotel = ranked_hotels[0]
+
+            # Same fallback pattern for cars and restaurants
+            ranked_cars = (car_eval.get('ranked_cars', []) if car_eval else [])
+            if not ranked_cars and cars:
+                ranked_cars = cars
+            recommended_car = (car_eval.get('top_recommendation') if car_eval else None)
+            if not recommended_car and ranked_cars:
+                recommended_car = ranked_cars[0]
+
+            ranked_restaurants = (restaurant_eval.get('ranked_restaurants', []) if restaurant_eval else [])
+            if not ranked_restaurants and restaurants:
+                ranked_restaurants = restaurants
+            recommended_restaurant = (restaurant_eval.get('top_recommendation') if restaurant_eval else None)
+            if not recommended_restaurant and ranked_restaurants:
+                recommended_restaurant = ranked_restaurants[0]
+
             final_recommendation = {
                 "summary": {
                     "flights_found": len(flights),
@@ -771,12 +796,12 @@ Your responsibilities:
                 },
                 "recommended_flight": recommended_flight,
                 "alternative_flight": alternative_flight,
-                "recommended_hotel": utility_eval.get('top_recommendation') if utility_eval else None,
-                "recommended_car": car_eval.get('top_recommendation') if car_eval else None,
-                "recommended_restaurant": restaurant_eval.get('top_recommendation') if restaurant_eval else None,
-                "top_5_hotels": utility_eval.get('ranked_hotels', [])[:5] if utility_eval else [],
-                "top_5_cars": car_eval.get('ranked_cars', [])[:5] if car_eval else [],
-                "top_5_restaurants": restaurant_eval.get('ranked_restaurants', [])[:5] if restaurant_eval else [],
+                "recommended_hotel": recommended_hotel,
+                "recommended_car": recommended_car,
+                "recommended_restaurant": recommended_restaurant,
+                "top_5_hotels": ranked_hotels[:5],
+                "top_5_cars": ranked_cars[:5],
+                "top_5_restaurants": ranked_restaurants[:5],
                 "budget_analysis": goal_eval,
                 "hotel_rankings": utility_eval,
                 "car_rankings": car_eval,

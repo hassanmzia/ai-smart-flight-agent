@@ -1060,8 +1060,14 @@ const AIPlannerPage = () => {
                         Top Pick - Best Value Hotel
                       </h3>
                       <div className="text-right">
-                        <span className="text-2xl font-bold text-green-700 dark:text-green-300">${h.price || h.price_per_night}</span>
-                        <span className="text-sm text-green-600 dark:text-green-400 ml-1">/night</span>
+                        {(h.price || h.price_per_night) ? (
+                          <>
+                            <span className="text-2xl font-bold text-green-700 dark:text-green-300">${h.price || h.price_per_night}</span>
+                            <span className="text-sm text-green-600 dark:text-green-400 ml-1">/night</span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Price on request</span>
+                        )}
                       </div>
                     </div>
                     <div className="p-5">
@@ -1157,9 +1163,11 @@ const AIPlannerPage = () => {
                                 {h.utility_score || h.combined_utility_score || '-'}
                               </span>
                             </td>
-                            <td className="px-2 md:px-4 py-2.5 text-right font-bold text-primary-600 dark:text-primary-400 text-xs md:text-sm">${h.price || h.price_per_night}</td>
+                            <td className="px-2 md:px-4 py-2.5 text-right font-bold text-primary-600 dark:text-primary-400 text-xs md:text-sm">
+                              {(h.price || h.price_per_night) ? `$${h.price || h.price_per_night}` : 'N/A'}
+                            </td>
                             <td className="px-3 md:px-4 py-2.5 text-right text-gray-600 dark:text-gray-400 text-xs md:text-sm">
-                              {numNights > 0 ? `$${((h.price || h.price_per_night) * numNights).toFixed(0)}` : '-'}
+                              {(h.price || h.price_per_night) && numNights > 0 ? `$${((h.price || h.price_per_night) * numNights).toFixed(0)}` : '-'}
                             </td>
                           </tr>
                         ))}
