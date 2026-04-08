@@ -188,6 +188,8 @@ Return flight details in a structured format.
                     flight_results['hub_route'] = True
                     flight_results['original_destination'] = destination
                     flight_results['hub_destination'] = hub_destination
+                    flight_results['original_origin'] = origin
+                    flight_results['hub_origin'] = hub_origin if origin_hub else origin
                     flight_results['transit_notes'] = transit_notes
 
             state['flight_results'] = flight_results
