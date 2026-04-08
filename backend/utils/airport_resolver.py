@@ -127,7 +127,7 @@ CITY_TO_AIRPORT = {
     'dhaka': 'DAC', 'dacca': 'DAC',
     'chittagong': 'CGP', 'chattogram': 'CGP',
     'sylhet': 'ZYL',
-    'jessore': 'JSR', 'jashore': 'JSR',
+    'jessore': 'JSR', 'jashore': 'JSR', 'khulna': 'JSR',
     'rajshahi': 'RJH',
     'barisal': 'BZL', 'barishal': 'BZL',
     'cox\'s bazar': 'CXB', 'coxs bazar': 'CXB',
@@ -569,6 +569,17 @@ def resolve_location_to_airport_code(location: str, country: str = "") -> str:
             code = CITY_TO_AIRPORT[candidate]
             logger.info(f"Resolved '{location}' -> {code} (partial match: '{candidate}')")
             return code
+
+    # Fallback: search airports_db (handles keywords like "khulna" -> JSR)
+    try:
+        from utils.airports_db import search_airports as _search_airports_db
+        db_results = _search_airports_db(normalized)
+        if db_results:
+            code = db_results[0]['code']
+            logger.info(f"Resolved '{location}' -> {code} (airports_db fallback)")
+            return code
+    except Exception as e:
+        logger.warning(f"airports_db fallback failed: {e}")
 
     # No match found - return original for the API to attempt
     logger.warning(f"Could not resolve '{location}' to airport code, passing as-is")
