@@ -251,43 +251,49 @@ Focus on hotels near the destination airport or city center.
             )
 
             hotels_found = len(hotel_results.get('hotels', []))
+            logger.info(f"Hotel search for '{location_query}': found {hotels_found} hotels")
 
             # If no hotels found, try the nearest major city (hub)
             if hotels_found == 0:
                 hub_code = get_hub_airport(destination)
                 if hub_code:
                     hub_city = resolve_airport_to_city(hub_code)
-                    logger.info(f"No hotels in {location_query}. Trying hub city: {hub_city}")
+                    logger.info(f"No hotels in '{location_query}'. Trying hub city: '{hub_city}'")
 
-                    hub_results = self.tool.search_hotels(
-                        location=hub_city,
-                        check_in_date=state.get('departure_date', '2025-10-10'),
-                        check_out_date=state.get('return_date', '2025-10-12'),
-                        adults=state.get('passengers', 2)
-                    )
+                    try:
+                        hub_results = self.tool.search_hotels(
+                            location=hub_city,
+                            check_in_date=state.get('departure_date', '2025-10-10'),
+                            check_out_date=state.get('return_date', '2025-10-12'),
+                            adults=state.get('passengers', 2)
+                        )
 
-                    hub_hotels = hub_results.get('hotels', [])
-                    if hub_hotels:
-                        hotel_results = hub_results
-                        hotel_results['fallback_city'] = hub_city
-                        hotel_results['original_city'] = location_query
-                        hotels_found = len(hub_hotels)
-                        logger.info(f"Found {hotels_found} hotels in {hub_city} (fallback from {location_query})")
+                        hub_hotels = hub_results.get('hotels', [])
+                        logger.info(f"Hub hotel search for '{hub_city}': found {len(hub_hotels)} hotels")
+
+                        if hub_hotels:
+                            hotel_results = hub_results
+                            hotel_results['fallback_city'] = hub_city
+                            hotel_results['original_city'] = location_query
+                            hotels_found = len(hub_hotels)
+                    except Exception as hub_err:
+                        logger.error(f"Hub hotel search failed for '{hub_city}': {hub_err}")
 
             state['hotel_results'] = hotel_results
             state['current_agent'] = 'goal_evaluator'
 
             msg = f"Found {hotels_found} hotel options"
             if hotel_results.get('fallback_city'):
-                msg += f" in nearby {hotel_results['fallback_city']} (no hotels found in {hotel_results['original_city']})"
+                msg += f" in nearby {hotel_results['fallback_city']} (no hotels found in {hotel_results.get('original_city', location_query)})"
             state['messages'].append(AIMessage(content=msg))
 
             return state
 
         except Exception as e:
-            logger.error(f"HotelAgent error: {str(e)}")
-            state['error'] = str(e)
-            state['current_agent'] = 'error'
+            logger.error(f"HotelAgent error: {str(e)}", exc_info=True)
+            state['hotel_results'] = {"hotels": [], "error": str(e)}
+            state['current_agent'] = 'goal_evaluator'
+            state['messages'].append(AIMessage(content=f"Hotel search failed: {str(e)}"))
             return state
 
     def _get_hotel_search_location(self, destination: str) -> str:
