@@ -16,7 +16,7 @@ import operator
 import logging
 from django.conf import settings
 
-from utils.airport_resolver import resolve_airport_to_city, get_hub_airport, AIRPORT_TO_CITY
+from utils.airport_resolver import resolve_airport_to_city, AIRPORT_TO_CITY, get_hub_airport, get_hub_airport, AIRPORT_TO_CITY
 from .agent_tools import (
     FlightSearchTool,
     HotelSearchTool,
@@ -82,6 +82,21 @@ Use the search_flights tool to find flight options.
 Return flight details in a structured format.
 """
 
+    def _search_flights_with_retry(self, origin, destination, state):
+        """Search flights, retrying with one-way if round-trip fails"""
+        for trip_type in ([1, 2] if state.get('return_date') else [2]):
+            results = self.tool.search_flights(
+                origin=origin,
+                destination=destination,
+                date=state.get('departure_date', '2025-10-10'),
+                trip_type=trip_type,
+                return_date=state.get('return_date') if trip_type == 1 else None,
+                passengers=state.get('passengers', 1)
+            )
+            if results.get('flights'):
+                return results
+        return results  # Return last attempt even if empty
+
     def execute(self, state: TravelAgentState) -> TravelAgentState:
         """Execute flight search, with hub-airport fallback for small cities"""
         try:
@@ -90,15 +105,7 @@ Return flight details in a structured format.
             logger.info(f"FlightAgent executing: {origin} -> {destination}")
 
             # Search for direct flights
-            flight_results = self.tool.search_flights(
-                origin=origin,
-                destination=destination,
-                date=state.get('departure_date', '2025-10-10'),
-                trip_type=2 if not state.get('return_date') else 1,
-                return_date=state.get('return_date'),
-                passengers=state.get('passengers', 1)
-            )
-
+            flight_results = self._search_flights_with_retry(origin, destination, state)
             flights_found = len(flight_results.get('flights', []))
 
             # If no flights found, try via hub airports
@@ -114,32 +121,25 @@ Return flight details in a structured format.
                     hub_route = f"{hub_origin or origin} -> {hub_destination}"
                     logger.info(f"No direct flights found. Trying hub route: {hub_route}")
 
-                    hub_results = self.tool.search_flights(
-                        origin=hub_origin or origin,
-                        destination=hub_destination,
-                        date=state.get('departure_date', '2025-10-10'),
-                        trip_type=2 if not state.get('return_date') else 1,
-                        return_date=state.get('return_date'),
-                        passengers=state.get('passengers', 1)
-                    )
-
+                    hub_results = self._search_flights_with_retry(hub_origin or origin, hub_destination, state)
                     hub_flights = hub_results.get('flights', [])
-                    if hub_flights:
-                        # Build transit info for the user
-                        transit_notes = []
-                        if dest_hub and dest_hub != destination:
-                            dest_city = AIRPORT_TO_CITY.get(destination, destination)
-                            hub_city = AIRPORT_TO_CITY.get(dest_hub, dest_hub)
-                            transit_notes.append(
-                                f"Fly to {hub_city} ({dest_hub}), then take a domestic flight or ground transport to {dest_city} ({destination})"
-                            )
-                        if origin_hub and origin_hub != origin:
-                            origin_city = AIRPORT_TO_CITY.get(origin, origin)
-                            hub_city = AIRPORT_TO_CITY.get(origin_hub, origin_hub)
-                            transit_notes.append(
-                                f"From {origin_city}: travel to {hub_city} ({origin_hub}) for international departure"
-                            )
 
+                    # Build transit info regardless of whether hub flights were found
+                    transit_notes = []
+                    if dest_hub and dest_hub != destination:
+                        dest_city = AIRPORT_TO_CITY.get(destination, destination)
+                        hub_city = AIRPORT_TO_CITY.get(dest_hub, dest_hub)
+                        transit_notes.append(
+                            f"Fly to {hub_city} ({dest_hub}), then take a domestic flight or ground transport to {dest_city} ({destination})"
+                        )
+                    if origin_hub and origin_hub != origin:
+                        origin_city = AIRPORT_TO_CITY.get(origin, origin)
+                        hub_city = AIRPORT_TO_CITY.get(origin_hub, origin_hub)
+                        transit_notes.append(
+                            f"From {origin_city}: travel to {hub_city} ({origin_hub}) for international departure"
+                        )
+
+                    if hub_flights:
                         flight_results = hub_results
                         flight_results['hub_route'] = True
                         flight_results['original_destination'] = destination
@@ -147,6 +147,13 @@ Return flight details in a structured format.
                         flight_results['transit_notes'] = transit_notes
                         flights_found = len(hub_flights)
                         logger.info(f"Found {flights_found} flights via hub route: {hub_route}")
+                    else:
+                        # Even with no results, record the routing info
+                        flight_results['hub_route'] = True
+                        flight_results['original_destination'] = destination
+                        flight_results['hub_destination'] = hub_destination
+                        flight_results['transit_notes'] = transit_notes
+                        logger.warning(f"No flights found even via hub route: {hub_route}")
 
             state['flight_results'] = flight_results
             state['current_agent'] = 'hotel'
@@ -193,7 +200,7 @@ Focus on hotels near the destination airport or city center.
 """
 
     def execute(self, state: TravelAgentState) -> TravelAgentState:
-        """Execute hotel search"""
+        """Execute hotel search with hub-city fallback for small towns"""
         try:
             destination = state.get('destination', 'Berlin')
             logger.info(f"HotelAgent executing for destination: {destination}")
@@ -210,9 +217,37 @@ Focus on hotels near the destination airport or city center.
                 adults=state.get('passengers', 2)
             )
 
+            hotels_found = len(hotel_results.get('hotels', []))
+
+            # If no hotels found, try the nearest major city (hub)
+            if hotels_found == 0:
+                hub_code = get_hub_airport(destination)
+                if hub_code:
+                    hub_city = resolve_airport_to_city(hub_code)
+                    logger.info(f"No hotels in {location_query}. Trying hub city: {hub_city}")
+
+                    hub_results = self.tool.search_hotels(
+                        location=hub_city,
+                        check_in_date=state.get('departure_date', '2025-10-10'),
+                        check_out_date=state.get('return_date', '2025-10-12'),
+                        adults=state.get('passengers', 2)
+                    )
+
+                    hub_hotels = hub_results.get('hotels', [])
+                    if hub_hotels:
+                        hotel_results = hub_results
+                        hotel_results['fallback_city'] = hub_city
+                        hotel_results['original_city'] = location_query
+                        hotels_found = len(hub_hotels)
+                        logger.info(f"Found {hotels_found} hotels in {hub_city} (fallback from {location_query})")
+
             state['hotel_results'] = hotel_results
             state['current_agent'] = 'goal_evaluator'
-            state['messages'].append(AIMessage(content=f"Found {len(hotel_results.get('hotels', []))} hotel options"))
+
+            msg = f"Found {hotels_found} hotel options"
+            if hotel_results.get('fallback_city'):
+                msg += f" in nearby {hotel_results['fallback_city']} (no hotels found in {hotel_results['original_city']})"
+            state['messages'].append(AIMessage(content=msg))
 
             return state
 
@@ -250,8 +285,9 @@ Focus on finding cost-effective and reliable options.
 """
 
     def execute(self, state: TravelAgentState) -> TravelAgentState:
-        """Execute car rental search"""
+        """Execute car rental search with hub-city fallback"""
         try:
+            import json
             destination = state.get('destination', 'Berlin')
             logger.info(f"CarRentalAgent executing for destination: {destination}")
 
@@ -264,22 +300,38 @@ Focus on finding cost-effective and reliable options.
                 pickup_location=pickup_location,
                 pickup_date=state.get('departure_date', '2025-10-10'),
                 dropoff_date=state.get('return_date', '2025-10-12'),
-                car_type=None  # No filter by default
+                car_type=None
             )
 
-            # Parse JSON results
-            import json
             car_results = json.loads(car_rental_results) if isinstance(car_rental_results, str) else car_rental_results
+            cars_found = len(car_results.get('cars', []))
+
+            # If no cars found, try hub city
+            if cars_found == 0:
+                hub_code = get_hub_airport(destination)
+                if hub_code:
+                    hub_city = resolve_airport_to_city(hub_code)
+                    logger.info(f"No cars in {pickup_location}. Trying hub city: {hub_city}")
+                    hub_raw = self.tool._run(
+                        pickup_location=hub_city,
+                        pickup_date=state.get('departure_date', '2025-10-10'),
+                        dropoff_date=state.get('return_date', '2025-10-12'),
+                        car_type=None
+                    )
+                    hub_results = json.loads(hub_raw) if isinstance(hub_raw, str) else hub_raw
+                    if hub_results.get('cars'):
+                        car_results = hub_results
+                        car_results['fallback_city'] = hub_city
+                        cars_found = len(car_results['cars'])
 
             state['car_rental_results'] = car_results
             state['current_agent'] = 'goal_evaluator'
-            state['messages'].append(AIMessage(content=f"Found {len(car_results.get('cars', []))} car rental options"))
+            state['messages'].append(AIMessage(content=f"Found {cars_found} car rental options"))
 
             return state
 
         except Exception as e:
             logger.error(f"CarRentalAgent error: {str(e)}")
-            # Set empty results so downstream agents can continue
             state['car_rental_results'] = {"cars": [], "error": str(e)}
             state['current_agent'] = 'goal_evaluator'
             state['messages'].append(AIMessage(content="Car rental search failed, continuing without car options"))
@@ -350,35 +402,41 @@ class RestaurantAgent:
         self.tool = RestaurantSearchTool()
 
     def execute(self, state: TravelAgentState) -> TravelAgentState:
-        """Execute restaurant search"""
+        """Execute restaurant search with hub-city fallback"""
         try:
+            import json
             destination = state.get('destination', 'Berlin')
             cuisine = state.get('cuisine')
             logger.info(f"RestaurantAgent executing for destination: {destination}, cuisine: {cuisine}")
 
-            # Use destination/city for restaurant search
             search_city = self._get_restaurant_location(destination)
             logger.info(f"Restaurant search location: {search_city}")
 
-            # Search for restaurants with optional cuisine filter
-            restaurant_results = self.tool._run(
-                city=search_city,
-                cuisine=cuisine
-            )
-
-            # Parse JSON results
-            import json
+            restaurant_results = self.tool._run(city=search_city, cuisine=cuisine)
             restaurant_data = json.loads(restaurant_results) if isinstance(restaurant_results, str) else restaurant_results
+            restaurants_found = len(restaurant_data.get('restaurants', []))
+
+            # If no restaurants found, try hub city
+            if restaurants_found == 0:
+                hub_code = get_hub_airport(destination)
+                if hub_code:
+                    hub_city = resolve_airport_to_city(hub_code)
+                    logger.info(f"No restaurants in {search_city}. Trying hub city: {hub_city}")
+                    hub_raw = self.tool._run(city=hub_city, cuisine=cuisine)
+                    hub_data = json.loads(hub_raw) if isinstance(hub_raw, str) else hub_raw
+                    if hub_data.get('restaurants'):
+                        restaurant_data = hub_data
+                        restaurant_data['fallback_city'] = hub_city
+                        restaurants_found = len(restaurant_data['restaurants'])
 
             state['restaurant_results'] = restaurant_data
             state['current_agent'] = 'restaurant_evaluator'
-            state['messages'].append(AIMessage(content=f"Found {len(restaurant_data.get('restaurants', []))} restaurant options"))
+            state['messages'].append(AIMessage(content=f"Found {restaurants_found} restaurant options"))
 
             return state
 
         except Exception as e:
             logger.error(f"RestaurantAgent error: {str(e)}")
-            # Set empty results so downstream agents can continue
             state['restaurant_results'] = {"restaurants": [], "error": str(e)}
             state['current_agent'] = 'goal_evaluator'
             state['messages'].append(AIMessage(content="Restaurant search failed, continuing without restaurant options"))
