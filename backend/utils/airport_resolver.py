@@ -128,6 +128,8 @@ CITY_TO_AIRPORT = {
     'chittagong': 'CGP', 'chattogram': 'CGP',
     'sylhet': 'ZYL',
     'jessore': 'JSR', 'jashore': 'JSR', 'khulna': 'JSR',
+    'mymensingh': 'DAC', 'comilla': 'DAC', 'gazipur': 'DAC', 'narayanganj': 'DAC',
+    'rangpur': 'SPD', 'bogra': 'SPD', 'dinajpur': 'SPD',
     'rajshahi': 'RJH',
     'barisal': 'BZL', 'barishal': 'BZL',
     'cox\'s bazar': 'CXB', 'coxs bazar': 'CXB',

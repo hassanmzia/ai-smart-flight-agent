@@ -722,15 +722,26 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
     total_cost = rec.get('total_estimated_cost')
 
     # Pre-compute actual costs from search agent data for the LLM
-    flight_price = 0
+    num_passengers = int(passengers or 1)
+    flight_price_pp = 0  # per person
+    flight_price = 0     # total for all passengers
     hotel_price_per_night = 0
     hotel_total = 0
     car_total = 0
+    connecting_flight_cost = 0
     try:
         rf = rec.get('recommended_flight') or {}
-        flight_price = float(rf.get('price', 0) or 0)
+        flight_price_pp = float(rf.get('price', 0) or 0)
+        flight_price = flight_price_pp * num_passengers
     except (ValueError, TypeError, AttributeError):
         flight_price = 0
+        flight_price_pp = 0
+
+    # Estimate connecting domestic flight cost for hub routes
+    if hub_route and hub_destination_code and original_destination_code:
+        # Domestic flights in most countries cost $30-80 per person
+        connecting_flight_cost = 50 * num_passengers  # ~$50/person each way × 2 legs (there + back)
+        connecting_flight_cost *= 2  # round trip
     hotel_price_estimated = False
     try:
         rh = rec.get('recommended_hotel') or {}
@@ -752,16 +763,19 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             star_estimates = {5: 180, 4: 100, 3: 60, 2: 40, 1: 25}
             hotel_price_per_night = star_estimates.get(round(star_rating) if star_rating > 0 else 3, 60)
             hotel_price_estimated = True
-        hotel_total = hotel_price_per_night * num_nights
+        # Account for multiple rooms if more than 2 travelers
+        num_rooms = -(-num_passengers // 2) if num_passengers > 2 else 1  # ceiling division
+        hotel_total = hotel_price_per_night * num_nights * num_rooms
     except (ValueError, TypeError, AttributeError):
         hotel_total = 0
+        num_rooms = 1
     try:
         rc = rec.get('recommended_car') or {}
         car_total = float(rc.get('total_price', 0) or 0)
     except (ValueError, TypeError, AttributeError):
         car_total = 0
 
-    known_costs_total = flight_price + hotel_total + car_total
+    known_costs_total = flight_price + hotel_total + car_total + connecting_flight_cost
     budget_display = f"${budget}" if budget else "flexible (no limit set)"
     budget_remaining_instruction = ""
     if budget:
@@ -773,13 +787,17 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             pass
 
     hotel_price_note = " (estimated — exact pricing unavailable)" if hotel_price_estimated else ""
+    hotel_rooms_note = f" × {num_rooms} rooms" if num_rooms > 1 else ""
+    connecting_note = f"\nConnecting domestic flights (hub route, round trip, {num_passengers} passengers): ~${connecting_flight_cost:.0f}" if connecting_flight_cost > 0 else ""
     budget_summary = (
-        f"Flight cost: ${flight_price:.0f}\n"
-        f"Hotel cost: ${hotel_price_per_night:.0f}/night × {num_nights} nights = ${hotel_total:.0f}{hotel_price_note}\n"
+        f"NUMBER OF TRAVELERS: {num_passengers}\n"
+        f"International flights: ${flight_price_pp:.0f}/person × {num_passengers} passengers = ${flight_price:.0f}\n"
+        f"Hotel cost: ${hotel_price_per_night:.0f}/night × {num_nights} nights{hotel_rooms_note} = ${hotel_total:.0f}{hotel_price_note}\n"
         f"Car rental: ${car_total:.0f}\n"
-        f"Agent estimated total: ${total_cost or 'N/A'}\n"
+        f"{connecting_note}\n"
         f"Customer budget: {budget_display}\n"
         f"{budget_remaining_instruction}\n"
+        f"IMPORTANT: You MUST multiply per-person costs (food, activities, transport) by {num_passengers} travelers.\n"
         f"IMPORTANT: You MUST calculate real dollar amounts for Food & Dining, Transportation, "
         f"and Activities in the Budget Summary table — estimate from restaurant prices, transit costs, "
         f"and activity costs mentioned in the plan. Never leave $X as placeholder."
@@ -934,23 +952,25 @@ Recommend car rental OR public transit (pick one based on the transport data). E
 ## Packing Checklist
 - [5-8 weather-specific and destination-specific items]
 
-## Budget Summary
+## Budget Summary ({num_passengers} travelers)
 | Category | Cost |
 |----------|------|
-| Flights | ${flight_price:.0f} |
-| Hotel ({num_nights} nights @ ${hotel_price_per_night:.0f}) | ${hotel_total:.0f} |
+| Flights ({num_passengers} × ${flight_price_pp:.0f}) | ${flight_price:.0f} |
+{f"| Connecting Domestic Flights (hub route) | ${connecting_flight_cost:.0f} |" if connecting_flight_cost > 0 else ""}
+| Hotel ({num_nights} nights @ ${hotel_price_per_night:.0f}{hotel_rooms_note}) | ${hotel_total:.0f} |
 | Car Rental | ${car_total:.0f} |
-| Food & Dining | $[sum all meal costs from the daily plans] |
+| Food & Dining ({num_passengers} people) | $[sum all meal costs × {num_passengers} from daily plans] |
 | Local Transport | $[sum all taxi/metro/bus costs] |
-| Activities & Attractions | $[sum all entry fees and tour costs] |
+| Activities & Attractions ({num_passengers} people) | $[sum all entry fees × {num_passengers}] |
 | **Total** | **$[sum of all rows above]** |
 | Budget | {budget_display} |
 | Remaining | $[budget minus total, or "Flexible" if no budget set] |
 
 CRITICAL REMINDERS:
+- There are {num_passengers} travelers — ALL per-person costs (meals, activities, entry fees) must be multiplied by {num_passengers}
 - Every [bracketed instruction] must be replaced with real content — never output brackets
 - Budget Summary must contain REAL dollar amounts — add up the costs from your daily plans
-- Fixed costs: Flights = ${flight_price:.0f}, Hotel = ${hotel_total:.0f}
+- Fixed costs: Flights = ${flight_price:.0f}, Hotel = ${hotel_total:.0f}{f', Connecting flights = ${connecting_flight_cost:.0f}' if connecting_flight_cost > 0 else ''}
 - Use ALL {len(top_restaurants)} restaurant names from the search data across different meals
 - Make the plan feel like a real travel guide someone would follow step by step"""
 
