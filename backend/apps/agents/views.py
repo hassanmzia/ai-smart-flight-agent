@@ -580,31 +580,41 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             f"  Price: ${f.get('price', 'N/A')} per person"
         )
 
+    # Initialize hub city names (used in f-strings in prompt template)
+    hub_dest_city = hub_destination_code or ''
+    orig_dest_city = original_destination_code or ''
+
     # Add hub routing info if flights go through a hub airport
     if hub_route:
         from utils.airport_resolver import AIRPORT_TO_CITY
         hub_dest_city = AIRPORT_TO_CITY.get(hub_destination_code, hub_destination_code)
         orig_dest_city = AIRPORT_TO_CITY.get(original_destination_code, original_destination_code)
         origin_city = AIRPORT_TO_CITY.get(original_origin_code or origin, origin)
+        # Use the user's actual destination name (e.g. "Khulna") when it differs from airport city (e.g. "Jessore")
+        user_dest = destination  # This is the human-readable label like "Khulna"
+        dest_display = f"{user_dest} (via {orig_dest_city}/{original_destination_code} airport)" if user_dest.lower() != orig_dest_city.lower() else f"{orig_dest_city} ({original_destination_code})"
 
         hub_info = "\n\nIMPORTANT - HUB ROUTING (CONNECTING FLIGHTS REQUIRED):\n"
-        hub_info += f"  There are NO direct international flights to {orig_dest_city} ({original_destination_code}).\n"
-        hub_info += f"  The nearest international airport is {hub_dest_city} ({hub_destination_code}).\n\n"
+        hub_info += f"  There are NO direct international flights to {dest_display}.\n"
+        hub_info += f"  The nearest international airport is {hub_dest_city} ({hub_destination_code}).\n"
+        if user_dest.lower() != orig_dest_city.lower():
+            hub_info += f"  NOTE: The traveler's final destination is {user_dest}, which is served by {orig_dest_city} Airport ({original_destination_code}). {user_dest} is near {orig_dest_city}.\n"
+        hub_info += "\n"
 
-        hub_info += f"  OUTBOUND JOURNEY ({origin_city} → {orig_dest_city}):\n"
-        hub_info += f"    Leg 1: International flight from {origin_city} ({original_origin_code or origin}) → {hub_dest_city} ({hub_destination_code}) [this is the flight above]\n"
-        hub_info += f"    Leg 2: Domestic flight or ground transport from {hub_dest_city} ({hub_destination_code}) → {orig_dest_city} ({original_destination_code}) [~1 hour domestic flight or ~4-6 hour drive]\n\n"
+        hub_info += f"  OUTBOUND JOURNEY ({origin_city} → {user_dest}):\n"
+        hub_info += f"    Leg 1: International flight {origin_city} ({original_origin_code or origin}) → {hub_dest_city} ({hub_destination_code}) [this is the flight above]\n"
+        hub_info += f"    Leg 2: Domestic flight or ground transport {hub_dest_city} ({hub_destination_code}) → {orig_dest_city} ({original_destination_code}) → {user_dest} [~1 hour domestic flight or ~4-6 hour drive]\n\n"
 
-        hub_info += f"  RETURN JOURNEY ({orig_dest_city} → {origin_city}):\n"
-        hub_info += f"    Leg 1: Domestic flight or ground transport from {orig_dest_city} ({original_destination_code}) → {hub_dest_city} ({hub_destination_code}) [traveler MUST go to hub first]\n"
-        hub_info += f"    Leg 2: International flight from {hub_dest_city} ({hub_destination_code}) → {origin_city} ({original_origin_code or origin}) [the return flight]\n\n"
+        hub_info += f"  RETURN JOURNEY ({user_dest} → {origin_city}):\n"
+        hub_info += f"    Leg 1: Ground transport from {user_dest} → {orig_dest_city} ({original_destination_code}) → {hub_dest_city} ({hub_destination_code}) [traveler MUST reach the hub airport]\n"
+        hub_info += f"    Leg 2: International flight {hub_dest_city} ({hub_destination_code}) → {origin_city} ({original_origin_code or origin}) [the return flight]\n\n"
 
         for note in transit_notes:
             hub_info += f"  → {note}\n"
 
         hub_info += "\n  ITINERARY INSTRUCTIONS:\n"
-        hub_info += f"  - Day 1: After landing at {hub_dest_city} ({hub_destination_code}), include the connecting journey to {orig_dest_city} ({original_destination_code}). Plan activities ONLY after arriving at the final destination.\n"
-        hub_info += f"  - Last Day: The traveler must leave {orig_dest_city} early to travel to {hub_dest_city} ({hub_destination_code}) for the international return flight. Account for ~3-4 hours for this transfer plus airport check-in."
+        hub_info += f"  - Day 1: The traveler lands at {hub_dest_city} ({hub_destination_code}), NOT at {user_dest}. You MUST show: landing at {hub_dest_city}, then the connecting journey ({hub_dest_city} → {orig_dest_city} → {user_dest}). Plan activities ONLY after arriving in {user_dest}.\n"
+        hub_info += f"  - Last Day: The traveler must leave {user_dest} early, travel to {orig_dest_city} ({original_destination_code}), then to {hub_dest_city} ({hub_destination_code}) for the international return flight. Account for ~3-4 hours for this transfer plus airport check-in."
         flight_summary += hub_info
     elif not rec.get('recommended_flight'):
         # No flights found at all — give the LLM context about the route
@@ -869,11 +879,12 @@ Recommend car rental OR public transit (pick one based on the transport data). E
 ## Day 1: Arrival in {destination}
 **{departure_date} · [Weather summary from data]**
 
-[Use the actual flight departure time] - Depart on [Airline] [Flight #] from [Origin Airport] (~${flight_price:.0f})
-[Use the actual flight arrival time] - Land at [Destination Airport] after a [duration] flight
-[Time after landing + 30-45 min] - Head to {hotel_name_for_prompt or 'your hotel'} by [taxi/metro/bus] (~$cost)
+{f"[Use the actual flight departure time] - Depart on [Airline] [Flight #] from [Origin Airport] (~${flight_price:.0f})" }
+{f"[Use the actual flight arrival time] - Land at {hub_dest_city} ({hub_destination_code}) after a [duration] flight" if hub_route else "[Use the actual flight arrival time] - Land at [Destination Airport] after a [duration] flight"}
+{f"[Time] - CONNECTING JOURNEY: Take domestic flight or bus/car from {hub_dest_city} ({hub_destination_code}) to {destination} (~$cost, ~X hours)" if hub_route else ""}
+[Time after arrival] - Head to {hotel_name_for_prompt or 'your hotel'} by [taxi/metro/bus] (~$cost)
 [Time] - Check in at **{hotel_name_for_prompt or 'your hotel'}**, [address] (~${hotel_price_per_night:.0f}/night)
-[Afternoon time] - [First activity — something easy near the hotel to start the trip] (~$cost)
+[Afternoon/Evening time] - [First activity — something easy near the hotel to start the trip] (~$cost)
 [Evening time] - Dinner at **[Restaurant Name from search data]**, [cuisine type], [address] (~$cost/person)
 **Day total: ~$[real sum]**
 
@@ -890,8 +901,8 @@ Recommend car rental OR public transit (pick one based on the transport data). E
 **{return_date or departure_date} · [Weather]**
 
 [Early time] - Check out of **{hotel_name_for_prompt or 'your hotel'}** (checkout by {hotel_checkout or '11:00 AM'})
-[If time allows] - [Quick morning activity — café, walk, or last-minute shopping] (~$cost)
-[Time] - Head to [Airport] by [transport method] (~$cost). Allow 2-3 hours before your flight.
+{f"[Time] - CONNECTING JOURNEY BACK: Travel from {destination} to {hub_dest_city} ({hub_destination_code}) by domestic flight or car/bus (~$cost, ~X hours). You MUST reach {hub_dest_city} airport in time for the international flight." if hub_route else "[If time allows] - [Quick morning activity — café, walk, or last-minute shopping] (~$cost)"}
+{f"[Time] - Arrive at {hub_dest_city} ({hub_destination_code}) airport. Allow 2-3 hours before your international flight." if hub_route else "[Time] - Head to [Airport] by [transport method] (~$cost). Allow 2-3 hours before your flight."}
 [Time] - Return flight to {origin}, arriving at approximately [time]
 **Day total: ~$[real sum]**
 
