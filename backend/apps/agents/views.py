@@ -690,9 +690,27 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
         flight_price = float(rf.get('price', 0) or 0)
     except (ValueError, TypeError, AttributeError):
         flight_price = 0
+    hotel_price_estimated = False
     try:
         rh = rec.get('recommended_hotel') or {}
         hotel_price_per_night = float(rh.get('price') or rh.get('price_per_night', 0) or 0)
+        # If price is still 0, try total_rate divided by nights
+        if hotel_price_per_night <= 0:
+            total_rate = float(rh.get('total_rate', 0) or 0)
+            if total_rate > 0 and num_nights > 0:
+                hotel_price_per_night = total_rate / num_nights
+        # If still 0, use the estimated_price from the evaluator
+        if hotel_price_per_night <= 0:
+            estimated = float(rh.get('estimated_price', 0) or 0)
+            if estimated > 0:
+                hotel_price_per_night = estimated
+                hotel_price_estimated = True
+        # Last resort: estimate from star rating
+        if hotel_price_per_night <= 0:
+            star_rating = float(rh.get('star_rating') or rh.get('stars') or rh.get('overall_rating', 0) or 0)
+            star_estimates = {5: 180, 4: 100, 3: 60, 2: 40, 1: 25}
+            hotel_price_per_night = star_estimates.get(round(star_rating) if star_rating > 0 else 3, 60)
+            hotel_price_estimated = True
         hotel_total = hotel_price_per_night * num_nights
     except (ValueError, TypeError, AttributeError):
         hotel_total = 0
@@ -713,9 +731,10 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
         except (ValueError, TypeError):
             pass
 
+    hotel_price_note = " (estimated — exact pricing unavailable)" if hotel_price_estimated else ""
     budget_summary = (
         f"Flight cost: ${flight_price:.0f}\n"
-        f"Hotel cost: ${hotel_price_per_night:.0f}/night × {num_nights} nights = ${hotel_total:.0f}\n"
+        f"Hotel cost: ${hotel_price_per_night:.0f}/night × {num_nights} nights = ${hotel_total:.0f}{hotel_price_note}\n"
         f"Car rental: ${car_total:.0f}\n"
         f"Agent estimated total: ${total_cost or 'N/A'}\n"
         f"Customer budget: {budget_display}\n"

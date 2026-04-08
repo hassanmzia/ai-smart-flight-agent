@@ -487,7 +487,8 @@ class UtilityBasedEvaluator:
         - $180-249: -20 (expensive)
         - $150-179: 0 (moderate)
         - $120-149: +20 (good value)
-        - < $120: +40 (excellent value)
+        - < $120 (but > 0): +40 (excellent value)
+        - 0 (unknown): 0 (neutral — price unavailable, not free)
         """
         try:
             if isinstance(price_raw, str):
@@ -495,7 +496,15 @@ class UtilityBasedEvaluator:
             else:
                 price = float(price_raw)
         except:
-            price = 9999  # Fail-safe large price
+            price = 0  # Treat parse failures as unknown
+
+        # $0 means price is unavailable, not that it's free — give neutral score
+        if price <= 0:
+            return {
+                "price": 0,
+                "price_utility_score": 0,
+                "price_unknown": True
+            }
 
         if price >= 250:
             price_score = -40
@@ -510,7 +519,8 @@ class UtilityBasedEvaluator:
 
         return {
             "price": price,
-            "price_utility_score": price_score
+            "price_utility_score": price_score,
+            "price_unknown": False
         }
 
     @staticmethod
@@ -550,6 +560,20 @@ class UtilityBasedEvaluator:
         }
 
     @staticmethod
+    def _estimate_price_from_rating(star_rating: float) -> float:
+        """Estimate a reasonable nightly hotel price when SERP API returns no pricing.
+        Based on typical international hotel rates by star level."""
+        estimates = {
+            5: 180,
+            4: 100,
+            3: 60,
+            2: 40,
+            1: 25,
+        }
+        # Round to nearest integer star for lookup, default to 3-star estimate
+        return estimates.get(round(star_rating) if star_rating > 0 else 3, 60)
+
+    @staticmethod
     def evaluate_hotel_comprehensive(hotel: Dict[str, Any]) -> Dict[str, Any]:
         """
         Comprehensive hotel evaluation combining price and rating utilities
@@ -558,23 +582,42 @@ class UtilityBasedEvaluator:
             Dict with individual scores and combined utility score,
             preserving all original hotel data
         """
-        price_eval = UtilityBasedEvaluator.evaluate_price_utility(
-            hotel.get('price_per_night', hotel.get('price', 0))
-        )
+        actual_price = hotel.get('price_per_night', hotel.get('price', 0))
+        total_rate = hotel.get('total_rate', 0)
+
+        # If per-night price is 0 but total_rate is available, note it
+        price_for_eval = actual_price
+        if (not price_for_eval or float(price_for_eval or 0) <= 0) and total_rate and float(total_rate or 0) > 0:
+            price_for_eval = total_rate  # Use total_rate as a rough proxy
+
+        price_eval = UtilityBasedEvaluator.evaluate_price_utility(price_for_eval)
         rating_eval = UtilityBasedEvaluator.evaluate_rating_utility(hotel)
 
-        combined_score = price_eval['price_utility_score'] + rating_eval['rating_utility_score']
+        # When price is unknown, rank primarily by rating (weight rating higher)
+        if price_eval.get('price_unknown'):
+            combined_score = rating_eval['rating_utility_score'] * 2
+        else:
+            combined_score = price_eval['price_utility_score'] + rating_eval['rating_utility_score']
+
+        # Estimate price for budget purposes when actual price is unavailable
+        estimated_price = 0
+        if price_eval.get('price_unknown'):
+            estimated_price = UtilityBasedEvaluator._estimate_price_from_rating(rating_eval['star_rating'])
 
         # Start with all original hotel data to preserve images, amenities, etc.
         evaluated_hotel = dict(hotel)
+
+        display_price = price_eval['price'] if not price_eval.get('price_unknown') else estimated_price
 
         # Add/override with evaluation fields
         evaluated_hotel.update({
             # Use field names that match frontend expectations
             "name": hotel.get('hotel_name', hotel.get('name', 'Unknown')),
             "hotel_name": hotel.get('hotel_name', hotel.get('name', 'Unknown')),  # Keep for backward compatibility
-            "price": price_eval['price'],
-            "price_per_night": price_eval['price'],  # Ensure this is set
+            "price": display_price,
+            "price_per_night": display_price,  # Ensure this is set
+            "price_unknown": price_eval.get('price_unknown', False),
+            "estimated_price": estimated_price,  # 0 if actual price is known
             "price_utility_score": price_eval['price_utility_score'],
             "stars": rating_eval['star_rating'],
             "star_rating": rating_eval['star_rating'],  # Keep for backward compatibility
