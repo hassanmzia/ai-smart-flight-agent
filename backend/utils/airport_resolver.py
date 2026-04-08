@@ -153,9 +153,123 @@ CITY_TO_AIRPORT = {
     'beirut': 'BEY',
     'amman': 'AMM',
 
+    # Middle East (expanded)
+    'kuwait': 'KWI', 'kuwait city': 'KWI',
+    'muscat': 'MCT',
+    'manama': 'BAH', 'bahrain': 'BAH',
+    'tehran': 'IKA',
+    'baghdad': 'BGW',
+
+    # Southeast Asia (expanded)
+    'phuket': 'HKT',
+    'chiang mai': 'CNX',
+    'bali': 'DPS', 'denpasar': 'DPS',
+    'surabaya': 'SUB',
+    'cebu': 'CEB',
+    'da nang': 'DAD',
+    'phnom penh': 'PNH',
+    'siem reap': 'REP',
+    'vientiane': 'VTE',
+    'yangon': 'RGN', 'rangoon': 'RGN',
+    'penang': 'PEN',
+
+    # East Asia (expanded)
+    'nagoya': 'NGO',
+    'sapporo': 'CTS',
+    'fukuoka': 'FUK',
+    'okinawa': 'OKA',
+    'busan': 'PUS',
+    'jeju': 'CJU',
+    'guangzhou': 'CAN', 'canton': 'CAN',
+    'shenzhen': 'SZX',
+    'chengdu': 'CTU',
+    'chongqing': 'CKG',
+    'xian': 'XIY', "xi'an": 'XIY',
+    'hangzhou': 'HGH',
+    'wuhan': 'WUH',
+    'kunming': 'KMG',
+    'macau': 'MFM',
+    'kaohsiung': 'KHH',
+    'ulaanbaatar': 'UBN',
+
+    # South Asia (expanded)
+    'kochi': 'COK', 'cochin': 'COK',
+    'goa': 'GOI',
+    'ahmedabad': 'AMD',
+    'pune': 'PNQ',
+    'jaipur': 'JAI',
+    'lucknow': 'LKO',
+    'chandigarh': 'IXC',
+    'guwahati': 'GAU',
+    'peshawar': 'PEW',
+
+    # Central America & Caribbean
+    'panama city': 'PTY',
+    'san salvador': 'SAL',
+    'guatemala city': 'GUA',
+    'san jose, costa rica': 'SJO',
+    'nassau': 'NAS',
+    'montego bay': 'MBJ',
+    'kingston': 'KIN',
+    'san juan': 'SJU',
+    'punta cana': 'PUJ',
+    'santo domingo': 'SDQ',
+
+    # South America (expanded)
+    'quito': 'UIO',
+    'guayaquil': 'GYE',
+    'montevideo': 'MVD',
+    'asuncion': 'ASU',
+    'caracas': 'CCS',
+    'santa cruz': 'VVI',
+
+    # Europe (expanded)
+    'nice': 'NCE',
+    'lyon': 'LYS',
+    'marseille': 'MRS',
+    'dusseldorf': 'DUS',
+    'hamburg': 'HAM',
+    'cologne': 'CGN', 'koln': 'CGN',
+    'porto': 'OPO',
+    'malaga': 'AGP',
+    'naples': 'NAP', 'napoli': 'NAP',
+    'florence': 'FLR', 'firenze': 'FLR',
+    'gothenburg': 'GOT',
+    'bergen': 'BGO',
+    'reykjavik': 'KEF',
+    'krakow': 'KRK', 'cracow': 'KRK',
+    'dubrovnik': 'DBV',
+    'split': 'SPU',
+    'zagreb': 'ZAG',
+    'ljubljana': 'LJU',
+    'belgrade': 'BEG',
+    'tirana': 'TIA',
+    'thessaloniki': 'SKG',
+    'heraklion': 'HER', 'crete': 'HER',
+    'santorini': 'JTR',
+    'mykonos': 'JMK',
+    'antalya': 'AYT',
+    'izmir': 'ADB',
+    'ankara': 'ESB',
+    'kyiv': 'KBP', 'kiev': 'KBP',
+    'saint petersburg': 'LED', 'st petersburg': 'LED',
+    'tbilisi': 'TBS',
+    'yerevan': 'EVN',
+    'baku': 'GYD',
+
+    # Canada (expanded)
+    'calgary': 'YYC',
+    'edmonton': 'YEG',
+    'ottawa': 'YOW',
+    'halifax': 'YHZ',
+    'winnipeg': 'YWG',
+
+    # Mexico (expanded)
+    'guadalajara': 'GDL',
+
     # Africa
     'cairo': 'CAI',
-    'johannesburg': 'JNB',
+    'johannesburg': 'JNB', 'joburg': 'JNB',
     'cape town': 'CPT',
     'nairobi': 'NBO',
     'casablanca': 'CMN',
@@ -164,6 +278,18 @@ CITY_TO_AIRPORT = {
     'lagos': 'LOS',
     'accra': 'ACC',
     'dar es salaam': 'DAR',
+    'kampala': 'EBB',
+    'kigali': 'KGL',
+    'zanzibar': 'ZNZ',
+    'mombasa': 'MBA',
+    'durban': 'DUR',
+    'abuja': 'ABV',
+    'dakar': 'DSS',
+    'tunis': 'TUN',
+    'algiers': 'ALG',
+    'mauritius': 'MRU',
+    'hurghada': 'HRG',
+    'sharm el sheikh': 'SSH',
 
     # Oceania
     'sydney': 'SYD',
@@ -230,25 +356,74 @@ AIRPORT_TO_CITY = {
     'JSR': 'Jessore', 'RJH': 'Rajshahi', 'BZL': 'Barisal',
     'CXB': "Cox's Bazar", 'SPD': 'Saidpur',
     # Pakistan
-    'ISB': 'Islamabad', 'KHI': 'Karachi', 'LHE': 'Lahore',
+    'ISB': 'Islamabad', 'KHI': 'Karachi', 'LHE': 'Lahore', 'PEW': 'Peshawar',
     # Other South Asia
     'KTM': 'Kathmandu', 'CMB': 'Colombo', 'MLE': 'Male',
+    'COK': 'Kochi', 'GOI': 'Goa', 'AMD': 'Ahmedabad', 'PNQ': 'Pune',
+    'JAI': 'Jaipur', 'LKO': 'Lucknow', 'IXC': 'Chandigarh', 'GAU': 'Guwahati',
     # Middle East
     'DXB': 'Dubai', 'AUH': 'Abu Dhabi', 'DOH': 'Doha',
     'RUH': 'Riyadh', 'JED': 'Jeddah', 'TLV': 'Tel Aviv',
     'BEY': 'Beirut', 'AMM': 'Amman',
+    'KWI': 'Kuwait City', 'MCT': 'Muscat', 'BAH': 'Manama',
+    'IKA': 'Tehran', 'BGW': 'Baghdad', 'DMM': 'Dammam',
+    # Southeast Asia
+    'HKT': 'Phuket', 'CNX': 'Chiang Mai', 'DMK': 'Bangkok',
+    'DPS': 'Bali', 'SUB': 'Surabaya', 'CEB': 'Cebu',
+    'DAD': 'Da Nang', 'PNH': 'Phnom Penh', 'REP': 'Siem Reap',
+    'VTE': 'Vientiane', 'RGN': 'Yangon', 'PEN': 'Penang',
+    # East Asia
+    'NGO': 'Nagoya', 'CTS': 'Sapporo', 'FUK': 'Fukuoka', 'OKA': 'Okinawa',
+    'GMP': 'Seoul', 'PUS': 'Busan', 'CJU': 'Jeju',
+    'PKX': 'Beijing', 'SHA': 'Shanghai', 'CAN': 'Guangzhou',
+    'SZX': 'Shenzhen', 'CTU': 'Chengdu', 'CKG': 'Chongqing',
+    'XIY': "Xi'an", 'HGH': 'Hangzhou', 'WUH': 'Wuhan', 'KMG': 'Kunming',
+    'MFM': 'Macau', 'KHH': 'Kaohsiung', 'UBN': 'Ulaanbaatar',
+    # Europe (expanded)
+    'NCE': 'Nice', 'LYS': 'Lyon', 'MRS': 'Marseille',
+    'DUS': 'Dusseldorf', 'HAM': 'Hamburg', 'CGN': 'Cologne',
+    'OPO': 'Porto', 'AGP': 'Malaga', 'NAP': 'Naples', 'FLR': 'Florence',
+    'GOT': 'Gothenburg', 'BGO': 'Bergen', 'KEF': 'Reykjavik',
+    'KRK': 'Krakow', 'DBV': 'Dubrovnik', 'SPU': 'Split', 'ZAG': 'Zagreb',
+    'LJU': 'Ljubljana', 'BEG': 'Belgrade', 'SOF': 'Sofia', 'TIA': 'Tirana',
+    'SKG': 'Thessaloniki', 'HER': 'Heraklion', 'JTR': 'Santorini', 'JMK': 'Mykonos',
+    'SAW': 'Istanbul', 'AYT': 'Antalya', 'ADB': 'Izmir', 'ESB': 'Ankara',
+    'KBP': 'Kyiv', 'LED': 'Saint Petersburg', 'DME': 'Moscow',
+    'TBS': 'Tbilisi', 'EVN': 'Yerevan', 'GYD': 'Baku',
+    'MAN': 'Manchester', 'LGW': 'London', 'STN': 'London',
+    'GLA': 'Glasgow', 'BFS': 'Belfast', 'BRS': 'Bristol',
+    'SNN': 'Shannon', 'ORK': 'Cork', 'PMI': 'Palma',
+    'BSL': 'Basel', 'BGY': 'Bergamo', 'SJJ': 'Sarajevo', 'SKP': 'Skopje',
+    # Canada (expanded)
+    'YYC': 'Calgary', 'YEG': 'Edmonton', 'YOW': 'Ottawa',
+    'YHZ': 'Halifax', 'YWG': 'Winnipeg',
+    # Mexico (expanded)
+    'GDL': 'Guadalajara',
+    # Central America & Caribbean
+    'PTY': 'Panama City', 'SJO': 'San Jose', 'SAL': 'San Salvador', 'GUA': 'Guatemala City',
+    'NAS': 'Nassau', 'MBJ': 'Montego Bay', 'KIN': 'Kingston',
+    'SJU': 'San Juan', 'PUJ': 'Punta Cana', 'SDQ': 'Santo Domingo',
     # Africa
     'CAI': 'Cairo', 'JNB': 'Johannesburg', 'CPT': 'Cape Town',
     'NBO': 'Nairobi', 'CMN': 'Casablanca', 'RAK': 'Marrakech',
     'ADD': 'Addis Ababa', 'LOS': 'Lagos', 'ACC': 'Accra',
     'DAR': 'Dar es Salaam',
+    'DUR': 'Durban', 'MBA': 'Mombasa', 'EBB': 'Kampala', 'KGL': 'Kigali',
+    'ZNZ': 'Zanzibar', 'JRO': 'Kilimanjaro', 'ABV': 'Abuja',
+    'HRG': 'Hurghada', 'SSH': 'Sharm el-Sheikh',
+    'TUN': 'Tunis', 'ALG': 'Algiers', 'DSS': 'Dakar', 'MRU': 'Mauritius',
     # Oceania
     'SYD': 'Sydney', 'MEL': 'Melbourne', 'BNE': 'Brisbane',
     'PER': 'Perth', 'AKL': 'Auckland',
+    'ADL': 'Adelaide', 'CBR': 'Canberra', 'CNS': 'Cairns',
+    'WLG': 'Wellington', 'CHC': 'Christchurch', 'ZQN': 'Queenstown',
+    'NAN': 'Nadi',
     # South America
     'GRU': 'Sao Paulo', 'GIG': 'Rio de Janeiro',
     'EZE': 'Buenos Aires', 'LIM': 'Lima', 'BOG': 'Bogota',
     'SCL': 'Santiago', 'MDE': 'Medellin',
+    'UIO': 'Quito', 'GYE': 'Guayaquil', 'MVD': 'Montevideo',
+    'ASU': 'Asuncion', 'CCS': 'Caracas', 'VVI': 'Santa Cruz',
 }
 
 
@@ -354,6 +529,13 @@ def resolve_location_to_airport_code(location: str, country: str = "") -> str:
     # Already a 3-letter IATA code
     if re.match(r'^[A-Za-z]{3}$', stripped):
         return stripped.upper()
+
+    # Extract IATA code from "City (CODE)" format (from autocomplete)
+    paren_match = re.search(r'\(([A-Za-z]{3})\)', stripped)
+    if paren_match:
+        code = paren_match.group(1).upper()
+        logger.info(f"Extracted airport code from '{location}' -> {code}")
+        return code
 
     normalized = stripped.lower().strip()
 
