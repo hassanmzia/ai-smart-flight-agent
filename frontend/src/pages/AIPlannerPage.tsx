@@ -939,9 +939,17 @@ const AIPlannerPage = () => {
               )}
 
               {!rec?.recommended_flight && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-gray-500">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 md:p-8 text-center text-gray-500">
                   <p className="text-lg">No flight data available</p>
-                  <p className="text-sm mt-1">Try adjusting your search parameters</p>
+                  <p className="text-sm mt-1">Try adjusting your search parameters or dates</p>
+                  {result?._search_debug && (
+                    <p className="text-xs mt-3 text-gray-400">
+                      Searched: {result._search_debug.resolved_origin} → {result._search_debug.resolved_destination}
+                      {result._search_debug.hub_destination && result._search_debug.hub_destination !== result._search_debug.resolved_destination && (
+                        <span> (also tried via hub: {result._search_debug.hub_destination})</span>
+                      )}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -950,6 +958,15 @@ const AIPlannerPage = () => {
           {/* ══════ TAB: HOTELS ══════ */}
           {activeTab === 'hotels' && (
             <div className="space-y-6">
+              {/* Fallback city notice */}
+              {result?.hotels?.fallback_city && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <span className="font-semibold">Note:</span> No hotels found in {result.hotels.original_city || destinationLabel}.
+                    Showing hotels in nearby <span className="font-semibold">{result.hotels.fallback_city}</span> instead.
+                  </p>
+                </div>
+              )}
               {rec?.recommended_hotel && (() => {
                 const h = rec.recommended_hotel;
                 return (
@@ -1070,9 +1087,12 @@ const AIPlannerPage = () => {
               )}
 
               {!rec?.recommended_hotel && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-gray-500">
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 md:p-8 text-center text-gray-500">
                   <p className="text-lg">No hotel data available</p>
-                  <p className="text-sm mt-1">Hotels at this location don't have current pricing data</p>
+                  <p className="text-sm mt-1">Hotels at this destination don't have current pricing data</p>
+                  {result?.hotels?.fallback_city && (
+                    <p className="text-xs mt-2 text-gray-400">Also searched nearby: {result.hotels.fallback_city}</p>
+                  )}
                 </div>
               )}
             </div>

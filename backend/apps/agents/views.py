@@ -1174,6 +1174,21 @@ def plan_travel(request):
             'destination_country': destination_country,
         }
 
+        # Add debug info to result for diagnosing search issues
+        if result.get('success'):
+            result['_search_debug'] = {
+                'resolved_origin': origin,
+                'resolved_destination': destination,
+                'origin_label': origin_label,
+                'destination_label': destination_label,
+                'flights_found': len(result.get('flights', {}).get('flights', [])) if isinstance(result.get('flights'), dict) else 0,
+                'hotels_found': len(result.get('hotels', {}).get('hotels', [])) if isinstance(result.get('hotels'), dict) else 0,
+                'hub_route': result.get('flights', {}).get('hub_route', False) if isinstance(result.get('flights'), dict) else False,
+                'hub_destination': result.get('flights', {}).get('hub_destination') if isinstance(result.get('flights'), dict) else None,
+                'transit_notes': result.get('flights', {}).get('transit_notes', []) if isinstance(result.get('flights'), dict) else [],
+                'hotel_fallback': result.get('hotels', {}).get('fallback_city') if isinstance(result.get('hotels'), dict) else None,
+            }
+
         return Response(result, status=status.HTTP_200_OK)
 
     except Exception as e:

@@ -82,6 +82,23 @@ Use the search_flights tool to find flight options.
 Return flight details in a structured format.
 """
 
+    # US metro area airports - try alternatives when primary returns no results
+    US_AIRPORT_ALTERNATIVES = {
+        'IAD': ['JFK', 'EWR'],  # DC area → try NYC airports
+        'DCA': ['JFK', 'EWR', 'IAD'],
+        'BWI': ['JFK', 'EWR', 'IAD'],
+        'SFO': ['SJC', 'OAK'],
+        'OAK': ['SFO', 'SJC'],
+        'SJC': ['SFO', 'OAK'],
+        'BUR': ['LAX'],
+        'LGB': ['LAX'],
+        'ONT': ['LAX'],
+        'MDW': ['ORD'],
+        'HOU': ['IAH'],
+        'DAL': ['DFW'],
+        'FLL': ['MIA'],
+    }
+
     def _search_flights_with_retry(self, origin, destination, state):
         """Search flights, retrying with one-way if round-trip fails"""
         for trip_type in ([1, 2] if state.get('return_date') else [2]):
@@ -98,7 +115,7 @@ Return flight details in a structured format.
         return results  # Return last attempt even if empty
 
     def execute(self, state: TravelAgentState) -> TravelAgentState:
-        """Execute flight search, with hub-airport fallback for small cities"""
+        """Execute flight search, with hub-airport and alternative airport fallbacks"""
         try:
             origin = state.get('origin', 'CDG')
             destination = state.get('destination', 'BER')
@@ -109,6 +126,7 @@ Return flight details in a structured format.
             flights_found = len(flight_results.get('flights', []))
 
             # If no flights found, try via hub airports
+            transit_notes = []
             if flights_found == 0:
                 dest_hub = get_hub_airport(destination)
                 origin_hub = get_hub_airport(origin)
@@ -116,44 +134,59 @@ Return flight details in a structured format.
                 hub_destination = dest_hub or destination
                 hub_origin = origin_hub or origin
 
-                # Only retry if at least one hub is different
-                if hub_destination != destination or hub_origin != origin:
-                    hub_route = f"{hub_origin or origin} -> {hub_destination}"
-                    logger.info(f"No direct flights found. Trying hub route: {hub_route}")
+                # Build transit notes regardless
+                if dest_hub and dest_hub != destination:
+                    dest_city = AIRPORT_TO_CITY.get(destination, destination)
+                    hub_city = AIRPORT_TO_CITY.get(dest_hub, dest_hub)
+                    transit_notes.append(
+                        f"Fly to {hub_city} ({dest_hub}), then take a domestic flight or ground transport to {dest_city} ({destination})"
+                    )
+                if origin_hub and origin_hub != origin:
+                    origin_city = AIRPORT_TO_CITY.get(origin, origin)
+                    hub_city = AIRPORT_TO_CITY.get(origin_hub, origin_hub)
+                    transit_notes.append(
+                        f"From {origin_city}: travel to {hub_city} ({origin_hub}) for international departure"
+                    )
 
-                    hub_results = self._search_flights_with_retry(hub_origin or origin, hub_destination, state)
+                # Try hub route if different
+                search_origin = hub_origin or origin
+                search_dest = hub_destination
+
+                if hub_destination != destination or hub_origin != origin:
+                    hub_route = f"{search_origin} -> {search_dest}"
+                    logger.info(f"No direct flights. Trying hub route: {hub_route}")
+
+                    hub_results = self._search_flights_with_retry(search_origin, search_dest, state)
                     hub_flights = hub_results.get('flights', [])
 
-                    # Build transit info regardless of whether hub flights were found
-                    transit_notes = []
-                    if dest_hub and dest_hub != destination:
-                        dest_city = AIRPORT_TO_CITY.get(destination, destination)
-                        hub_city = AIRPORT_TO_CITY.get(dest_hub, dest_hub)
-                        transit_notes.append(
-                            f"Fly to {hub_city} ({dest_hub}), then take a domestic flight or ground transport to {dest_city} ({destination})"
-                        )
-                    if origin_hub and origin_hub != origin:
-                        origin_city = AIRPORT_TO_CITY.get(origin, origin)
-                        hub_city = AIRPORT_TO_CITY.get(origin_hub, origin_hub)
-                        transit_notes.append(
-                            f"From {origin_city}: travel to {hub_city} ({origin_hub}) for international departure"
-                        )
+                    # If hub route also fails, try alternative origin airports
+                    if not hub_flights and search_origin in self.US_AIRPORT_ALTERNATIVES:
+                        for alt_origin in self.US_AIRPORT_ALTERNATIVES[search_origin]:
+                            logger.info(f"Hub route failed. Trying alternative origin: {alt_origin} -> {search_dest}")
+                            alt_results = self._search_flights_with_retry(alt_origin, search_dest, state)
+                            alt_flights = alt_results.get('flights', [])
+                            if alt_flights:
+                                hub_results = alt_results
+                                hub_flights = alt_flights
+                                alt_city = AIRPORT_TO_CITY.get(alt_origin, alt_origin)
+                                origin_city = AIRPORT_TO_CITY.get(origin, origin)
+                                transit_notes.insert(0,
+                                    f"Flights found from {alt_city} ({alt_origin}) instead of {origin_city} ({search_origin})"
+                                )
+                                logger.info(f"Found {len(alt_flights)} flights from alt origin: {alt_origin}")
+                                break
 
                     if hub_flights:
                         flight_results = hub_results
-                        flight_results['hub_route'] = True
-                        flight_results['original_destination'] = destination
-                        flight_results['hub_destination'] = hub_destination
-                        flight_results['transit_notes'] = transit_notes
                         flights_found = len(hub_flights)
-                        logger.info(f"Found {flights_found} flights via hub route: {hub_route}")
-                    else:
-                        # Even with no results, record the routing info
-                        flight_results['hub_route'] = True
-                        flight_results['original_destination'] = destination
-                        flight_results['hub_destination'] = hub_destination
-                        flight_results['transit_notes'] = transit_notes
-                        logger.warning(f"No flights found even via hub route: {hub_route}")
+                        logger.info(f"Found {flights_found} flights via routing")
+
+                # Always attach hub route info
+                if dest_hub or origin_hub:
+                    flight_results['hub_route'] = True
+                    flight_results['original_destination'] = destination
+                    flight_results['hub_destination'] = hub_destination
+                    flight_results['transit_notes'] = transit_notes
 
             state['flight_results'] = flight_results
             state['current_agent'] = 'hotel'
