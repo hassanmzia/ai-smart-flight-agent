@@ -554,6 +554,8 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
     transit_notes = flight_data.get('transit_notes', [])
     hub_destination_code = flight_data.get('hub_destination', '')
     original_destination_code = flight_data.get('original_destination', '')
+    hub_origin_code = flight_data.get('hub_origin', '')
+    original_origin_code = flight_data.get('original_origin', '')
 
     flight_summary = 'No flights found by search agent.'
     if rec.get('recommended_flight'):
@@ -580,14 +582,29 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
 
     # Add hub routing info if flights go through a hub airport
     if hub_route:
-        hub_info = "\n\nIMPORTANT - HUB ROUTING:\n"
-        hub_info += f"  There are NO direct international flights to {destination}.\n"
-        hub_info += f"  The flight above goes to the nearest major hub airport ({hub_destination_code}).\n"
-        hub_info += f"  The traveler must then take ONWARD TRANSPORT from {hub_destination_code} to {original_destination_code}.\n"
+        from utils.airport_resolver import AIRPORT_TO_CITY
+        hub_dest_city = AIRPORT_TO_CITY.get(hub_destination_code, hub_destination_code)
+        orig_dest_city = AIRPORT_TO_CITY.get(original_destination_code, original_destination_code)
+        origin_city = AIRPORT_TO_CITY.get(original_origin_code or origin, origin)
+
+        hub_info = "\n\nIMPORTANT - HUB ROUTING (CONNECTING FLIGHTS REQUIRED):\n"
+        hub_info += f"  There are NO direct international flights to {orig_dest_city} ({original_destination_code}).\n"
+        hub_info += f"  The nearest international airport is {hub_dest_city} ({hub_destination_code}).\n\n"
+
+        hub_info += f"  OUTBOUND JOURNEY ({origin_city} → {orig_dest_city}):\n"
+        hub_info += f"    Leg 1: International flight from {origin_city} ({original_origin_code or origin}) → {hub_dest_city} ({hub_destination_code}) [this is the flight above]\n"
+        hub_info += f"    Leg 2: Domestic flight or ground transport from {hub_dest_city} ({hub_destination_code}) → {orig_dest_city} ({original_destination_code}) [~1 hour domestic flight or ~4-6 hour drive]\n\n"
+
+        hub_info += f"  RETURN JOURNEY ({orig_dest_city} → {origin_city}):\n"
+        hub_info += f"    Leg 1: Domestic flight or ground transport from {orig_dest_city} ({original_destination_code}) → {hub_dest_city} ({hub_destination_code}) [traveler MUST go to hub first]\n"
+        hub_info += f"    Leg 2: International flight from {hub_dest_city} ({hub_destination_code}) → {origin_city} ({original_origin_code or origin}) [the return flight]\n\n"
+
         for note in transit_notes:
             hub_info += f"  → {note}\n"
-        hub_info += "  In your itinerary Day 1, after landing at the hub airport, include the onward journey.\n"
-        hub_info += "  On the departure day, include travel back to the hub airport for the return flight."
+
+        hub_info += "\n  ITINERARY INSTRUCTIONS:\n"
+        hub_info += f"  - Day 1: After landing at {hub_dest_city} ({hub_destination_code}), include the connecting journey to {orig_dest_city} ({original_destination_code}). Plan activities ONLY after arriving at the final destination.\n"
+        hub_info += f"  - Last Day: The traveler must leave {orig_dest_city} early to travel to {hub_dest_city} ({hub_destination_code}) for the international return flight. Account for ~3-4 hours for this transfer plus airport check-in."
         flight_summary += hub_info
     elif not rec.get('recommended_flight'):
         # No flights found at all — give the LLM context about the route
