@@ -492,7 +492,7 @@ const HomePage = () => {
               Testimonials
             </span>
           </div>
-          <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-4">
             Loved by Travelers Worldwide
           </h2>
         </div>
