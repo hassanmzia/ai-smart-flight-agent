@@ -47,11 +47,19 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(initialVoiceEnabled);
+  const [volume, setVolume] = useState(1.0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Sync volume to currently playing audio
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -290,6 +298,7 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
 
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      audio.volume = volume;
       audioRef.current = audio;
 
       audio.onended = () => {
@@ -327,6 +336,7 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
+      utterance.volume = volume;
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
 
@@ -393,6 +403,45 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
             {voiceEnabled ? '🎙️ Voice & Chat Assistant' : '💬 Chat Assistant'}
           </CardTitle>
           <div className="flex items-center gap-2">
+            {/* Volume control - visible when voice is on */}
+            {voiceEnabled && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setVolume(volume > 0 ? 0 : 1)}
+                  className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  title={volume === 0 ? 'Unmute' : 'Mute'}
+                >
+                  {volume === 0 ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <line x1="23" y1="9" x2="17" y2="15" />
+                      <line x1="17" y1="9" x2="23" y2="15" />
+                    </svg>
+                  ) : volume < 0.5 ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    </svg>
+                  )}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="volume-slider w-16"
+                  title={`Volume: ${Math.round(volume * 100)}%`}
+                />
+              </div>
+            )}
             {/* Voice toggle */}
             <button
               onClick={() => {
