@@ -5,7 +5,6 @@ import { Card, Button } from '@/components/common';
 import { getItineraries, deleteItinerary } from '@/services/itineraryService';
 import { formatDate } from '@/utils/formatters';
 import {
-  PlusIcon,
   MapPinIcon,
   CalendarIcon,
   UserGroupIcon,
@@ -113,17 +112,9 @@ const ItineraryPage = () => {
         <div className="flex gap-3">
           <Button
             onClick={() => navigate('/ai-planner')}
-            variant="secondary"
             className="inline-flex items-center"
           >
             🤖 AI Planner
-          </Button>
-          <Button
-            onClick={() => navigate('/itineraries/new')}
-            className="inline-flex items-center"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            New Trip
           </Button>
         </div>
       </div>
@@ -162,10 +153,6 @@ const ItineraryPage = () => {
             <div className="flex gap-3 justify-center">
               <Button onClick={() => navigate('/ai-planner')}>
                 🤖 Plan with AI
-              </Button>
-              <Button variant="secondary" onClick={() => navigate('/itineraries/new')}>
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Create Manually
               </Button>
             </div>
           </div>
