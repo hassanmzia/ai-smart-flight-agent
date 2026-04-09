@@ -293,9 +293,9 @@ class RAGDocument(models.Model):
         verbose_name = 'RAG Document'
         verbose_name_plural = 'RAG Documents'
         indexes = [
-            models.Index(fields=['uploaded_by', '-created_at'], name='rag_documents_uploade_c1a2b3_idx'),
-            models.Index(fields=['status'], name='rag_documents_status_d4e5f6_idx'),
-            models.Index(fields=['scope'], name='rag_documents_scope_a7b8c9_idx'),
+            models.Index(fields=['uploaded_by', '-created_at'], name='rag_doc_upload_c1a2b3_idx'),
+            models.Index(fields=['status'], name='rag_doc_status_d4e5f6_idx'),
+            models.Index(fields=['scope'], name='rag_doc_scope_a7b8c9_idx'),
         ]
 
     def __str__(self):
@@ -353,7 +353,7 @@ class AgentConversation(models.Model):
         verbose_name = 'Agent Conversation'
         verbose_name_plural = 'Agent Conversations'
         indexes = [
-            models.Index(fields=['user', '-updated_at'], name='agent_conve_user_id_updated_idx'),
+            models.Index(fields=['user', '-updated_at'], name='agent_conv_user_updated_idx'),
             models.Index(fields=['status'], name='agent_conve_status_idx'),
             models.Index(fields=['conversation_type'], name='agent_conve_conv_type_idx'),
             models.Index(fields=['is_archived'], name='agent_conve_archived_idx'),
