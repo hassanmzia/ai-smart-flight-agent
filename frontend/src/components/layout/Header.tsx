@@ -430,7 +430,7 @@ const Header = () => {
 
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 py-4 space-y-1.5">
+          <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 py-4 space-y-1.5 max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain safe-bottom">
             <Link
               to={ROUTES.AI_PLANNER}
               onClick={() => setMobileMenuOpen(false)}

@@ -494,7 +494,7 @@ const ChatPage = () => {
   // Render
   // ------------------------------------------------------------------
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
+    <div className="flex flex-col" style={{ height: 'calc(100dvh - 4rem)' }}>
       {/* ---------- Hero Header ---------- */}
       <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 dark:from-violet-800 dark:via-purple-800 dark:to-indigo-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -543,6 +543,7 @@ const ChatPage = () => {
             transition-transform duration-300 ease-in-out
             flex flex-col
             lg:w-64 xl:w-72
+            safe-top safe-bottom safe-left
           `}
         >
           {/* Sidebar header */}
@@ -671,7 +672,7 @@ const ChatPage = () => {
           )}
 
           {/* Input area */}
-          <div className="border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-3 sm:px-4 py-3">
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-3 sm:px-4 py-3 safe-bottom">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-end gap-2">
                 <div className="flex-1 relative">
