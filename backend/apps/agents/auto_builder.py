@@ -321,9 +321,13 @@ Return a JSON object with this structure (no markdown, raw JSON only):
 Available data:
 {context_text}
 
-Create an optimized day-by-day plan. Schedule outdoor activities on good weather days.
-Group nearby attractions together. Include breakfast, lunch, and dinner spots.
-First day should include arrival/check-in, last day should include checkout/departure."""
+Create an optimized day-by-day plan following these rules:
+1. WEATHER-AWARE: Schedule outdoor activities (parks, beaches, walking tours) on sunny/clear days. Move indoor activities (museums, shopping, spas) to rainy or overcast days. Use the weather data to assign activities accordingly.
+2. PROXIMITY GROUPING: Cluster nearby attractions on the same day to minimize transit time. Order activities geographically so travelers move in one direction, not back-and-forth.
+3. MEALS: Include breakfast, lunch, and dinner spots near the day's activities.
+4. PACING: Alternate high-energy and relaxed activities. No more than 3 major attractions per day.
+5. LOGISTICS: First day should include arrival/check-in with lighter activities. Last day should include checkout/departure with morning-only plans.
+6. TRANSPORT: Add a transport item between distant locations with estimated travel time."""
 
             response = model.invoke([
                 SystemMessage(content=system),

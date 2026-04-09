@@ -8,7 +8,11 @@ import {
   ChatBubbleLeftRightIcon,
   Bars3Icon,
   XMarkIcon,
+  MicrophoneIcon,
+  PhotoIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline';
+import api from '@/services/api';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -216,12 +220,18 @@ const ChatPage = () => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessingVoice, setIsProcessingVoice] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   // Refs
   const socketRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const streamingMessageRef = useRef<Map<string, string>>(new Map());
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback(() => {
@@ -474,6 +484,90 @@ const ChatPage = () => {
   // Is send disabled?
   const sendDisabled = !input.trim() || !connected;
 
+  // ------------------------------------------------------------------
+  // Voice recording
+  // ------------------------------------------------------------------
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        if (audioBlob.size === 0) return;
+
+        setIsProcessingVoice(true);
+        try {
+          const formData = new FormData();
+          formData.append('audio', audioBlob, 'recording.webm');
+          const res = await api.post('/api/agents/voice-to-trip', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          const transcript = res.data?.transcription || res.data?.intent?.destination || '';
+          if (transcript) {
+            setInput(transcript);
+            inputRef.current?.focus();
+          }
+        } catch {
+          // Voice processing failed silently
+        } finally {
+          setIsProcessingVoice(false);
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      // Microphone permission denied or not available
+    }
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  }, []);
+
+  // ------------------------------------------------------------------
+  // Image upload
+  // ------------------------------------------------------------------
+  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await api.post('/api/agents/image-to-trip', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const data = res.data;
+      const text = data?.destination
+        ? `Plan a trip to ${data.destination}${data.suggested_trip?.duration ? ` for ${data.suggested_trip.duration}` : ''}`
+        : data?.landmark
+          ? `Plan a trip to see ${data.landmark}`
+          : '';
+      if (text) {
+        setInput(text);
+        inputRef.current?.focus();
+      }
+    } catch {
+      // Image analysis failed silently
+    } finally {
+      setIsProcessingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, []);
+
   // Show welcome state when no messages
   const showWelcome = messages.length === 0 && !isTyping;
 
@@ -675,6 +769,43 @@ const ChatPage = () => {
           <div className="border-t border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-3 sm:px-4 py-3 safe-bottom">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-end gap-2">
+                {/* Voice recording button */}
+                <button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isProcessingVoice}
+                  className={`flex-shrink-0 p-3 rounded-xl transition-all ${
+                    isRecording
+                      ? 'bg-red-500 text-white animate-pulse shadow-md'
+                      : isProcessingVoice
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-wait'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 hover:text-violet-600'
+                  }`}
+                  title={isRecording ? 'Stop recording' : isProcessingVoice ? 'Processing...' : 'Voice input'}
+                >
+                  {isRecording ? <StopIcon className="h-5 w-5" /> : <MicrophoneIcon className="h-5 w-5" />}
+                </button>
+
+                {/* Image upload button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isProcessingImage}
+                  className={`flex-shrink-0 p-3 rounded-xl transition-all ${
+                    isProcessingImage
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-wait'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 hover:text-violet-600'
+                  }`}
+                  title={isProcessingImage ? 'Analyzing image...' : 'Upload travel photo'}
+                >
+                  <PhotoIcon className="h-5 w-5" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
                 <div className="flex-1 relative">
                   <textarea
                     ref={inputRef}
@@ -700,6 +831,11 @@ const ChatPage = () => {
                   <PaperAirplaneIcon className="h-5 w-5" />
                 </button>
               </div>
+              {(isProcessingVoice || isProcessingImage) && (
+                <p className="text-xs text-violet-500 dark:text-violet-400 mt-1 text-center animate-pulse">
+                  {isProcessingVoice ? 'Transcribing voice...' : 'Analyzing image...'}
+                </p>
+              )}
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
                 AI Travel Assistant can make mistakes. Verify important travel details.
               </p>
