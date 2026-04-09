@@ -21,6 +21,23 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Rename RAGDocument indexes to fit 30-char limit
+        migrations.RenameIndex(
+            model_name='ragdocument',
+            new_name='rag_doc_upload_c1a2b3_idx',
+            old_name='rag_documents_uploade_c1a2b3_idx',
+        ),
+        migrations.RenameIndex(
+            model_name='ragdocument',
+            new_name='rag_doc_status_d4e5f6_idx',
+            old_name='rag_documents_status_d4e5f6_idx',
+        ),
+        migrations.RenameIndex(
+            model_name='ragdocument',
+            new_name='rag_doc_scope_a7b8c9_idx',
+            old_name='rag_documents_scope_a7b8c9_idx',
+        ),
+
         # AgentConversation
         migrations.CreateModel(
             name='AgentConversation',
@@ -44,7 +61,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name='agentconversation',
-            index=models.Index(fields=['user', '-updated_at'], name='agent_conve_user_id_updated_idx'),
+            index=models.Index(fields=['user', '-updated_at'], name='agent_conv_user_updated_idx'),
         ),
         migrations.AddIndex(
             model_name='agentconversation',
