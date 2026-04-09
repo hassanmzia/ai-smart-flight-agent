@@ -1,6 +1,11 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import AgentSession, AgentExecution, AgentLog
+from .models import (
+    AgentSession, AgentExecution, AgentLog,
+    AgentConversation, AgentMessage, AgentTask, UserPreference,
+    AgentAnalytics, AIModel, TripCollaboration, TripCollaborator,
+    CollaborationVote, Subscription, AffiliateClick, PriceWatch,
+)
 
 
 class AgentExecutionInline(admin.TabularInline):
@@ -217,3 +222,113 @@ class AgentLogAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         """Make logs read-only."""
         return False
+
+
+# ─────────────────────────────────────────────────
+# Commercialization Models Admin
+# ─────────────────────────────────────────────────
+
+class AgentMessageInline(admin.TabularInline):
+    model = AgentMessage
+    extra = 0
+    fields = ['sender_type', 'message_type', 'content', 'created_at']
+    readonly_fields = ['sender_type', 'message_type', 'content', 'created_at']
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(AgentConversation)
+class AgentConversationAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'title', 'status', 'conversation_type', 'created_at', 'updated_at']
+    list_filter = ['status', 'conversation_type', 'is_archived', 'created_at']
+    search_fields = ['title', 'user__email']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    inlines = [AgentMessageInline]
+
+
+@admin.register(AgentTask)
+class AgentTaskAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'task_type', 'status', 'started_at', 'completed_at']
+    list_filter = ['status', 'task_type', 'created_at']
+    search_fields = ['user__email', 'task_type']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(UserPreference)
+class UserPreferenceAdmin(admin.ModelAdmin):
+    list_display = ['user', 'budget_range', 'trip_style', 'last_trained', 'updated_at']
+    list_filter = ['budget_range', 'trip_style']
+    search_fields = ['user__email']
+    readonly_fields = ['travel_dna', 'last_trained', 'created_at', 'updated_at']
+
+
+@admin.register(AgentAnalytics)
+class AgentAnalyticsAdmin(admin.ModelAdmin):
+    list_display = ['date', 'created_at']
+    date_hierarchy = 'date'
+    readonly_fields = ['date', 'metrics', 'created_at']
+
+
+@admin.register(AIModel)
+class AIModelAdmin(admin.ModelAdmin):
+    list_display = ['name', 'version', 'model_type', 'is_active', 'created_at']
+    list_filter = ['model_type', 'is_active']
+    search_fields = ['name', 'version']
+
+
+class TripCollaboratorInline(admin.TabularInline):
+    model = TripCollaborator
+    extra = 0
+    fields = ['user', 'role', 'joined_at']
+    readonly_fields = ['joined_at']
+
+
+@admin.register(TripCollaboration)
+class TripCollaborationAdmin(admin.ModelAdmin):
+    list_display = ['invite_code', 'itinerary', 'owner', 'status', 'max_participants', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['invite_code', 'owner__email']
+    readonly_fields = ['invite_code', 'created_at', 'updated_at']
+    inlines = [TripCollaboratorInline]
+
+
+@admin.register(CollaborationVote)
+class CollaborationVoteAdmin(admin.ModelAdmin):
+    list_display = ['collaboration', 'user', 'item_type', 'vote', 'created_at']
+    list_filter = ['item_type', 'vote', 'created_at']
+    search_fields = ['user__email']
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'plan', 'status', 'ai_plans_used', 'price_alerts_used', 'current_period_end', 'updated_at']
+    list_filter = ['plan', 'status']
+    search_fields = ['user__email', 'stripe_customer_id']
+    readonly_fields = ['stripe_customer_id', 'stripe_subscription_id', 'created_at', 'updated_at']
+
+    fieldsets = (
+        ('User & Plan', {'fields': ('user', 'plan', 'status')}),
+        ('Usage', {'fields': ('ai_plans_used', 'ai_plans_limit', 'price_alerts_used', 'price_alerts_limit')}),
+        ('Stripe', {'fields': ('stripe_customer_id', 'stripe_subscription_id'), 'classes': ('collapse',)}),
+        ('Period', {'fields': ('current_period_start', 'current_period_end')}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at')}),
+    )
+
+
+@admin.register(AffiliateClick)
+class AffiliateClickAdmin(admin.ModelAdmin):
+    list_display = ['tracking_id', 'partner', 'click_type', 'status', 'revenue', 'user', 'clicked_at']
+    list_filter = ['partner', 'click_type', 'status', 'clicked_at']
+    search_fields = ['tracking_id', 'partner', 'user__email']
+    readonly_fields = ['tracking_id', 'clicked_at', 'converted_at']
+    date_hierarchy = 'clicked_at'
+
+
+@admin.register(PriceWatch)
+class PriceWatchAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'watch_type', 'target_price', 'current_price', 'lowest_price', 'is_active', 'last_checked']
+    list_filter = ['watch_type', 'is_active', 'created_at']
+    search_fields = ['user__email']
+    readonly_fields = ['price_history', 'last_checked', 'created_at', 'updated_at']

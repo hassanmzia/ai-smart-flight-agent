@@ -175,3 +175,168 @@ class RAGDocumentUploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = RAGDocument
         fields = ['title', 'description', 'file', 'scope', 'tags']
+
+
+# ─────────────────────────────────────────────────
+# Commercialization Models Serializers
+# ─────────────────────────────────────────────────
+
+from .models import (
+    AgentConversation, AgentMessage, AgentTask, UserPreference,
+    AgentAnalytics, AIModel, TripCollaboration, TripCollaborator,
+    CollaborationVote, Subscription, AffiliateClick, PriceWatch,
+)
+
+
+class AgentMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgentMessage
+        fields = [
+            'id', 'conversation', 'content', 'sender_type', 'user',
+            'message_type', 'metadata', 'intent', 'response_time_ms',
+            'tokens_used', 'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class AgentConversationSerializer(serializers.ModelSerializer):
+    messages = AgentMessageSerializer(many=True, read_only=True)
+    message_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AgentConversation
+        fields = [
+            'id', 'user', 'title', 'status', 'is_archived',
+            'conversation_type', 'metadata', 'created_at', 'updated_at',
+            'messages', 'message_count',
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+    def get_message_count(self, obj):
+        return obj.messages.count()
+
+
+class AgentConversationListSerializer(serializers.ModelSerializer):
+    message_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AgentConversation
+        fields = [
+            'id', 'title', 'status', 'conversation_type',
+            'created_at', 'updated_at', 'message_count',
+        ]
+        read_only_fields = fields
+
+    def get_message_count(self, obj):
+        return obj.messages.count()
+
+
+class AgentTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgentTask
+        fields = [
+            'id', 'user', 'task_type', 'status', 'parameters', 'result',
+            'error_message', 'started_at', 'completed_at', 'created_at',
+        ]
+        read_only_fields = ['id', 'user', 'started_at', 'completed_at', 'created_at']
+
+
+class UserPreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserPreference
+        fields = [
+            'id', 'user', 'preferences', 'travel_dna', 'preferred_airlines',
+            'preferred_hotel_chains', 'preferred_cuisines', 'budget_range',
+            'trip_style', 'booking_advance_days', 'last_trained',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'user', 'travel_dna', 'last_trained', 'created_at', 'updated_at']
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subscription
+        fields = [
+            'id', 'user', 'plan', 'status', 'stripe_customer_id',
+            'stripe_subscription_id', 'current_period_start', 'current_period_end',
+            'ai_plans_used', 'ai_plans_limit', 'price_alerts_used',
+            'price_alerts_limit', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'user', 'stripe_customer_id', 'stripe_subscription_id',
+            'ai_plans_used', 'price_alerts_used', 'created_at', 'updated_at',
+        ]
+
+
+class AffiliateClickSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AffiliateClick
+        fields = [
+            'id', 'user', 'partner', 'click_type', 'destination',
+            'tracking_id', 'revenue', 'status', 'clicked_at', 'converted_at',
+        ]
+        read_only_fields = [
+            'id', 'tracking_id', 'revenue', 'clicked_at', 'converted_at',
+        ]
+
+
+class PriceWatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PriceWatch
+        fields = [
+            'id', 'user', 'watch_type', 'search_params', 'target_price',
+            'current_price', 'lowest_price', 'price_history', 'is_active',
+            'last_checked', 'notify_on_any_drop', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'user', 'current_price', 'lowest_price', 'price_history',
+            'last_checked', 'created_at', 'updated_at',
+        ]
+
+
+class TripCollaborationSerializer(serializers.ModelSerializer):
+    collaborators = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TripCollaboration
+        fields = [
+            'id', 'itinerary', 'owner', 'status', 'invite_code',
+            'max_participants', 'created_at', 'updated_at', 'collaborators',
+        ]
+        read_only_fields = ['id', 'owner', 'invite_code', 'created_at', 'updated_at']
+
+    def get_collaborators(self, obj):
+        return TripCollaboratorSerializer(obj.collaborators.all(), many=True).data
+
+
+class TripCollaboratorSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = TripCollaborator
+        fields = ['id', 'collaboration', 'user', 'username', 'role', 'joined_at']
+        read_only_fields = ['id', 'joined_at']
+
+
+class CollaborationVoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CollaborationVote
+        fields = [
+            'id', 'collaboration', 'user', 'item_type', 'item_id',
+            'vote', 'comment', 'created_at',
+        ]
+        read_only_fields = ['id', 'user', 'created_at']
+
+
+class AgentAnalyticsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgentAnalytics
+        fields = ['id', 'date', 'metrics', 'created_at']
+        read_only_fields = fields
+
+
+class AIModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIModel
+        fields = ['id', 'name', 'version', 'model_type', 'is_active', 'config', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
