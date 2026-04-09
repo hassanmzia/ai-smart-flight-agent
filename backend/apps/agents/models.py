@@ -293,9 +293,9 @@ class RAGDocument(models.Model):
         verbose_name = 'RAG Document'
         verbose_name_plural = 'RAG Documents'
         indexes = [
-            models.Index(fields=['uploaded_by', '-created_at']),
-            models.Index(fields=['status']),
-            models.Index(fields=['scope']),
+            models.Index(fields=['uploaded_by', '-created_at'], name='rag_documents_uploade_c1a2b3_idx'),
+            models.Index(fields=['status'], name='rag_documents_status_d4e5f6_idx'),
+            models.Index(fields=['scope'], name='rag_documents_scope_a7b8c9_idx'),
         ]
 
     def __str__(self):
@@ -353,10 +353,10 @@ class AgentConversation(models.Model):
         verbose_name = 'Agent Conversation'
         verbose_name_plural = 'Agent Conversations'
         indexes = [
-            models.Index(fields=['user', '-updated_at']),
-            models.Index(fields=['status']),
-            models.Index(fields=['conversation_type']),
-            models.Index(fields=['is_archived']),
+            models.Index(fields=['user', '-updated_at'], name='agent_conve_user_id_updated_idx'),
+            models.Index(fields=['status'], name='agent_conve_status_idx'),
+            models.Index(fields=['conversation_type'], name='agent_conve_conv_type_idx'),
+            models.Index(fields=['is_archived'], name='agent_conve_archived_idx'),
         ]
 
     def __str__(self):
@@ -416,10 +416,10 @@ class AgentMessage(models.Model):
         verbose_name = 'Agent Message'
         verbose_name_plural = 'Agent Messages'
         indexes = [
-            models.Index(fields=['conversation', 'created_at']),
-            models.Index(fields=['sender_type']),
-            models.Index(fields=['message_type']),
-            models.Index(fields=['intent']),
+            models.Index(fields=['conversation', 'created_at'], name='agent_msg_conv_created_idx'),
+            models.Index(fields=['sender_type'], name='agent_msg_sender_idx'),
+            models.Index(fields=['message_type'], name='agent_msg_type_idx'),
+            models.Index(fields=['intent'], name='agent_msg_intent_idx'),
         ]
 
     def __str__(self):
@@ -458,10 +458,10 @@ class AgentTask(models.Model):
         verbose_name = 'Agent Task'
         verbose_name_plural = 'Agent Tasks'
         indexes = [
-            models.Index(fields=['user', '-created_at']),
-            models.Index(fields=['status']),
-            models.Index(fields=['task_type', 'status']),
-            models.Index(fields=['completed_at']),
+            models.Index(fields=['user', '-created_at'], name='agent_task_user_created_idx'),
+            models.Index(fields=['status'], name='agent_task_status_idx'),
+            models.Index(fields=['task_type', 'status'], name='agent_task_type_status_idx'),
+            models.Index(fields=['completed_at'], name='agent_task_completed_idx'),
         ]
 
     def __str__(self):
@@ -538,7 +538,7 @@ class AgentAnalytics(models.Model):
         verbose_name = 'Agent Analytics'
         verbose_name_plural = 'Agent Analytics'
         indexes = [
-            models.Index(fields=['-date']),
+            models.Index(fields=['-date'], name='agent_analytics_date_idx'),
         ]
 
     def __str__(self):
@@ -563,9 +563,9 @@ class AIModel(models.Model):
         verbose_name = 'AI Model'
         verbose_name_plural = 'AI Models'
         indexes = [
-            models.Index(fields=['name', 'version']),
-            models.Index(fields=['model_type']),
-            models.Index(fields=['is_active']),
+            models.Index(fields=['name', 'version'], name='ai_model_name_version_idx'),
+            models.Index(fields=['model_type'], name='ai_model_type_idx'),
+            models.Index(fields=['is_active'], name='ai_model_active_idx'),
         ]
 
     def __str__(self):
@@ -607,9 +607,9 @@ class TripCollaboration(models.Model):
         verbose_name = 'Trip Collaboration'
         verbose_name_plural = 'Trip Collaborations'
         indexes = [
-            models.Index(fields=['owner', '-created_at']),
-            models.Index(fields=['invite_code']),
-            models.Index(fields=['status']),
+            models.Index(fields=['owner', '-created_at'], name='trip_collab_owner_created_idx'),
+            models.Index(fields=['invite_code'], name='trip_collab_invite_code_idx'),
+            models.Index(fields=['status'], name='trip_collab_status_idx'),
         ]
 
     def __str__(self):
@@ -646,8 +646,8 @@ class TripCollaborator(models.Model):
         verbose_name_plural = 'Trip Collaborators'
         unique_together = [('collaboration', 'user')]
         indexes = [
-            models.Index(fields=['collaboration', 'user']),
-            models.Index(fields=['user']),
+            models.Index(fields=['collaboration', 'user'], name='trip_collabr_collab_user_idx'),
+            models.Index(fields=['user'], name='trip_collabr_user_idx'),
         ]
 
     def __str__(self):
@@ -693,8 +693,8 @@ class CollaborationVote(models.Model):
         verbose_name = 'Collaboration Vote'
         verbose_name_plural = 'Collaboration Votes'
         indexes = [
-            models.Index(fields=['collaboration', 'item_type', 'item_id']),
-            models.Index(fields=['user']),
+            models.Index(fields=['collaboration', 'item_type', 'item_id'], name='collab_vote_collab_item_idx'),
+            models.Index(fields=['user'], name='collab_vote_user_idx'),
         ]
 
     def __str__(self):
@@ -741,9 +741,9 @@ class Subscription(models.Model):
         verbose_name = 'Subscription'
         verbose_name_plural = 'Subscriptions'
         indexes = [
-            models.Index(fields=['plan']),
-            models.Index(fields=['status']),
-            models.Index(fields=['stripe_customer_id']),
+            models.Index(fields=['plan'], name='sub_plan_idx'),
+            models.Index(fields=['status'], name='sub_status_idx'),
+            models.Index(fields=['stripe_customer_id'], name='sub_stripe_cust_idx'),
         ]
 
     def __str__(self):
@@ -789,11 +789,11 @@ class AffiliateClick(models.Model):
         verbose_name = 'Affiliate Click'
         verbose_name_plural = 'Affiliate Clicks'
         indexes = [
-            models.Index(fields=['partner', '-clicked_at']),
-            models.Index(fields=['tracking_id']),
-            models.Index(fields=['status']),
-            models.Index(fields=['click_type']),
-            models.Index(fields=['user', '-clicked_at']),
+            models.Index(fields=['partner', '-clicked_at'], name='aff_partner_clicked_idx'),
+            models.Index(fields=['tracking_id'], name='aff_tracking_idx'),
+            models.Index(fields=['status'], name='aff_status_idx'),
+            models.Index(fields=['click_type'], name='aff_click_type_idx'),
+            models.Index(fields=['user', '-clicked_at'], name='aff_user_clicked_idx'),
         ]
 
     def __str__(self):
@@ -847,10 +847,10 @@ class PriceWatch(models.Model):
         verbose_name = 'Price Watch'
         verbose_name_plural = 'Price Watches'
         indexes = [
-            models.Index(fields=['user', '-created_at']),
-            models.Index(fields=['watch_type']),
-            models.Index(fields=['is_active']),
-            models.Index(fields=['is_active', 'last_checked']),
+            models.Index(fields=['user', '-created_at'], name='pw_user_created_idx'),
+            models.Index(fields=['watch_type'], name='pw_watch_type_idx'),
+            models.Index(fields=['is_active'], name='pw_active_idx'),
+            models.Index(fields=['is_active', 'last_checked'], name='pw_active_checked_idx'),
         ]
 
     def __str__(self):
