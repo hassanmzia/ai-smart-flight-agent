@@ -109,7 +109,7 @@ const DashboardPage = () => {
   const quickActions = [
     { label: 'Plan a Trip', route: ROUTES.AI_PLANNER, icon: '✈️', gradient: 'from-blue-600 to-indigo-600' },
     { label: 'Search Flights', route: ROUTES.SEARCH, icon: '🔍', gradient: 'from-emerald-600 to-teal-600' },
-    { label: 'My Trips', route: ROUTES.ITINERARIES, icon: '🗺️', gradient: 'from-orange-600 to-amber-600' },
+    { label: 'My Trips', route: ROUTES.ITINERARY, icon: '🗺️', gradient: 'from-orange-600 to-amber-600' },
   ];
 
   return (
