@@ -470,9 +470,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 response_time_ms=elapsed_ms
             )
 
-            # Send completion signal
+            # Send completion signal with streaming ID so frontend can
+            # replace the streaming placeholder with the final message.
             await self.send(text_data=json.dumps({
                 'type': 'agent_message_complete',
+                'streaming_message_id': agent_message_id,
                 'message': {
                     'id': str(agent_msg.id),
                     'content': full_response,
