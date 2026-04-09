@@ -556,6 +556,85 @@ class ItineraryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+    @action(detail=True, methods=['post'], url_path='geocode-items')
+    def geocode_items(self, request, pk=None):
+        """
+        Geocode itinerary items that are missing coordinates.
+
+        Uses the MapsClient (Google Maps) if a MAPS_API_KEY is configured.
+        Falls back to a lightweight Nominatim (OpenStreetMap) lookup otherwise.
+        Items that already have lat/lng are skipped.
+
+        Returns the count of items updated and the refreshed itinerary.
+        """
+        import logging as _logging
+        _logger = _logging.getLogger(__name__)
+
+        itinerary = self.get_object()
+        items_missing = ItineraryItem.objects.filter(
+            day__itinerary=itinerary,
+            latitude__isnull=True,
+        ).exclude(location_name='').exclude(location_name__isnull=True)
+
+        updated = 0
+        errors = []
+
+        for item in items_missing:
+            query = item.location_name
+            if item.location_address:
+                query = f"{query}, {item.location_address}"
+            elif itinerary.destination:
+                query = f"{query}, {itinerary.destination}"
+
+            coords = self._geocode_query(query, _logger)
+            if coords:
+                item.latitude = coords[0]
+                item.longitude = coords[1]
+                item.save(update_fields=['latitude', 'longitude', 'updated_at'])
+                updated += 1
+            else:
+                errors.append(item.title)
+
+        serializer = self.get_serializer(itinerary)
+        return Response({
+            'success': True,
+            'items_geocoded': updated,
+            'items_failed': errors,
+            'itinerary': serializer.data,
+        })
+
+    @staticmethod
+    def _geocode_query(query: str, logger) -> tuple | None:
+        """Try Google Maps first, fall back to Nominatim."""
+        import requests as _requests
+
+        # Try Google Maps client if key is available
+        try:
+            from apps.agents.integrations.maps_client import MapsClient
+            client = MapsClient()
+            if client.api_key:
+                result = client.geocode(query)
+                if result:
+                    return (result['latitude'], result['longitude'])
+        except Exception as e:
+            logger.debug(f"Google Maps geocode failed: {e}")
+
+        # Fallback: Nominatim (OpenStreetMap) — free, no key needed
+        try:
+            resp = _requests.get(
+                'https://nominatim.openstreetmap.org/search',
+                params={'q': query, 'format': 'json', 'limit': 1},
+                headers={'User-Agent': 'AITravelAgent/1.0'},
+                timeout=5,
+            )
+            if resp.ok and resp.json():
+                data = resp.json()[0]
+                return (float(data['lat']), float(data['lon']))
+        except Exception as e:
+            logger.debug(f"Nominatim geocode failed for '{query}': {e}")
+
+        return None
+
     @action(detail=True, methods=['post'], url_path='update-status')
     def update_status(self, request, pk=None):
         """Generic status update with validation."""

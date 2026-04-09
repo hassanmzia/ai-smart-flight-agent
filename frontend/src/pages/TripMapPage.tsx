@@ -1,26 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
+import type { MapItinerary } from '@/components/map/TripMapVisualization';
 
-interface ItineraryItem {
-  id: string;
-  title: string;
-  destination: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  days?: Array<{
-    day_number: number;
-    date: string;
-    items: Array<{
-      name: string;
-      type: string;
-      time?: string;
-      location?: string;
-      notes?: string;
-    }>;
-  }>;
-}
+const TripMapVisualization = lazy(
+  () => import('@/components/map/TripMapVisualization'),
+);
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface RecommendationItem {
   title: string;
@@ -30,14 +19,21 @@ interface RecommendationItem {
   based_on: string;
 }
 
+type Tab = 'map' | 'trips' | 'dna' | 'recs';
+
+// ---------------------------------------------------------------------------
+// TripMapPage
+// ---------------------------------------------------------------------------
+
 const TripMapPage = () => {
   const { isAuthenticated } = useAuth();
-  const [itineraries, setItineraries] = useState<ItineraryItem[]>([]);
+  const [itineraries, setItineraries] = useState<MapItinerary[]>([]);
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [travelDna, setTravelDna] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'trips' | 'dna' | 'recs'>('trips');
-  const [selectedTrip, setSelectedTrip] = useState<ItineraryItem | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>('map');
+  const [selectedTrip, setSelectedTrip] = useState<MapItinerary | null>(null);
+  const [isGeocoding, setIsGeocoding] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -56,7 +52,16 @@ const TripMapPage = () => {
 
       if (itinRes.status === 'fulfilled') {
         const data = itinRes.value.data;
-        setItineraries(Array.isArray(data) ? data : data.results || []);
+        const list: MapItinerary[] = Array.isArray(data) ? data : data.results || [];
+        setItineraries(list);
+        // Auto-select first itinerary that has geo data
+        const first = list.find((it) =>
+          it.days?.some((d) =>
+            d.items?.some((i) => i.latitude != null && i.longitude != null),
+          ),
+        );
+        if (first) setSelectedTrip(first);
+        else if (list.length > 0) setSelectedTrip(list[0]);
       }
       if (dnaRes.status === 'fulfilled' && dnaRes.value.data.travel_dna) {
         setTravelDna(dnaRes.value.data.travel_dna);
@@ -70,6 +75,8 @@ const TripMapPage = () => {
       setLoading(false);
     }
   };
+
+  // ---- helpers ----
 
   const statusColor = (s: string) => {
     const colors: Record<string, string> = {
@@ -95,6 +102,27 @@ const TripMapPage = () => {
     return labels[key] || key;
   };
 
+  const hasGeoData = (trip: MapItinerary) =>
+    trip.days?.some((d) => d.items?.some((i) => i.latitude != null && i.longitude != null));
+
+  const handleGeocode = useCallback(async (itineraryId: string) => {
+    setIsGeocoding(true);
+    try {
+      const res = await api.post(`/api/itineraries/itineraries/${itineraryId}/geocode-items/`);
+      if (res.data?.itinerary) {
+        const updated: MapItinerary = res.data.itinerary;
+        setItineraries((prev) => prev.map((it) => (it.id === itineraryId ? updated : it)));
+        setSelectedTrip(updated);
+      }
+    } catch {
+      // Geocoding is best-effort; errors are non-fatal
+    } finally {
+      setIsGeocoding(false);
+    }
+  }, []);
+
+  // ---- auth guard ----
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -102,6 +130,15 @@ const TripMapPage = () => {
       </div>
     );
   }
+
+  // ---- tab config ----
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: 'map', label: 'Trip Map' },
+    { key: 'trips', label: 'My Trips' },
+    { key: 'dna', label: 'Travel DNA' },
+    { key: 'recs', label: 'Recommendations' },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -112,7 +149,8 @@ const TripMapPage = () => {
             My Travel World
           </h1>
           <p className="text-lg sm:text-xl text-teal-100 max-w-2xl">
-            Visualize your trips, explore your Travel DNA, and discover personalized recommendations.
+            Visualize your trips on an interactive map, explore your Travel DNA,
+            and discover personalized recommendations.
           </p>
         </div>
       </div>
@@ -120,19 +158,17 @@ const TripMapPage = () => {
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
         <div className="flex gap-2 overflow-x-auto pb-2">
-          {(['trips', 'dna', 'recs'] as const).map((tab) => (
+          {TABS.map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
               className={`px-5 py-3 rounded-t-xl font-semibold text-sm whitespace-nowrap transition-all ${
-                activeTab === tab
+                activeTab === tab.key
                   ? 'bg-white dark:bg-gray-800 text-teal-600 dark:text-teal-400 shadow-lg'
                   : 'bg-white/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
               }`}
             >
-              {tab === 'trips' && 'My Trips'}
-              {tab === 'dna' && 'Travel DNA'}
-              {tab === 'recs' && 'Recommendations'}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -142,20 +178,89 @@ const TripMapPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent" />
           </div>
         ) : (
           <>
-            {/* Trips Tab */}
+            {/* ============================================================ */}
+            {/* MAP TAB */}
+            {/* ============================================================ */}
+            {activeTab === 'map' && (
+              <div className="space-y-6">
+                {/* Trip selector */}
+                {itineraries.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      Itinerary:
+                    </span>
+                    {itineraries.map((trip) => (
+                      <button
+                        key={trip.id}
+                        onClick={() => setSelectedTrip(trip)}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                          selectedTrip?.id === trip.id
+                            ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300'
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-teal-300'
+                        }`}
+                      >
+                        {trip.title || trip.destination}
+                        {hasGeoData(trip) && (
+                          <span className="ml-1.5 inline-block w-2 h-2 rounded-full bg-teal-500" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Map visualization */}
+                {selectedTrip ? (
+                  <Suspense
+                    fallback={
+                      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex items-center justify-center" style={{ height: 520 }}>
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-10 w-10 border-4 border-teal-500 border-t-transparent mx-auto mb-3" />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Loading map...</p>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <TripMapVisualization
+                      itinerary={selectedTrip}
+                      onGeocode={handleGeocode}
+                      isGeocoding={isGeocoding}
+                    />
+                  </Suspense>
+                ) : (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
+                    <p className="text-5xl mb-4">{'\uD83C\uDF0D'}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      No Trips Yet
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                      Create an itinerary with the AI Trip Planner to see your
+                      destinations on an interactive map.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ============================================================ */}
+            {/* TRIPS TAB (original) */}
+            {/* ============================================================ */}
             {activeTab === 'trips' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Trip List */}
                 <div className="lg:col-span-1 space-y-3">
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Your Itineraries</h2>
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
+                    Your Itineraries
+                  </h2>
                   {itineraries.length === 0 ? (
                     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
-                      <p className="text-4xl mb-3">🗺️</p>
-                      <p className="text-gray-500 dark:text-gray-400">No trips yet. Create one to get started!</p>
+                      <p className="text-4xl mb-3">{'\uD83D\uDDFA\uFE0F'}</p>
+                      <p className="text-gray-500 dark:text-gray-400">
+                        No trips yet. Create one to get started!
+                      </p>
                     </div>
                   ) : (
                     itineraries.map((trip) => (
@@ -173,14 +278,18 @@ const TripMapPage = () => {
                             <h3 className="font-semibold text-gray-900 dark:text-white">
                               {trip.title || trip.destination}
                             </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{trip.destination}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {trip.destination}
+                            </p>
                           </div>
-                          <span className={`text-xs px-2 py-1 rounded-full ${statusColor(trip.status)}`}>
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full ${statusColor(trip.status)}`}
+                          >
                             {trip.status}
                           </span>
                         </div>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                          {trip.start_date} — {trip.end_date}
+                          {trip.start_date} &mdash; {trip.end_date}
                         </p>
                       </button>
                     ))
@@ -191,38 +300,70 @@ const TripMapPage = () => {
                 <div className="lg:col-span-2">
                   {selectedTrip ? (
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                        {selectedTrip.title || selectedTrip.destination}
-                      </h2>
-                      <p className="text-gray-500 dark:text-gray-400 mb-6">
-                        {selectedTrip.destination} | {selectedTrip.start_date} — {selectedTrip.end_date}
-                      </p>
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                            {selectedTrip.title || selectedTrip.destination}
+                          </h2>
+                          <p className="text-gray-500 dark:text-gray-400 text-sm">
+                            {selectedTrip.destination} | {selectedTrip.start_date} &mdash;{' '}
+                            {selectedTrip.end_date}
+                          </p>
+                        </div>
+                        {hasGeoData(selectedTrip) && (
+                          <button
+                            onClick={() => setActiveTab('map')}
+                            className="px-4 py-2 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 text-sm font-medium hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors"
+                          >
+                            {'\uD83D\uDDFA\uFE0F'} View on Map
+                          </button>
+                        )}
+                      </div>
 
                       {selectedTrip.days && selectedTrip.days.length > 0 ? (
                         <div className="space-y-6">
                           {selectedTrip.days.map((day) => (
-                            <div key={day.day_number} className="relative pl-8 border-l-2 border-teal-300 dark:border-teal-600">
+                            <div
+                              key={day.day_number}
+                              className="relative pl-8 border-l-2 border-teal-300 dark:border-teal-600"
+                            >
                               <div className="absolute -left-2.5 top-0 w-5 h-5 rounded-full bg-teal-500 border-2 border-white dark:border-gray-800" />
                               <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-                                Day {day.day_number} — {day.date}
+                                Day {day.day_number} &mdash; {day.date}
                               </h4>
                               <div className="space-y-2">
                                 {day.items.map((item, idx) => (
-                                  <div key={idx} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                  <div
+                                    key={idx}
+                                    className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3"
+                                  >
                                     <div className="flex items-center gap-2">
                                       <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">
-                                        {item.type}
+                                        {item.item_type}
                                       </span>
-                                      {item.time && (
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">{item.time}</span>
+                                      {item.start_time && (
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                          {item.start_time}
+                                        </span>
+                                      )}
+                                      {item.latitude != null && item.longitude != null && (
+                                        <span className="text-xs text-teal-500" title="Has map coordinates">
+                                          {'\uD83D\uDCCD'}
+                                        </span>
                                       )}
                                     </div>
-                                    <p className="font-medium text-gray-900 dark:text-white mt-1">{item.name}</p>
-                                    {item.location && (
-                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.location}</p>
+                                    <p className="font-medium text-gray-900 dark:text-white mt-1">
+                                      {item.title}
+                                    </p>
+                                    {item.location_name && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        {item.location_name}
+                                      </p>
                                     )}
                                     {item.notes && (
-                                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{item.notes}</p>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                        {item.notes}
+                                      </p>
                                     )}
                                   </div>
                                 ))}
@@ -232,7 +373,7 @@ const TripMapPage = () => {
                         </div>
                       ) : (
                         <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                          <p className="text-3xl mb-2">📋</p>
+                          <p className="text-3xl mb-2">{'\uD83D\uDCCB'}</p>
                           <p>No day-by-day plan available for this trip.</p>
                         </div>
                       )}
@@ -240,7 +381,7 @@ const TripMapPage = () => {
                   ) : (
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex items-center justify-center min-h-[400px]">
                       <div className="text-center text-gray-500 dark:text-gray-400">
-                        <p className="text-5xl mb-4">🌍</p>
+                        <p className="text-5xl mb-4">{'\uD83C\uDF0D'}</p>
                         <p className="text-lg">Select a trip to view details</p>
                       </div>
                     </div>
@@ -249,7 +390,9 @@ const TripMapPage = () => {
               </div>
             )}
 
-            {/* Travel DNA Tab */}
+            {/* ============================================================ */}
+            {/* TRAVEL DNA TAB */}
+            {/* ============================================================ */}
             {activeTab === 'dna' && (
               <div className="space-y-6">
                 {travelDna ? (
@@ -258,21 +401,25 @@ const TripMapPage = () => {
                       {/* Destinations */}
                       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                         <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                          <span className="text-2xl">🗺️</span> Destinations
+                          <span className="text-2xl">{'\uD83D\uDDFA\uFE0F'}</span> Destinations
                         </h3>
                         {travelDna.destinations?.favorite_destinations?.length > 0 ? (
                           <div className="space-y-2">
-                            {travelDna.destinations.favorite_destinations.map((d: string, i: number) => (
-                              <div key={i} className="flex items-center gap-2">
-                                <span className="w-6 h-6 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center text-xs font-bold text-teal-700 dark:text-teal-300">
-                                  {i + 1}
-                                </span>
-                                <span className="text-gray-700 dark:text-gray-300">{d}</span>
-                              </div>
-                            ))}
+                            {travelDna.destinations.favorite_destinations.map(
+                              (d: string, i: number) => (
+                                <div key={i} className="flex items-center gap-2">
+                                  <span className="w-6 h-6 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center text-xs font-bold text-teal-700 dark:text-teal-300">
+                                    {i + 1}
+                                  </span>
+                                  <span className="text-gray-700 dark:text-gray-300">{d}</span>
+                                </div>
+                              ),
+                            )}
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Book trips to build your destination profile.</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Book trips to build your destination profile.
+                          </p>
                         )}
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
                           {travelDna.destinations?.total_destinations || 0} destinations visited
@@ -282,7 +429,7 @@ const TripMapPage = () => {
                       {/* Budget Profile */}
                       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                         <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                          <span className="text-2xl">💰</span> Budget Profile
+                          <span className="text-2xl">{'\uD83D\uDCB0'}</span> Budget Profile
                         </h3>
                         <div className="space-y-3">
                           <div>
@@ -293,7 +440,9 @@ const TripMapPage = () => {
                           </div>
                           {travelDna.budget?.average_spend > 0 && (
                             <div>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">Average Spend</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Average Spend
+                              </p>
                               <p className="text-lg font-semibold text-gray-900 dark:text-white">
                                 ${travelDna.budget.average_spend.toFixed(0)}
                               </p>
@@ -310,7 +459,7 @@ const TripMapPage = () => {
                       {/* Travel Style */}
                       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                         <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                          <span className="text-2xl">✨</span> Travel Style
+                          <span className="text-2xl">{'\u2728'}</span> Travel Style
                         </h3>
                         <div className="space-y-3">
                           <div>
@@ -321,7 +470,9 @@ const TripMapPage = () => {
                           </div>
                           {travelDna.style?.avg_trip_duration > 0 && (
                             <div>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">Avg Trip Duration</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Avg Trip Duration
+                              </p>
                               <p className="text-lg font-semibold text-gray-900 dark:text-white">
                                 {travelDna.style.avg_trip_duration} days
                               </p>
@@ -329,10 +480,15 @@ const TripMapPage = () => {
                           )}
                           {travelDna.style?.top_interests?.length > 0 && (
                             <div>
-                              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Interests</p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                                Interests
+                              </p>
                               <div className="flex flex-wrap gap-1">
                                 {travelDna.style.top_interests.map((t: string, i: number) => (
-                                  <span key={i} className="text-xs px-2 py-1 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">
+                                  <span
+                                    key={i}
+                                    className="text-xs px-2 py-1 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300"
+                                  >
                                     {t}
                                   </span>
                                 ))}
@@ -347,18 +503,25 @@ const TripMapPage = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                         <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                          <span className="text-2xl">📅</span> Timing Patterns
+                          <span className="text-2xl">{'\uD83D\uDCC5'}</span> Timing Patterns
                         </h3>
                         {travelDna.timing?.preferred_booking_months?.length > 0 ? (
                           <div className="flex flex-wrap gap-2">
-                            {travelDna.timing.preferred_booking_months.map((m: string, i: number) => (
-                              <span key={i} className="px-3 py-1.5 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 text-sm font-medium">
-                                {m}
-                              </span>
-                            ))}
+                            {travelDna.timing.preferred_booking_months.map(
+                              (m: string, i: number) => (
+                                <span
+                                  key={i}
+                                  className="px-3 py-1.5 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300 text-sm font-medium"
+                                >
+                                  {m}
+                                </span>
+                              ),
+                            )}
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">No booking pattern detected yet.</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            No booking pattern detected yet.
+                          </p>
                         )}
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
                           Avg advance booking: {travelDna.timing?.avg_advance_days || 14} days
@@ -367,18 +530,21 @@ const TripMapPage = () => {
 
                       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
                         <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                          <span className="text-2xl">⚙️</span> Preferences
+                          <span className="text-2xl">{'\u2699\uFE0F'}</span> Preferences
                         </h3>
-                        {travelDna.preferences && Object.keys(travelDna.preferences).length > 0 ? (
+                        {travelDna.preferences &&
+                        Object.keys(travelDna.preferences).length > 0 ? (
                           <div className="space-y-2 text-sm">
                             {travelDna.preferences.preferred_airlines?.length > 0 && (
                               <p className="text-gray-700 dark:text-gray-300">
-                                <strong>Airlines:</strong> {travelDna.preferences.preferred_airlines.join(', ')}
+                                <strong>Airlines:</strong>{' '}
+                                {travelDna.preferences.preferred_airlines.join(', ')}
                               </p>
                             )}
                             {travelDna.preferences.preferred_hotel_chains?.length > 0 && (
                               <p className="text-gray-700 dark:text-gray-300">
-                                <strong>Hotels:</strong> {travelDna.preferences.preferred_hotel_chains.join(', ')}
+                                <strong>Hotels:</strong>{' '}
+                                {travelDna.preferences.preferred_hotel_chains.join(', ')}
                               </p>
                             )}
                             {travelDna.preferences.trip_style && (
@@ -388,31 +554,43 @@ const TripMapPage = () => {
                             )}
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Set your preferences in your profile.</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Set your preferences in your profile.
+                          </p>
                         )}
                       </div>
                     </div>
                   </>
                 ) : (
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
-                    <p className="text-5xl mb-4">🧬</p>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Your Travel DNA</h3>
+                    <p className="text-5xl mb-4">{'\uD83E\uDDEC'}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      Your Travel DNA
+                    </h3>
                     <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-                      Book trips and search for destinations to build your personalized Travel DNA profile.
+                      Book trips and search for destinations to build your personalized Travel DNA
+                      profile.
                     </p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Recommendations Tab */}
+            {/* ============================================================ */}
+            {/* RECOMMENDATIONS TAB */}
+            {/* ============================================================ */}
             {activeTab === 'recs' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Personalized For You</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Personalized For You
+                </h2>
                 {recommendations.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {recommendations.map((rec, i) => (
-                      <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                      <div
+                        key={i}
+                        className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+                      >
                         <div className="h-3 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500" />
                         <div className="p-6">
                           <div className="flex items-center justify-between mb-3">
@@ -421,19 +599,28 @@ const TripMapPage = () => {
                               {rec.match_score}% match
                             </span>
                           </div>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{rec.destination}</p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">{rec.reason}</p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 italic">{rec.based_on}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                            {rec.destination}
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
+                            {rec.reason}
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                            {rec.based_on}
+                          </p>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
-                    <p className="text-5xl mb-4">🎯</p>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Recommendations Coming Soon</h3>
+                    <p className="text-5xl mb-4">{'\uD83C\uDFAF'}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      Recommendations Coming Soon
+                    </h3>
                     <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-                      Use the app more to receive personalized trip recommendations based on your travel style.
+                      Use the app more to receive personalized trip recommendations based on your
+                      travel style.
                     </p>
                   </div>
                 )}
