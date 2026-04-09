@@ -265,6 +265,18 @@ const Header = () => {
               <span>👥</span> Collaborate
             </Link>
             <Link
+              to={ROUTES.PREDICTIONS}
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
+            >
+              <span>📊</span> Predictions
+            </Link>
+            <Link
+              to={ROUTES.TRIP_MAP}
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
+            >
+              <span>🌍</span> My Travel
+            </Link>
+            <Link
               to={ROUTES.ITINERARY}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             >
@@ -453,6 +465,8 @@ const Header = () => {
             <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
               <Link to={ROUTES.COLLABORATE} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">👥 Collaborate</Link>
               <Link to={ROUTES.PRICING} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">Pricing</Link>
+              <Link to={ROUTES.PREDICTIONS} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📊 Predictions</Link>
+              <Link to={ROUTES.TRIP_MAP} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🌍 My Travel</Link>
               <Link to={ROUTES.ITINERARY} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">My Trips</Link>
               {isAuthenticated && (
                 <Link to={ROUTES.DASHBOARD} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">Dashboard</Link>

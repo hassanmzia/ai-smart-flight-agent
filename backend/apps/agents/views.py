@@ -1768,3 +1768,400 @@ def auto_build_itinerary(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+# ─────────────────────────────────────────────────
+# Multi-Modal Agent Endpoints (Voice + Image)
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def voice_to_trip(request):
+    """Transcribe voice input and extract travel intent."""
+    audio_file = request.FILES.get('audio')
+    if not audio_file:
+        return Response({'error': 'audio file is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .multimodal_agent import MultiModalAgent
+        agent = MultiModalAgent()
+        result = agent.transcribe_voice(audio_file)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Voice transcription failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def image_to_trip(request):
+    """Analyze an image to identify destinations and suggest trips."""
+    image_file = request.FILES.get('image')
+    if not image_file:
+        return Response({'error': 'image file is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .multimodal_agent import MultiModalAgent
+        agent = MultiModalAgent()
+        result = agent.analyze_image(image_file)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Image analysis failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def analyze_screenshot(request):
+    """Extract flight/hotel deal info from a screenshot."""
+    image_file = request.FILES.get('image')
+    if not image_file:
+        return Response({'error': 'image file is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .multimodal_agent import MultiModalAgent
+        agent = MultiModalAgent()
+        result = agent.analyze_screenshot(image_file)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Screenshot analysis failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Autonomous Booking Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def autonomous_book(request):
+    """Plan an entire trip autonomously — search, evaluate, and recommend."""
+    destination = request.data.get('destination')
+    start_date = request.data.get('start_date')
+    end_date = request.data.get('end_date')
+
+    if not all([destination, start_date, end_date]):
+        return Response(
+            {'error': 'destination, start_date, and end_date are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        from .autonomous_booking import AutonomousBookingAgent
+        agent = AutonomousBookingAgent(user=request.user)
+        result = agent.plan_and_book(
+            destination=destination,
+            start_date=start_date,
+            end_date=end_date,
+            origin=request.data.get('origin', ''),
+            budget=request.data.get('budget'),
+            travelers=request.data.get('travelers', 1),
+            preferences=request.data.get('preferences', {}),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Autonomous booking failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def confirm_autonomous_booking(request):
+    """Confirm a previously planned autonomous booking."""
+    task_id = request.data.get('task_id')
+    if not task_id:
+        return Response({'error': 'task_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .autonomous_booking import AutonomousBookingAgent
+        agent = AutonomousBookingAgent(user=request.user)
+        result = agent.confirm_booking(task_id)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Booking confirmation failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Multi-Agent Debate Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def debate_options(request):
+    """Run a multi-agent debate on travel options."""
+    options = request.data.get('options', [])
+    context = request.data.get('context', {})
+    use_llm = request.data.get('use_llm', False)
+
+    if not options:
+        return Response({'error': 'options list is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .debate_system import TravelDebateSystem
+        system = TravelDebateSystem()
+        if use_llm:
+            result = system.debate_with_llm(options, context)
+        else:
+            result = system.debate(options, context)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Debate failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Predictive Intelligence Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def predict_prices(request):
+    """Predict flight price trends for a route."""
+    origin = request.data.get('origin')
+    destination = request.data.get('destination')
+    target_date = request.data.get('target_date')
+
+    if not all([origin, destination, target_date]):
+        return Response(
+            {'error': 'origin, destination, and target_date are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        from .predictive_intelligence import PredictiveIntelligence
+        pi = PredictiveIntelligence()
+        result = pi.predict_price_trend(
+            origin=origin,
+            destination=destination,
+            target_date=target_date,
+            days_ahead=request.data.get('days_ahead', 30),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Price prediction failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def best_time_to_visit(request):
+    """Get the best time to visit a destination."""
+    destination = request.query_params.get('destination')
+    if not destination:
+        return Response({'error': 'destination query param is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .predictive_intelligence import PredictiveIntelligence
+        pi = PredictiveIntelligence()
+        result = pi.best_time_to_visit(destination)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Best time analysis failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def destination_trends(request):
+    """Get trending destinations."""
+    limit = int(request.query_params.get('limit', 10))
+
+    try:
+        from .predictive_intelligence import PredictiveIntelligence
+        pi = PredictiveIntelligence()
+        result = pi.destination_trends(limit=limit)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Destination trends failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Personalization Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_travel_dna(request):
+    """Build and return the user's Travel DNA profile."""
+    try:
+        from .personalization_service import PersonalizationService
+        service = PersonalizationService()
+        dna = service.build_travel_dna(request.user)
+        return Response({'success': True, 'travel_dna': dna})
+    except Exception as e:
+        logger.error(f"Travel DNA failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_recommendations(request):
+    """Get personalized trip recommendations based on Travel DNA."""
+    limit = int(request.query_params.get('limit', 5))
+
+    try:
+        from .personalization_service import PersonalizationService
+        service = PersonalizationService()
+        result = service.get_recommendations(request.user, limit=limit)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Recommendations failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Subscription Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def subscription_status(request):
+    """Get the current user's subscription status and usage."""
+    try:
+        from .subscription_middleware import get_subscription_status
+        result = get_subscription_status(request.user)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Subscription status failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def check_feature_access(request):
+    """Check if user can access a specific feature."""
+    feature = request.data.get('feature')
+    if not feature:
+        return Response({'error': 'feature is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .subscription_middleware import check_usage
+        result = check_usage(request.user, feature)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Feature check failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Affiliate Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_affiliate_link(request):
+    """Generate a tracked affiliate link for a partner."""
+    partner = request.data.get('partner')
+    click_type = request.data.get('click_type')
+    destination = request.data.get('destination', '')
+
+    if not all([partner, click_type]):
+        return Response(
+            {'error': 'partner and click_type are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        from .affiliate_service import AffiliateService
+        result = AffiliateService.generate_tracking_link(
+            partner=partner,
+            click_type=click_type,
+            destination=destination,
+            user=request.user,
+            metadata=request.data.get('metadata'),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Affiliate link generation failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def affiliate_report(request):
+    """Get affiliate revenue report."""
+    days = int(request.query_params.get('days', 30))
+
+    try:
+        from .affiliate_service import AffiliateService
+        result = AffiliateService.get_revenue_report(user=request.user, days=days)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Affiliate report failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def affiliate_partners(request):
+    """Get list of available affiliate partners."""
+    click_type = request.query_params.get('type')
+
+    try:
+        from .affiliate_service import AffiliateService
+        partners = AffiliateService.get_available_partners(click_type=click_type)
+        return Response({'success': True, 'partners': partners})
+    except Exception as e:
+        logger.error(f"Affiliate partners failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Price Watch Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_price_watch(request):
+    """Create a new price watch alert."""
+    watch_type = request.data.get('watch_type')
+    search_params = request.data.get('search_params', {})
+    target_price = request.data.get('target_price')
+
+    if not all([watch_type, search_params]):
+        return Response(
+            {'error': 'watch_type and search_params are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        from .price_monitor import PriceMonitorService
+        monitor = PriceMonitorService()
+        result = monitor.create_watch(
+            user=request.user,
+            watch_type=watch_type,
+            search_params=search_params,
+            target_price=target_price,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Create price watch failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_price_watches(request):
+    """List user's active price watches."""
+    try:
+        from .models import PriceWatch
+        watches = PriceWatch.objects.filter(user=request.user, is_active=True).order_by('-created_at')
+        data = []
+        for w in watches:
+            data.append({
+                'id': w.id,
+                'watch_type': w.watch_type,
+                'search_params': w.search_params,
+                'target_price': float(w.target_price) if w.target_price else None,
+                'current_price': float(w.current_price) if w.current_price else None,
+                'lowest_price': float(w.lowest_price) if w.lowest_price else None,
+                'price_history': w.price_history[-10:] if w.price_history else [],
+                'created_at': w.created_at.isoformat(),
+                'updated_at': w.updated_at.isoformat(),
+            })
+        return Response({'success': True, 'watches': data})
+    except Exception as e:
+        logger.error(f"List price watches failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

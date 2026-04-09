@@ -25,6 +25,8 @@ export const ROUTES = {
   LOGIN: '/login',
   REGISTER: '/register',
   PRICING: '/pricing',
+  PREDICTIONS: '/predictions',
+  TRIP_MAP: '/my-travel',
 } as const;
 
 // Local storage keys
@@ -71,6 +73,20 @@ export const API_ENDPOINTS = {
     CONTEXT: '/api/agents/context',
     PLAN: '/api/agents/plan',
     DOCUMENTS: '/api/agents/documents',
+    VOICE_TO_TRIP: '/api/agents/voice-to-trip',
+    IMAGE_TO_TRIP: '/api/agents/image-to-trip',
+    AUTONOMOUS_BOOK: '/api/agents/autonomous-book',
+    DEBATE: '/api/agents/debate',
+    PREDICT_PRICES: '/api/agents/predict-prices',
+    BEST_TIME: '/api/agents/best-time',
+    TRENDS: '/api/agents/trends',
+    TRAVEL_DNA: '/api/agents/travel-dna',
+    RECOMMENDATIONS: '/api/agents/recommendations',
+    SUBSCRIPTION: '/api/agents/subscription',
+    AFFILIATE_LINK: '/api/agents/affiliate/link',
+    AFFILIATE_REPORT: '/api/agents/affiliate/report',
+    PRICE_WATCH_CREATE: '/api/agents/price-watch/create',
+    PRICE_WATCH_LIST: '/api/agents/price-watch/list',
   },
   PRICE_ALERTS: {
     CREATE: '/api/price-alerts',
