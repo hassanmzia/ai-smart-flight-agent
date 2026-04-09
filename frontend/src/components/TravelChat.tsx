@@ -81,7 +81,7 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
             .map((m) => ({ role: m.role, content: m.content })),
           extracted_params: extractedParams,
           confirmed: false,
-        });
+        }, { timeout: 90000 });
 
         const data = response.data;
 
@@ -110,12 +110,12 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
           ]);
         }
       } catch (err: any) {
-        const errorMsg = err?.response?.data?.error || err?.response?.data?.detail || err?.message || 'Could not reach the server';
+        const errorMsg = err?.response?.data?.error || err?.response?.data?.detail || err?.message || err?.code || 'Could not reach the server';
         setMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
-            content: `Sorry, I encountered an error: ${errorMsg}. Please try again.`,
+            content: `Sorry, something went wrong: ${errorMsg}. Please try again.`,
             timestamp: new Date(),
           },
         ]);
@@ -144,7 +144,7 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
         conversation: [],
         extracted_params: extractedParams,
         confirmed: true,
-      });
+      }, { timeout: 300000 });
 
       const data = response.data;
 
@@ -173,11 +173,12 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
         ]);
       }
     } catch (err: any) {
+      const errorMsg = err?.response?.data?.error || err?.response?.data?.detail || err?.message || err?.code || 'Could not reach the server';
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Failed to connect to the planner. Please try again.',
+          content: `Planning failed: ${errorMsg}. Please try again.`,
           timestamp: new Date(),
         },
       ]);
