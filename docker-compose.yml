@@ -77,7 +77,7 @@ services:
              python manage.py pre_migrate_cleanup || true &&
              python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn travel_agent.wsgi:application --bind 0.0.0.0:8109 --workers 4 --timeout 300 --reload --access-logfile - --error-logfile -"
+             daphne -b 0.0.0.0 -p 8109 --access-log - --proxy-headers travel_agent.asgi:application"
     volumes:
       - ./backend:/app
       - static_volume:/app/staticfiles
@@ -208,7 +208,7 @@ services:
       network: host
       args:
         VITE_API_URL: "https://demo.eminencetechsolutions.com:3090"
-        VITE_WS_URL: "wss://demo.eminencetechsolutions.com:3090/ws"
+        VITE_WS_URL: "wss://demo.eminencetechsolutions.com:3090"
         VITE_MCP_URL: "https://demo.eminencetechsolutions.com:3090/mcp"
     container_name: travel-agent-frontend
     dns:
@@ -219,7 +219,7 @@ services:
     environment:
       NODE_ENV: "production"
       VITE_API_URL: "https://demo.eminencetechsolutions.com:3090"
-      VITE_WS_URL: "wss://demo.eminencetechsolutions.com:3090/ws"
+      VITE_WS_URL: "wss://demo.eminencetechsolutions.com:3090"
       VITE_MCP_URL: "https://demo.eminencetechsolutions.com:3090/mcp"
       PORT: "3090"
     volumes:

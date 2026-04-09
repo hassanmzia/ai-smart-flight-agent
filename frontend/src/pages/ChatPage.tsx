@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { io, Socket } from 'socket.io-client';
 import { WS_BASE_URL } from '@/utils/constants';
 import { getAuthToken } from '@/utils/helpers';
 import {
@@ -219,7 +218,7 @@ const ChatPage = () => {
   const [connected, setConnected] = useState(false);
 
   // Refs
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const streamingMessageRef = useRef<Map<string, string>>(new Map());
@@ -239,119 +238,138 @@ const ChatPage = () => {
   const connectWebSocket = useCallback((convId?: string) => {
     // Disconnect existing socket
     if (socketRef.current) {
-      socketRef.current.disconnect();
+      socketRef.current.close();
       socketRef.current = null;
     }
 
     const token = getAuthToken();
     if (!token) return;
 
-    const path = convId ? `/ws/chat/${convId}/` : '/ws/chat/';
+    const wsPath = convId ? `/ws/chat/${convId}/` : '/ws/chat/';
+    const base = WS_BASE_URL.replace(/^http/, 'ws');
+    const url = `${base}${wsPath}?token=${encodeURIComponent(token)}`;
 
-    const socket = io(WS_BASE_URL, {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-      query: { path, conversationId: convId || '' },
-    });
+    const socket = new WebSocket(url);
 
-    socket.on('connect', () => {
+    socket.onopen = () => {
       setConnected(true);
-    });
+    };
 
-    socket.on('disconnect', () => {
+    socket.onclose = () => {
       setConnected(false);
-    });
+    };
 
-    // Connection established with conversation id
-    socket.on('connection_established', (data: { conversation_id: string }) => {
-      setConversationId(data.conversation_id);
-    });
+    socket.onerror = () => {
+      setConnected(false);
+    };
 
-    // Receive conversation history
-    socket.on('conversation_history', (data: { messages: ChatMessage[] }) => {
-      if (data.messages && Array.isArray(data.messages)) {
-        setMessages(data.messages.map((m) => ({ ...m, isStreaming: false })));
-      }
-    });
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const type = data.type as string;
 
-    // Receive conversation list
-    socket.on('conversation_list', (data: { conversations: ConversationSummary[] }) => {
-      if (data.conversations && Array.isArray(data.conversations)) {
-        setConversations(data.conversations);
-      }
-    });
+        switch (type) {
+          case 'connection_established':
+            setConversationId(data.conversation_id);
+            break;
 
-    // Agent typing indicator
-    socket.on('agent_typing', () => {
-      setIsTyping(true);
-    });
+          case 'conversation_history':
+            if (data.messages && Array.isArray(data.messages)) {
+              setMessages(data.messages.map((m: any) => ({
+                id: m.id,
+                role: m.role || (m.sender === 'agent' ? 'assistant' : m.sender) || 'user',
+                content: m.content,
+                timestamp: m.timestamp,
+                isStreaming: false,
+              })));
+            }
+            break;
 
-    // Agent streaming tokens
-    socket.on('agent_stream', (data: { token: string; message_id: string }) => {
-      setIsTyping(false);
-      const { token: tok, message_id } = data;
+          case 'conversation_list':
+            if (data.conversations && Array.isArray(data.conversations)) {
+              setConversations(data.conversations);
+            }
+            break;
 
-      streamingMessageRef.current.set(
-        message_id,
-        (streamingMessageRef.current.get(message_id) || '') + tok
-      );
+          case 'agent_typing':
+            setIsTyping(true);
+            break;
 
-      const content = streamingMessageRef.current.get(message_id) || '';
+          case 'agent_stream': {
+            setIsTyping(false);
+            const { token: tok, message_id } = data;
 
-      setMessages((prev) => {
-        const idx = prev.findIndex((m) => m.id === message_id);
-        if (idx === -1) {
-          return [
-            ...prev,
-            {
-              id: message_id,
-              role: 'assistant',
-              content,
-              timestamp: new Date().toISOString(),
-              isStreaming: true,
-            },
-          ];
+            streamingMessageRef.current.set(
+              message_id,
+              (streamingMessageRef.current.get(message_id) || '') + tok
+            );
+
+            const content = streamingMessageRef.current.get(message_id) || '';
+
+            setMessages((prev) => {
+              const idx = prev.findIndex((m) => m.id === message_id);
+              if (idx === -1) {
+                return [
+                  ...prev,
+                  {
+                    id: message_id,
+                    role: 'assistant',
+                    content,
+                    timestamp: new Date().toISOString(),
+                    isStreaming: true,
+                  },
+                ];
+              }
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], content, isStreaming: true };
+              return updated;
+            });
+            break;
+          }
+
+          case 'agent_message_complete': {
+            setIsTyping(false);
+            const { message } = data;
+            streamingMessageRef.current.delete(message.id);
+
+            const completeMsg = {
+              id: message.id,
+              role: 'assistant' as const,
+              content: message.content,
+              timestamp: message.timestamp,
+              isStreaming: false,
+            };
+
+            setMessages((prev) => {
+              const idx = prev.findIndex((m: ChatMessage) => m.id === message.id);
+              if (idx === -1) {
+                return [...prev, completeMsg];
+              }
+              const updated = [...prev];
+              updated[idx] = completeMsg;
+              return updated;
+            });
+            break;
+          }
+
+          case 'error':
+            setIsTyping(false);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `error-${Date.now()}`,
+                role: 'assistant',
+                content: `Sorry, something went wrong: ${data.message}`,
+                timestamp: new Date().toISOString(),
+                isStreaming: false,
+              },
+            ]);
+            break;
         }
-        const updated = [...prev];
-        updated[idx] = { ...updated[idx], content, isStreaming: true };
-        return updated;
-      });
-    });
-
-    // Agent message complete
-    socket.on('agent_message_complete', (data: { message: ChatMessage }) => {
-      setIsTyping(false);
-      const { message } = data;
-      streamingMessageRef.current.delete(message.id);
-
-      setMessages((prev) => {
-        const idx = prev.findIndex((m) => m.id === message.id);
-        if (idx === -1) {
-          return [...prev, { ...message, isStreaming: false }];
-        }
-        const updated = [...prev];
-        updated[idx] = { ...message, isStreaming: false };
-        return updated;
-      });
-    });
-
-    // Error
-    socket.on('error', (data: { message: string }) => {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `error-${Date.now()}`,
-          role: 'assistant',
-          content: `Sorry, something went wrong: ${data.message}`,
-          timestamp: new Date().toISOString(),
-          isStreaming: false,
-        },
-      ]);
-    });
+      } catch {
+        // ignore non-JSON messages
+      }
+    };
 
     socketRef.current = socket;
   }, []);
@@ -362,7 +380,7 @@ const ChatPage = () => {
 
     return () => {
       if (socketRef.current) {
-        socketRef.current.disconnect();
+        socketRef.current.close();
         socketRef.current = null;
       }
     };
@@ -375,7 +393,7 @@ const ChatPage = () => {
   const sendMessage = useCallback(
     (text?: string) => {
       const content = (text || input).trim();
-      if (!content || !socketRef.current?.connected) return;
+      if (!content || socketRef.current?.readyState !== WebSocket.OPEN) return;
 
       // Add user message locally
       const userMsg: ChatMessage = {
@@ -387,11 +405,11 @@ const ChatPage = () => {
       setMessages((prev) => [...prev, userMsg]);
 
       // Send via WebSocket
-      socketRef.current.emit('chat_message', {
+      socketRef.current.send(JSON.stringify({
         type: 'chat_message',
         message: content,
         conversation_id: conversationId,
-      });
+      }));
 
       setInput('');
       setIsTyping(true);
