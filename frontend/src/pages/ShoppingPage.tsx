@@ -218,7 +218,6 @@ const ShoppingPage = () => {
           </div>
         )}
       </div>
-      </div>
     </div>
   );
 };

@@ -127,7 +127,6 @@ const AboutPage = () => {
           </CardContent>
         </Card>
       </div>
-      </div>
     </div>
   );
 };

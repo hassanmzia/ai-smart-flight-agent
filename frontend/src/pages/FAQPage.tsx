@@ -177,7 +177,6 @@ const FAQPage = () => {
           </CardContent>
         </Card>
       </div>
-      </div>
     </div>
   );
 };

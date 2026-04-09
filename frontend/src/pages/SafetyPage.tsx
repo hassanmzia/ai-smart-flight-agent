@@ -455,7 +455,6 @@ const SafetyPage = () => {
           </div>
         )}
       </div>
-      </div>
     </div>
   );
 };

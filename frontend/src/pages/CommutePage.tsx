@@ -612,7 +612,6 @@ const CommutePage = () => {
           </div>
         )}
       </div>
-      </div>
     </div>
   );
 };
