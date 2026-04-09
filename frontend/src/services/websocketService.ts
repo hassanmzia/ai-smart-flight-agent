@@ -1,150 +1,112 @@
-import { io, Socket } from 'socket.io-client';
-import { WS_BASE_URL, WS_EVENTS } from '@/utils/constants';
+import { WS_BASE_URL } from '@/utils/constants';
 import { getAuthToken } from '@/utils/helpers';
-import type { WebSocketMessage, Notification } from '@/types';
 
 class WebSocketService {
-  private socket: Socket | null = null;
+  private socket: WebSocket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private url: string = '';
 
   /**
    * Connect to WebSocket server
    */
-  connect(): void {
-    if (this.socket?.connected) {
-      console.log('WebSocket already connected');
+  connect(path = '/ws/notifications/'): void {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       return;
     }
 
     const token = getAuthToken();
-
     if (!token) {
       console.warn('No auth token found, skipping WebSocket connection');
       return;
     }
 
-    this.socket = io(WS_BASE_URL, {
-      auth: {
-        token,
-      },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionDelay: this.reconnectDelay,
-      reconnectionAttempts: this.maxReconnectAttempts,
-    });
+    // Build WebSocket URL: wss://host/ws/notifications/?token=...
+    const base = WS_BASE_URL.replace(/^http/, 'ws');
+    this.url = `${base}${path}?token=${encodeURIComponent(token)}`;
 
-    this.setupEventHandlers();
+    this.createConnection();
   }
 
-  /**
-   * Setup WebSocket event handlers
-   */
-  private setupEventHandlers(): void {
-    if (!this.socket) return;
+  private createConnection(): void {
+    try {
+      this.socket = new WebSocket(this.url);
 
-    this.socket.on(WS_EVENTS.CONNECT, () => {
-      console.log('WebSocket connected');
-      this.reconnectAttempts = 0;
-      this.emit('connected', null);
-    });
+      this.socket.onopen = () => {
+        console.log('WebSocket connected');
+        this.reconnectAttempts = 0;
+        this.emit('connected', null);
+      };
 
-    this.socket.on(WS_EVENTS.DISCONNECT, (reason: string) => {
-      console.log('WebSocket disconnected:', reason);
-      this.emit('disconnected', { reason });
-    });
+      this.socket.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason);
+        this.emit('disconnected', { reason: event.reason, code: event.code });
+        this.attemptReconnect();
+      };
 
-    this.socket.on('connect_error', (error: Error) => {
-      console.error('WebSocket connection error:', error);
-      this.reconnectAttempts++;
+      this.socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        this.emit('error', { message: 'WebSocket connection error' });
+      };
 
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('Max reconnection attempts reached');
-        this.emit('error', { message: 'Failed to connect to server' });
-      }
-    });
+      this.socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const type = data.type || 'message';
+          this.emit(type, data);
+        } catch {
+          console.warn('Non-JSON WebSocket message:', event.data);
+        }
+      };
+    } catch (error) {
+      console.error('Failed to create WebSocket:', error);
+    }
+  }
 
-    // Handle incoming messages
-    this.socket.on(WS_EVENTS.NOTIFICATION, (data: Notification) => {
-      this.emit(WS_EVENTS.NOTIFICATION, data);
-    });
+  private attemptReconnect(): void {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error('Max reconnection attempts reached');
+      this.emit('error', { message: 'Failed to connect to server' });
+      return;
+    }
 
-    this.socket.on(WS_EVENTS.PRICE_UPDATE, (data: any) => {
-      this.emit(WS_EVENTS.PRICE_UPDATE, data);
-    });
+    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
+    this.reconnectAttempts++;
 
-    this.socket.on(WS_EVENTS.BOOKING_UPDATE, (data: any) => {
-      this.emit(WS_EVENTS.BOOKING_UPDATE, data);
-    });
-
-    this.socket.on(WS_EVENTS.CHAT_MESSAGE, (data: any) => {
-      this.emit(WS_EVENTS.CHAT_MESSAGE, data);
-    });
-
-    // Handle any custom events
-    this.socket.onAny((eventName: string, data: any) => {
-      this.emit(eventName, data);
-    });
+    this.reconnectTimer = setTimeout(() => {
+      console.log(`WebSocket reconnecting (attempt ${this.reconnectAttempts})...`);
+      this.createConnection();
+    }, delay);
   }
 
   /**
    * Disconnect from WebSocket server
    */
   disconnect(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempts = this.maxReconnectAttempts; // prevent reconnect
     if (this.socket) {
-      this.socket.disconnect();
+      this.socket.close();
       this.socket = null;
       this.listeners.clear();
-      console.log('WebSocket disconnected');
     }
   }
 
   /**
    * Send message through WebSocket
    */
-  send(event: string, data: any): void {
-    if (this.socket?.connected) {
-      this.socket.emit(event, data);
+  send(data: Record<string, unknown>): void {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
     } else {
       console.warn('WebSocket not connected, message not sent');
     }
-  }
-
-  /**
-   * Subscribe to price alerts
-   */
-  subscribeToPriceAlerts(alertIds: string[]): void {
-    this.send('subscribe_price_alerts', { alertIds });
-  }
-
-  /**
-   * Unsubscribe from price alerts
-   */
-  unsubscribeFromPriceAlerts(alertIds: string[]): void {
-    this.send('unsubscribe_price_alerts', { alertIds });
-  }
-
-  /**
-   * Subscribe to booking updates
-   */
-  subscribeToBookingUpdates(bookingIds: string[]): void {
-    this.send('subscribe_booking_updates', { bookingIds });
-  }
-
-  /**
-   * Join chat room
-   */
-  joinChatRoom(roomId: string): void {
-    this.send('join_room', { roomId });
-  }
-
-  /**
-   * Leave chat room
-   */
-  leaveChatRoom(roomId: string): void {
-    this.send('leave_room', { roomId });
   }
 
   /**
@@ -184,14 +146,7 @@ class WebSocketService {
    * Check if WebSocket is connected
    */
   isConnected(): boolean {
-    return this.socket?.connected || false;
-  }
-
-  /**
-   * Get socket instance
-   */
-  getSocket(): Socket | null {
-    return this.socket;
+    return this.socket?.readyState === WebSocket.OPEN;
   }
 }
 

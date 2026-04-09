@@ -46,8 +46,8 @@ export const useWebSocket = () => {
     };
   }, []);
 
-  const send = useCallback((event: string, data: any) => {
-    websocketService.send(event, data);
+  const send = useCallback((data: Record<string, unknown>) => {
+    websocketService.send(data);
   }, []);
 
   return {
