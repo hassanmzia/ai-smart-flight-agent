@@ -383,14 +383,24 @@ const AIPlannerPage = () => {
   })();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-        AI Travel Planner
-      </h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-4">
-        Let our AI agents find and evaluate the best travel options for you
-      </p>
+    <div className="min-h-screen">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 dark:from-blue-800 dark:via-indigo-800 dark:to-purple-900">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 -right-40 w-80 h-80 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-purple-300 rounded-full blur-3xl"></div>
+        </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
+            AI Travel Planner
+          </h1>
+          <p className="text-blue-100 text-lg">
+            Let our AI agents find and evaluate the best travel options for you
+          </p>
+        </div>
+      </div>
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
       {/* Order Mode Switcher */}
       <div className="flex gap-2 mb-6">
         {[
@@ -401,10 +411,10 @@ const AIPlannerPage = () => {
           <button
             key={mode}
             onClick={() => setOrderMode(mode)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
               orderMode === mode
-                ? 'bg-primary-600 text-white shadow-md'
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:border-primary-400'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                : 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-gray-700/50 hover:bg-white dark:hover:bg-gray-700 shadow-sm'
             }`}
           >
             {icon} {label}
@@ -414,12 +424,18 @@ const AIPlannerPage = () => {
 
       {/* MODE 1: Form */}
       {orderMode === 'form' && (
-        <Card className="mb-8">
-          <CardHeader><CardTitle>Travel Details</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={handlePlan} className="space-y-4">
+        <Card variant="glass" className="mb-8">
+          <div className="p-6 md:p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-lg">📝</div>
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Travel Details</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Fill in your trip preferences and let AI do the rest</p>
+              </div>
+            </div>
+            <form onSubmit={handlePlan} className="space-y-5">
               {/* Origin & Destination with Autocomplete */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <AirportAutocomplete
                   label="From (Origin)"
                   value={originCity}
@@ -441,18 +457,18 @@ const AIPlannerPage = () => {
                   required
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Input label="Departure Date" type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} required />
                 <Input label="Return Date (Optional)" type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Input label="Travelers" type="number" min="1" value={passengers} onChange={(e) => setPassengers(Number(e.target.value))} required />
                 <Input label="Budget (USD, Optional)" type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="e.g., 2000" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Preferred Cuisine (Optional)</label>
-                  <select value={cuisine} onChange={(e) => setCuisine(e.target.value)} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Preferred Cuisine (Optional)</label>
+                  <select value={cuisine} onChange={(e) => setCuisine(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow">
                     <option value="">Any Cuisine</option>
                     {['American','Italian','Mexican','Chinese','Japanese','Indian','Thai','French','Mediterranean','Seafood','Korean','Vietnamese'].map(c => (
                       <option key={c} value={c}>{c}</option>
@@ -460,8 +476,8 @@ const AIPlannerPage = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Travel Style (Optional)</label>
-                  <select value={travelStyle} onChange={(e) => setTravelStyle(e.target.value)} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Travel Style (Optional)</label>
+                  <select value={travelStyle} onChange={(e) => setTravelStyle(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow">
                     <option value="">Any Style</option>
                     {['Budget','Comfort','Luxury','Adventure','Cultural','Family','Romantic','Business'].map(s => (
                       <option key={s} value={s.toLowerCase()}>{s}</option>
@@ -470,26 +486,38 @@ const AIPlannerPage = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your Interests (Optional)</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Your Interests (Optional)</label>
                 <textarea
                   value={interests}
                   onChange={(e) => setInterests(e.target.value)}
                   rows={3}
                   placeholder="Tell us what you enjoy: e.g., historical sites, museums, local street food, hiking, beach activities, nightlife, photography, art galleries, natural beauty, adventure sports..."
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
                   AI will personalize your itinerary based on your interests.
                 </p>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 AI will automatically find the nearest airports, best hotels, restaurants, and attractions based on your city.
               </p>
-              <Button type="submit" className="w-full" size="lg" isLoading={loading} disabled={loading}>
-                {loading ? 'AI Agents Working...' : 'Plan My Trip with AI'}
-              </Button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-base shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    AI Agents Working...
+                  </span>
+                ) : '🤖 Plan My Trip with AI'}
+              </button>
             </form>
-          </CardContent>
+          </div>
         </Card>
       )}
 
@@ -503,15 +531,20 @@ const AIPlannerPage = () => {
       {/* MODE 3: Voice */}
       {orderMode === 'voice' && (
         <div className="mb-8">
-          <Card className="border-2 border-dashed border-purple-300 dark:border-purple-700">
-            <CardContent className="py-6 text-center">
-              <div className="text-5xl mb-4">🎙️</div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Voice-Powered Trip Planning</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto">
-                Speak naturally to plan your trip. The AI will listen, understand your requirements, ask follow-up questions by voice, and create your itinerary.
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mb-4">Uses Web Speech API for listening + ElevenLabs for AI voice responses</p>
-            </CardContent>
+          <Card variant="glass" padding="none" className="overflow-hidden">
+            <div className="relative bg-gradient-to-r from-purple-500/10 via-fuchsia-500/10 to-pink-500/10 dark:from-purple-500/20 dark:via-fuchsia-500/20 dark:to-pink-500/20 border-b border-purple-200/50 dark:border-purple-700/50">
+              <div className="py-8 text-center">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-fuchsia-600 text-white text-3xl mb-4 shadow-lg shadow-purple-500/25">🎙️</div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Voice-Powered Trip Planning</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 max-w-md mx-auto px-4">
+                  Speak naturally to plan your trip. The AI will listen, understand your requirements, ask follow-up questions by voice, and create your itinerary.
+                </p>
+                <span className="inline-flex items-center gap-1.5 text-xs text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-3 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse"></span>
+                  Web Speech API + OpenAI TTS
+                </span>
+              </div>
+            </div>
           </Card>
           <div className="mt-4">
             <TravelChat onPlanReady={handleChatPlanReady} onParamsExtracted={setChatParams} initialVoiceEnabled={true} key="voice-chat" />
@@ -521,8 +554,8 @@ const AIPlannerPage = () => {
 
       {/* Loading State */}
       {loading && (
-        <Card>
-          <CardContent className="py-12">
+        <Card variant="glass">
+          <div className="py-12 px-6">
             <Loading size="lg" text="AI agents are analyzing your request..." />
             <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-3 max-w-lg mx-auto">
               {[
@@ -533,12 +566,12 @@ const AIPlannerPage = () => {
                 { icon: '💰', text: 'Optimizing budget' },
                 { icon: '🎯', text: 'Compiling results' },
               ].map(({ icon, text }) => (
-                <div key={text} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2">
+                <div key={text} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl px-3 py-2.5 border border-gray-200/50 dark:border-gray-700/50">
                   <span className="animate-pulse">{icon}</span> {text}
                 </div>
               ))}
             </div>
-          </CardContent>
+          </div>
         </Card>
       )}
 
@@ -595,42 +628,40 @@ const AIPlannerPage = () => {
           </div>
 
           {/* ── Tab Navigation ── */}
-          <div className="border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-            <nav className="flex gap-0 min-w-max">
-              {TAB_CONFIG.map(({ key, label, icon }) => {
-                // Show badge count
-                let count: number | null = null;
-                if (key === 'flights') count = rec?.summary?.flights_found || 0;
-                if (key === 'hotels') count = rec?.summary?.hotels_found || 0;
-                if (key === 'cars') count = rec?.summary?.cars_found || 0;
-                if (key === 'dining') count = rec?.summary?.restaurants_found || 0;
-                if (key === 'itinerary') count = parsedDays.length || null;
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {TAB_CONFIG.map(({ key, label, icon }) => {
+              // Show badge count
+              let count: number | null = null;
+              if (key === 'flights') count = rec?.summary?.flights_found || 0;
+              if (key === 'hotels') count = rec?.summary?.hotels_found || 0;
+              if (key === 'cars') count = rec?.summary?.cars_found || 0;
+              if (key === 'dining') count = rec?.summary?.restaurants_found || 0;
+              if (key === 'itinerary') count = parsedDays.length || null;
 
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setActiveTab(key)}
-                    className={`flex items-center gap-1.5 md:gap-2 px-2.5 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
+              return (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all duration-200 ${
+                    activeTab === key
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                      : 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 shadow-sm border border-gray-200/60 dark:border-gray-700/50'
+                  }`}
+                >
+                  <span>{icon}</span>
+                  {label}
+                  {count !== null && count > 0 && (
+                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-semibold ${
                       activeTab === key
-                        ? 'border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400'
-                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
-                    }`}
-                  >
-                    <span>{icon}</span>
-                    {label}
-                    {count !== null && count > 0 && (
-                      <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${
-                        activeTab === key
-                          ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                      }`}>
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
+                        ? 'bg-white/20 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* ══════ TAB: ITINERARY ══════ */}
@@ -1681,6 +1712,7 @@ const AIPlannerPage = () => {
 
         </div>
       )}
+      </div>
     </div>
   );
 };

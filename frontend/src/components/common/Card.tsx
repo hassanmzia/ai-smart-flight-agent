@@ -4,6 +4,7 @@ import { cn } from '@/utils/helpers';
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   hover?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  variant?: 'default' | 'glass' | 'gradient';
 }
 
 export const Card = ({
@@ -11,6 +12,7 @@ export const Card = ({
   className,
   hover = false,
   padding = 'md',
+  variant = 'default',
   ...props
 }: CardProps) => {
   const paddingStyles = {
@@ -20,11 +22,20 @@ export const Card = ({
     lg: 'p-8',
   };
 
+  const variants = {
+    default:
+      'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl border border-gray-200/60 dark:border-gray-700/50 shadow-lg shadow-gray-200/40 dark:shadow-gray-900/30',
+    glass:
+      'bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl rounded-2xl border border-white/40 dark:border-gray-600/30 shadow-xl shadow-gray-200/30 dark:shadow-gray-900/40',
+    gradient:
+      'bg-gradient-to-br from-white via-white to-gray-50 dark:from-gray-800 dark:via-gray-800 dark:to-gray-900 rounded-2xl border border-gray-200/60 dark:border-gray-700/50 shadow-lg shadow-gray-200/40 dark:shadow-gray-900/30',
+  };
+
   return (
     <div
       className={cn(
-        'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-md',
-        hover && 'hover:shadow-xl hover:border-primary-300 dark:hover:border-primary-700 transition-all duration-200 cursor-pointer transform hover:-translate-y-0.5',
+        variants[variant],
+        hover && 'hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-gray-900/40 hover:border-primary-200 dark:hover:border-primary-800/50 transition-all duration-300 cursor-pointer transform hover:-translate-y-1',
         paddingStyles[padding],
         className
       )}
@@ -80,7 +91,7 @@ export const CardFooter = ({
   ...props
 }: HTMLAttributes<HTMLDivElement>) => {
   return (
-    <div className={cn('mt-4 pt-4 border-t border-gray-200 dark:border-gray-700', className)} {...props}>
+    <div className={cn('mt-4 pt-4 border-t border-gray-200/60 dark:border-gray-700/50', className)} {...props}>
       {children}
     </div>
   );
