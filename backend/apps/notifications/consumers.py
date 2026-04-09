@@ -310,13 +310,11 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
 class ChatConsumer(AsyncWebsocketConsumer):
     """
-    WebSocket consumer for real-time chat with AI agent.
+    WebSocket consumer for real-time streaming chat with AI agent.
+    Supports token-by-token streaming, conversation memory, and structured responses.
     """
 
     async def connect(self):
-        """
-        Handle WebSocket connection for chat.
-        """
         self.user = self.scope.get('user')
 
         if not self.user or isinstance(self.user, AnonymousUser) or not self.user.is_authenticated:
@@ -324,19 +322,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
 
-        # Get or create conversation ID from URL parameters
         self.conversation_id = self.scope['url_route']['kwargs'].get('conversation_id')
 
         if self.conversation_id:
-            # Join existing conversation
             self.room_group_name = f'chat_{self.conversation_id}'
         else:
-            # Create new conversation
             conversation = await self.create_conversation()
             self.conversation_id = str(conversation.id)
             self.room_group_name = f'chat_{self.conversation_id}'
 
-        # Add to conversation group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
@@ -346,69 +340,92 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         logger.info(f"Chat WebSocket connected: User {self.user.id}, Conversation {self.conversation_id}")
 
-        # Send connection confirmation
         await self.send(text_data=json.dumps({
             'type': 'connection_established',
             'conversation_id': self.conversation_id
         }))
 
+        # Auto-load recent history
+        history = await self.get_conversation_history(limit=50)
+        if history:
+            await self.send(text_data=json.dumps({
+                'type': 'conversation_history',
+                'messages': history,
+                'conversation_id': self.conversation_id
+            }))
+
     async def disconnect(self, close_code):
-        """
-        Handle chat WebSocket disconnection.
-        """
         if hasattr(self, 'room_group_name'):
             await self.channel_layer.group_discard(
                 self.room_group_name,
                 self.channel_name
             )
-
             logger.info(f"Chat WebSocket disconnected: Conversation {self.conversation_id}, Code {close_code}")
 
     async def receive(self, text_data):
-        """
-        Handle incoming chat messages.
-        """
         try:
             data = json.loads(text_data)
             message_type = data.get('type')
 
             if message_type == 'chat_message':
-                message = data.get('message')
-
+                message = data.get('message', '').strip()
                 if not message:
                     await self.send(text_data=json.dumps({
                         'type': 'error',
                         'message': 'Message content is required'
                     }))
                     return
+                await self.process_streaming_message(message)
 
-                # Process message with AI agent
-                await self.process_chat_message(message)
+            elif message_type == 'load_history':
+                limit = data.get('limit', 50)
+                offset = data.get('offset', 0)
+                history = await self.get_conversation_history(limit=limit, offset=offset)
+                await self.send(text_data=json.dumps({
+                    'type': 'conversation_history',
+                    'messages': history,
+                    'conversation_id': self.conversation_id
+                }))
+
+            elif message_type == 'new_conversation':
+                conversation = await self.create_conversation()
+                self.conversation_id = str(conversation.id)
+                old_group = self.room_group_name
+                self.room_group_name = f'chat_{self.conversation_id}'
+                await self.channel_layer.group_discard(old_group, self.channel_name)
+                await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+                await self.send(text_data=json.dumps({
+                    'type': 'new_conversation',
+                    'conversation_id': self.conversation_id
+                }))
 
             elif message_type == 'typing':
-                # Broadcast typing indicator to other participants
                 await self.channel_layer.group_send(
                     self.room_group_name,
-                    {
-                        'type': 'user_typing',
-                        'user_id': str(self.user.id)
-                    }
+                    {'type': 'user_typing', 'user_id': str(self.user.id)}
                 )
+
+            elif message_type == 'ping':
+                await self.send(text_data=json.dumps({'type': 'pong'}))
 
             else:
                 logger.warning(f"Unknown chat message type: {message_type}")
 
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({
+                'type': 'error', 'message': 'Invalid JSON format'
+            }))
         except Exception as e:
             logger.error(f"Error handling chat message: {str(e)}")
             await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': 'Internal server error'
+                'type': 'error', 'message': 'Internal server error'
             }))
 
-    async def process_chat_message(self, message):
-        """
-        Process chat message with AI agent.
-        """
+    async def process_streaming_message(self, message):
+        """Process user message and stream AI response token-by-token."""
+        import uuid as _uuid
+        from datetime import datetime
+
         # Save user message
         user_msg = await self.save_message(message, 'user')
 
@@ -423,37 +440,163 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         }))
 
-        # Process with AI agent (async)
-        from apps.agents.tasks import run_agent_task_async
-
-        run_agent_task_async.delay(
-            task_type='chat',
-            user_id=self.user.id,
-            params={
-                'conversation_id': self.conversation_id,
-                'message': message
-            }
-        )
-
         # Send typing indicator
-        await self.send(text_data=json.dumps({
-            'type': 'agent_typing'
-        }))
+        await self.send(text_data=json.dumps({'type': 'agent_typing'}))
+
+        # Generate AI response with streaming
+        agent_message_id = str(_uuid.uuid4())
+        full_response = ""
+        start_time = datetime.utcnow()
+
+        try:
+            # Get conversation context for memory
+            context = await self.build_conversation_context()
+
+            # Stream response from LLM
+            async for token in self.stream_ai_response(message, context):
+                full_response += token
+                await self.send(text_data=json.dumps({
+                    'type': 'agent_stream',
+                    'token': token,
+                    'message_id': agent_message_id
+                }))
+
+            # Calculate response time
+            elapsed_ms = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+
+            # Save agent message to DB
+            agent_msg = await self.save_message(
+                full_response, 'agent',
+                response_time_ms=elapsed_ms
+            )
+
+            # Send completion signal
+            await self.send(text_data=json.dumps({
+                'type': 'agent_message_complete',
+                'message': {
+                    'id': str(agent_msg.id),
+                    'content': full_response,
+                    'sender': 'agent',
+                    'timestamp': agent_msg.created_at.isoformat(),
+                    'response_time_ms': elapsed_ms
+                }
+            }))
+
+        except Exception as e:
+            logger.error(f"Error streaming AI response: {str(e)}")
+            error_msg = "I'm sorry, I encountered an error processing your request. Please try again."
+            agent_msg = await self.save_message(error_msg, 'agent')
+            await self.send(text_data=json.dumps({
+                'type': 'agent_message_complete',
+                'message': {
+                    'id': str(agent_msg.id),
+                    'content': error_msg,
+                    'sender': 'agent',
+                    'timestamp': agent_msg.created_at.isoformat(),
+                    'error': True
+                }
+            }))
+
+    async def stream_ai_response(self, message, context):
+        """Stream AI response using LangChain with OpenAI streaming."""
+        import asyncio
+
+        response_text = await database_sync_to_async(self._generate_ai_response)(message, context)
+
+        # Simulate streaming by yielding word-by-word for smooth UX
+        words = response_text.split(' ')
+        for i, word in enumerate(words):
+            if i > 0:
+                yield ' ' + word
+            else:
+                yield word
+            # Small delay for natural streaming feel
+            await asyncio.sleep(0.02)
+
+    def _generate_ai_response(self, message, context):
+        """Generate AI response synchronously using LangChain (called from sync context)."""
+        import os
+        from django.conf import settings
+
+        try:
+            openai_key = getattr(settings, 'OPENAI_API_KEY', os.getenv('OPENAI_API_KEY', ''))
+            if not openai_key or openai_key in ('your_openai_api_key_here', ''):
+                return self._fallback_response(message)
+
+            from langchain_openai import ChatOpenAI
+            from langchain.schema import HumanMessage as HMsg, SystemMessage as SMsg, AIMessage as AMsg
+
+            model = ChatOpenAI(
+                model=getattr(settings, 'AGENT_CONFIG', {}).get('MODEL', 'gpt-4o-mini'),
+                temperature=0.7,
+                api_key=openai_key,
+                request_timeout=60,
+            )
+
+            # Build RAG context
+            rag_context = ""
+            try:
+                from apps.agents.chat_rag import get_user_data_rag
+                rag = get_user_data_rag()
+                rag_context = rag.retrieve(self.user, message, n_results=5)
+            except Exception as e:
+                logger.debug(f"RAG retrieval failed: {e}")
+
+            system_prompt = f"""You are an expert AI travel planning assistant. You help users plan trips, find flights, hotels, restaurants, and activities. You are knowledgeable, friendly, and proactive.
+
+When a user asks about trip planning:
+- Ask clarifying questions about destination, dates, budget, and preferences
+- Suggest specific flights, hotels, and activities when you have enough info
+- Consider weather, safety, local events, and cultural factors
+- Provide cost estimates and budget breakdowns
+- Offer alternative options at different price points
+
+{f"User's travel data for context:{chr(10)}{rag_context}" if rag_context else ""}
+
+Keep responses concise but helpful. Use markdown formatting for lists and emphasis. If the user's request is vague, ask 1-2 clarifying questions."""
+
+            messages = [SMsg(content=system_prompt)]
+
+            # Add conversation history
+            for msg in context.get('history', []):
+                if msg['sender'] == 'user':
+                    messages.append(HMsg(content=msg['content']))
+                elif msg['sender'] == 'agent':
+                    messages.append(AMsg(content=msg['content']))
+
+            messages.append(HMsg(content=message))
+
+            response = model.invoke(messages)
+            return response.content
+
+        except Exception as e:
+            logger.error(f"LLM invocation failed: {e}")
+            return self._fallback_response(message)
+
+    def _fallback_response(self, message):
+        """Provide a helpful response when LLM is unavailable."""
+        msg_lower = message.lower()
+        if any(w in msg_lower for w in ['flight', 'fly', 'airport']):
+            return "I'd love to help you find flights! To search, please visit the **Flight Search** page from the navigation menu. You can search by origin, destination, dates, and number of passengers. Would you like me to help with anything else?"
+        elif any(w in msg_lower for w in ['hotel', 'stay', 'accommodation']):
+            return "For hotel searches, head to the **Hotel Search** page where you can filter by location, dates, guests, and budget. I can help you compare options once you have results!"
+        elif any(w in msg_lower for w in ['trip', 'plan', 'itinerary', 'vacation']):
+            return "I can help you plan your trip! Try the **AI Trip Planner** page for a complete itinerary with flights, hotels, restaurants, and attractions. Just enter your destination, dates, and budget to get started."
+        else:
+            return "I'm your AI travel assistant! I can help with:\n\n- **Trip Planning** - Complete itineraries with flights, hotels & activities\n- **Flight Search** - Find the best flight deals\n- **Hotel Search** - Compare accommodations\n- **Restaurant Recommendations** - Local dining spots\n- **Travel Tips** - Weather, safety, packing advice\n\nWhat would you like help with?"
+
+    async def build_conversation_context(self):
+        """Build context from conversation history for LLM memory."""
+        history = await self.get_conversation_history(limit=20)
+        return {'history': history}
 
     async def chat_message(self, event):
-        """
-        Handler for chat messages sent to the group.
-        """
         await self.send(text_data=json.dumps({
             'type': 'chat_message',
             'message': event['message']
         }))
 
     async def user_typing(self, event):
-        """
-        Handler for typing indicator.
-        """
-        # Don't send typing indicator back to the sender
         if event.get('user_id') != str(self.user.id):
             await self.send(text_data=json.dumps({
                 'type': 'typing',
@@ -462,28 +605,38 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def create_conversation(self):
-        """
-        Create a new conversation.
-        """
         from apps.agents.models import AgentConversation
-
         return AgentConversation.objects.create(
             user=self.user,
             status='active'
         )
 
     @database_sync_to_async
-    def save_message(self, content, sender_type):
-        """
-        Save a chat message to the database.
-        """
+    def save_message(self, content, sender_type, response_time_ms=None):
         from apps.agents.models import AgentConversation, AgentMessage
-
         conversation = AgentConversation.objects.get(id=self.conversation_id)
-
         return AgentMessage.objects.create(
             conversation=conversation,
             content=content,
             sender_type=sender_type,
-            user=self.user if sender_type == 'user' else None
+            user=self.user if sender_type == 'user' else None,
+            response_time_ms=response_time_ms,
         )
+
+    @database_sync_to_async
+    def get_conversation_history(self, limit=50, offset=0):
+        from apps.agents.models import AgentMessage
+        messages = AgentMessage.objects.filter(
+            conversation_id=self.conversation_id
+        ).order_by('created_at')[offset:offset + limit]
+        return [
+            {
+                'id': str(m.id),
+                'content': m.content,
+                'sender': m.sender_type,
+                'message_type': m.message_type,
+                'metadata': m.metadata,
+                'timestamp': m.created_at.isoformat(),
+            }
+            for m in messages
+        ]

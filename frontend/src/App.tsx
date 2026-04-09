@@ -38,12 +38,14 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ChatPage = lazy(() => import('./pages/ChatPage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const FAQPage = lazy(() => import('./pages/FAQPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
 
 // Create query client
 const queryClient = new QueryClient({
@@ -82,12 +84,14 @@ function App() {
                 <Route path="/help" element={<FAQPage />} />
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path={ROUTES.PRICING} element={<PricingPage />} />
 
                 {/* Protected routes — require login */}
                 <Route path={ROUTES.SEARCH} element={<RequireAuth><SearchPage /></RequireAuth>} />
                 <Route path={ROUTES.FLIGHT_SEARCH} element={<RequireAuth><FlightSearchPage /></RequireAuth>} />
                 <Route path={ROUTES.HOTEL_SEARCH} element={<RequireAuth><HotelSearchPage /></RequireAuth>} />
                 <Route path={ROUTES.AI_PLANNER} element={<RequireAuth><AIPlannerPage /></RequireAuth>} />
+                <Route path={ROUTES.CHAT} element={<RequireAuth><ChatPage /></RequireAuth>} />
                 <Route path={ROUTES.FLIGHT_RESULTS} element={<RequireAuth><FlightResultsPage /></RequireAuth>} />
                 <Route path={ROUTES.HOTEL_RESULTS} element={<RequireAuth><HotelResultsPage /></RequireAuth>} />
                 <Route path="/cars" element={<RequireAuth><CarRentalSearchPage /></RequireAuth>} />

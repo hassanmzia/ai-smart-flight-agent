@@ -20,8 +20,10 @@ export const ROUTES = {
   PROFILE: '/profile',
   DASHBOARD: '/dashboard',
   ADMIN_DASHBOARD: '/admin',
+  CHAT: '/chat',
   LOGIN: '/login',
   REGISTER: '/register',
+  PRICING: '/pricing',
 } as const;
 
 // Local storage keys

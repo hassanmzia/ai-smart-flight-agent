@@ -408,3 +408,16 @@ def sync_ai_model_updates(self):
     except Exception as exc:
         logger.error(f"Error in sync_ai_model_updates task: {str(exc)}")
         raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=2)
+def check_price_watches(self):
+    """Check all active price watches for price changes. Runs every 2 hours."""
+    try:
+        from .price_monitor import PriceMonitorService
+        alerts_sent = PriceMonitorService.check_price_watches()
+        logger.info(f"Price watch check completed. {alerts_sent} alerts sent.")
+        return {'status': 'success', 'alerts_sent': alerts_sent}
+    except Exception as exc:
+        logger.error(f"Error in check_price_watches: {str(exc)}")
+        raise self.retry(exc=exc)

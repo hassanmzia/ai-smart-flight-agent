@@ -8,6 +8,7 @@ from .views import (
     plan_travel,
     chat,
     text_to_speech,
+    auto_build_itinerary,
 )
 
 app_name = 'agents'
@@ -23,4 +24,5 @@ urlpatterns = [
     path('plan', plan_travel, name='plan_travel'),
     path('chat', chat, name='chat'),
     path('tts', text_to_speech, name='text_to_speech'),
+    path('auto-build', auto_build_itinerary, name='auto_build_itinerary'),
 ]
