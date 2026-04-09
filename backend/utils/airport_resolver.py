@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # Mapping of common city/region/suburb names to IATA airport codes
 CITY_TO_AIRPORT = {
     # US cities & regions
-    'new york': 'JFK', 'nyc': 'JFK', 'manhattan': 'JFK',
+    'new york': 'JFK', 'new york city': 'JFK', 'nyc': 'JFK', 'manhattan': 'JFK',
     'los angeles': 'LAX', 'la': 'LAX',
     'chicago': 'ORD',
     'san francisco': 'SFO', 'sf': 'SFO',
@@ -25,7 +25,7 @@ CITY_TO_AIRPORT = {
     'denver': 'DEN',
     'las vegas': 'LAS', 'vegas': 'LAS',
     'orlando': 'MCO',
-    'washington': 'IAD', 'washington dc': 'IAD', 'dc': 'IAD',
+    'washington': 'IAD', 'washington dc': 'IAD', 'washington d.c.': 'IAD', 'washington d.c': 'IAD', 'dc': 'IAD',
     'sterling': 'IAD', 'ashburn': 'IAD', 'reston': 'IAD', 'herndon': 'IAD',
     'dulles': 'IAD', 'leesburg': 'IAD', 'chantilly': 'IAD',
     'arlington': 'DCA', 'reagan': 'DCA', 'national': 'DCA',
@@ -39,7 +39,7 @@ CITY_TO_AIRPORT = {
     'honolulu': 'HNL', 'hawaii': 'HNL',
     'anchorage': 'ANC', 'alaska': 'ANC',
     'charlotte': 'CLT',
-    'salt lake city': 'SLC',
+    'salt lake city': 'SLC', 'salt lake': 'SLC',
     'nashville': 'BNA',
     'austin': 'AUS',
     'tampa': 'TPA',
@@ -571,6 +571,16 @@ def resolve_location_to_airport_code(location: str, country: str = "") -> str:
             code = CITY_TO_AIRPORT[candidate]
             logger.info(f"Resolved '{location}' -> {code} (partial match: '{candidate}')")
             return code
+
+    # Try stripping common suffixes: "new york city" -> "new york", "panama town" -> "panama"
+    _STRIP_SUFFIXES = [' city', ' town', ' metro', ' area', ' metropolitan', ' international', ' airport', ' region']
+    for suffix in _STRIP_SUFFIXES:
+        if normalized.endswith(suffix):
+            stripped_name = normalized[:-len(suffix)].strip()
+            if stripped_name in CITY_TO_AIRPORT:
+                code = CITY_TO_AIRPORT[stripped_name]
+                logger.info(f"Resolved '{location}' -> {code} (stripped suffix '{suffix}')")
+                return code
 
     # Fallback: search airports_db (handles keywords like "khulna" -> JSR)
     try:
