@@ -249,7 +249,7 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
     }
   }, []);
 
-  // ── Voice Output (ElevenLabs TTS) ──
+  // ── Voice Output (OpenAI TTS with browser fallback) ──
   const speakText = async (text: string) => {
     // Stop any current speech
     if (audioRef.current) {
