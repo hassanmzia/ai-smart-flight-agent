@@ -335,8 +335,8 @@ export default function TripMapVisualization({ itinerary, onGeocode, isGeocoding
         </div>
       </div>
 
-      {/* Map */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden" style={{ height: 520 }}>
+      {/* Map — responsive: shorter on mobile, taller on desktop */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden h-[320px] sm:h-[420px] lg:h-[520px]">
         <MapContainer
           center={[visibleItems[0]?.lat ?? 0, visibleItems[0]?.lng ?? 0]}
           zoom={12}

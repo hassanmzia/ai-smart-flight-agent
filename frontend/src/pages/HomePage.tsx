@@ -249,7 +249,7 @@ const HomePage = () => {
               Complete Travel Suite
             </span>
           </div>
-          <h2 className="text-5xl font-bold text-gray-900 dark:text-white mb-6 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-6 tracking-tight">
             Everything You Need for the
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Perfect Trip</span>
           </h2>
@@ -396,7 +396,7 @@ const HomePage = () => {
                 Why Choose Us
               </span>
             </div>
-            <h2 className="text-5xl font-bold text-gray-900 dark:text-white mb-6 tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-6 tracking-tight">
               The Future of Travel Planning
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed">
@@ -546,7 +546,7 @@ const HomePage = () => {
       <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 py-20 overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-6">
             Ready to Start Your Journey?
           </h2>
           <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
