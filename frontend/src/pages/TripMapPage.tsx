@@ -145,7 +145,7 @@ const TripMapPage = () => {
       {/* Hero */}
       <div className="bg-gradient-to-br from-teal-600 via-cyan-600 to-blue-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4">
+          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-4">
             My Travel World
           </h1>
           <p className="text-lg sm:text-xl text-teal-100 max-w-2xl">
@@ -156,13 +156,13 @@ const TripMapPage = () => {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
-        <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 -mt-6">
+        <div className="grid grid-cols-4 gap-1 sm:flex sm:gap-2">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 rounded-t-xl font-semibold text-sm whitespace-nowrap transition-all ${
+              className={`px-2 sm:px-5 py-2 sm:py-3 rounded-t-xl font-semibold text-xs sm:text-sm text-center transition-all ${
                 activeTab === tab.key
                   ? 'bg-white dark:bg-gray-800 text-teal-600 dark:text-teal-400 shadow-lg'
                   : 'bg-white/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
