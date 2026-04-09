@@ -73,6 +73,8 @@ services:
       - 8.8.4.4
     command: >
       sh -c "mkdir -p /app/logs &&
+             rm -f /app/apps/agents/migrations/0004_agent*.py /app/apps/agents/migrations/0005_merge*.py 2>/dev/null;
+             python scripts/pre_migrate.py || true &&
              python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              gunicorn travel_agent.wsgi:application --bind 0.0.0.0:8109 --workers 4 --timeout 300 --reload --access-logfile - --error-logfile -"
