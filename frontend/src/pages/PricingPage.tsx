@@ -84,7 +84,7 @@ const PricingPage = () => {
           <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-pink-300 rounded-full blur-3xl"></div>
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 text-center">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
+          <h1 className="text-xl md:text-2xl font-extrabold text-white mb-4">
             Choose Your Travel Plan
           </h1>
           <p className="text-xl text-purple-100 max-w-2xl mx-auto mb-8">
