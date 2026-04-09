@@ -134,6 +134,10 @@ class Migration(migrations.Migration):
             model_name='agenttask',
             index=models.Index(fields=['task_type', 'status'], name='agent_task_type_status_idx'),
         ),
+        migrations.AddIndex(
+            model_name='agenttask',
+            index=models.Index(fields=['completed_at'], name='agent_task_completed_idx'),
+        ),
 
         # UserPreference
         migrations.CreateModel(
@@ -176,6 +180,10 @@ class Migration(migrations.Migration):
                 'ordering': ['-date'],
             },
         ),
+        migrations.AddIndex(
+            model_name='agentanalytics',
+            index=models.Index(fields=['-date'], name='agent_analytics_date_idx'),
+        ),
 
         # AIModel
         migrations.CreateModel(
@@ -196,6 +204,18 @@ class Migration(migrations.Migration):
                 'db_table': 'ai_models',
                 'ordering': ['-created_at'],
             },
+        ),
+        migrations.AddIndex(
+            model_name='aimodel',
+            index=models.Index(fields=['name', 'version'], name='ai_model_name_version_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='aimodel',
+            index=models.Index(fields=['model_type'], name='ai_model_type_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='aimodel',
+            index=models.Index(fields=['is_active'], name='ai_model_active_idx'),
         ),
 
         # TripCollaboration
@@ -218,6 +238,18 @@ class Migration(migrations.Migration):
                 'ordering': ['-created_at'],
             },
         ),
+        migrations.AddIndex(
+            model_name='tripcollaboration',
+            index=models.Index(fields=['owner', '-created_at'], name='trip_collab_owner_created_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='tripcollaboration',
+            index=models.Index(fields=['invite_code'], name='trip_collab_invite_code_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='tripcollaboration',
+            index=models.Index(fields=['status'], name='trip_collab_status_idx'),
+        ),
 
         # TripCollaborator
         migrations.CreateModel(
@@ -236,6 +268,14 @@ class Migration(migrations.Migration):
                 'ordering': ['-joined_at'],
                 'unique_together': {('collaboration', 'user')},
             },
+        ),
+        migrations.AddIndex(
+            model_name='tripcollaborator',
+            index=models.Index(fields=['collaboration', 'user'], name='trip_collabr_collab_user_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='tripcollaborator',
+            index=models.Index(fields=['user'], name='trip_collabr_user_idx'),
         ),
 
         # CollaborationVote
@@ -257,6 +297,14 @@ class Migration(migrations.Migration):
                 'db_table': 'collaboration_votes',
                 'ordering': ['-created_at'],
             },
+        ),
+        migrations.AddIndex(
+            model_name='collaborationvote',
+            index=models.Index(fields=['collaboration', 'item_type', 'item_id'], name='collab_vote_collab_item_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='collaborationvote',
+            index=models.Index(fields=['user'], name='collab_vote_user_idx'),
         ),
 
         # Subscription
@@ -331,6 +379,14 @@ class Migration(migrations.Migration):
             model_name='affiliateclick',
             index=models.Index(fields=['status'], name='aff_status_idx'),
         ),
+        migrations.AddIndex(
+            model_name='affiliateclick',
+            index=models.Index(fields=['click_type'], name='aff_click_type_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='affiliateclick',
+            index=models.Index(fields=['user', '-clicked_at'], name='aff_user_clicked_idx'),
+        ),
 
         # PriceWatch
         migrations.CreateModel(
@@ -360,6 +416,10 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name='pricewatch',
             index=models.Index(fields=['user', '-created_at'], name='pw_user_created_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='pricewatch',
+            index=models.Index(fields=['watch_type'], name='pw_watch_type_idx'),
         ),
         migrations.AddIndex(
             model_name='pricewatch',
