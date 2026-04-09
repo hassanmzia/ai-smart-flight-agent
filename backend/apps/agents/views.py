@@ -1637,12 +1637,12 @@ Part 2: A JSON object with extracted travel parameters (or {{}} if no trip plann
 @permission_classes([AllowAny])
 def text_to_speech(request):
     """
-    Convert text to speech using ElevenLabs API.
+    Convert text to speech using OpenAI TTS API (with ElevenLabs fallback).
 
     Request body:
     {
         "text": "The text to convert to speech",
-        "voice_id": "optional voice ID (default: Rachel)"
+        "voice": "optional voice name (default: nova)"
     }
 
     Returns: audio/mpeg binary stream
@@ -1653,48 +1653,76 @@ def text_to_speech(request):
     if not text:
         return Response({'error': 'text is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    api_key = settings.ELEVENLABS_API_KEY
-    if not api_key:
-        return Response({'error': 'ElevenLabs API key not configured'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-    voice_id = request.data.get('voice_id', '21m00Tcm4TlvDq8ikWAM')  # Rachel voice
-
-    try:
-        el_response = http_requests.post(
-            f'https://api.elevenlabs.io/v1/text-to-speech/{voice_id}',
-            headers={
-                'Accept': 'audio/mpeg',
-                'Content-Type': 'application/json',
-                'xi-api-key': api_key,
-            },
-            json={
-                'text': text[:5000],  # Limit text length
-                'model_id': 'eleven_monolingual_v1',
-                'voice_settings': {
-                    'stability': 0.5,
-                    'similarity_boost': 0.75,
+    # Try OpenAI TTS first (most likely configured)
+    openai_key = settings.OPENAI_API_KEY
+    if openai_key and openai_key not in ('your_openai_api_key_here', ''):
+        try:
+            voice = request.data.get('voice', 'nova')  # nova, alloy, echo, fable, onyx, shimmer
+            el_response = http_requests.post(
+                'https://api.openai.com/v1/audio/speech',
+                headers={
+                    'Authorization': f'Bearer {openai_key}',
+                    'Content-Type': 'application/json',
                 },
-            },
-            timeout=30,
-        )
-
-        if el_response.status_code == 200:
-            from django.http import HttpResponse as DjangoHttpResponse
-            response = DjangoHttpResponse(
-                el_response.content,
-                content_type='audio/mpeg',
-            )
-            response['Content-Disposition'] = 'inline; filename="speech.mp3"'
-            return response
-        else:
-            logger.warning(f"ElevenLabs API error: {el_response.status_code} {el_response.text[:200]}")
-            return Response(
-                {'error': f'ElevenLabs API error: {el_response.status_code}'},
-                status=status.HTTP_502_BAD_GATEWAY,
+                json={
+                    'model': 'tts-1',
+                    'input': text[:4096],
+                    'voice': voice,
+                    'response_format': 'mp3',
+                },
+                timeout=30,
             )
 
-    except http_requests.Timeout:
-        return Response({'error': 'TTS request timed out'}, status=status.HTTP_504_GATEWAY_TIMEOUT)
-    except Exception as e:
-        logger.error(f"TTS error: {e}", exc_info=True)
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if el_response.status_code == 200:
+                from django.http import HttpResponse as DjangoHttpResponse
+                response = DjangoHttpResponse(
+                    el_response.content,
+                    content_type='audio/mpeg',
+                )
+                response['Content-Disposition'] = 'inline; filename="speech.mp3"'
+                return response
+            else:
+                logger.warning(f"OpenAI TTS error: {el_response.status_code} {el_response.text[:200]}")
+        except Exception as e:
+            logger.warning(f"OpenAI TTS failed, trying ElevenLabs: {e}")
+
+    # Fallback to ElevenLabs if configured
+    api_key = getattr(settings, 'ELEVENLABS_API_KEY', '')
+    if api_key:
+        try:
+            voice_id = request.data.get('voice_id', '21m00Tcm4TlvDq8ikWAM')  # Rachel voice
+            el_response = http_requests.post(
+                f'https://api.elevenlabs.io/v1/text-to-speech/{voice_id}',
+                headers={
+                    'Accept': 'audio/mpeg',
+                    'Content-Type': 'application/json',
+                    'xi-api-key': api_key,
+                },
+                json={
+                    'text': text[:5000],
+                    'model_id': 'eleven_monolingual_v1',
+                    'voice_settings': {
+                        'stability': 0.5,
+                        'similarity_boost': 0.75,
+                    },
+                },
+                timeout=30,
+            )
+
+            if el_response.status_code == 200:
+                from django.http import HttpResponse as DjangoHttpResponse
+                response = DjangoHttpResponse(
+                    el_response.content,
+                    content_type='audio/mpeg',
+                )
+                response['Content-Disposition'] = 'inline; filename="speech.mp3"'
+                return response
+            else:
+                logger.warning(f"ElevenLabs API error: {el_response.status_code}")
+        except Exception as e:
+            logger.warning(f"ElevenLabs TTS failed: {e}")
+
+    return Response(
+        {'error': 'No TTS service available. Configure OPENAI_API_KEY or ELEVENLABS_API_KEY.'},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
