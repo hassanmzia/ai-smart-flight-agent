@@ -39,6 +39,7 @@ const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
+const CollaboratePage = lazy(() => import('./pages/CollaboratePage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
@@ -113,6 +114,7 @@ function App() {
                 <Route path={ROUTES.DASHBOARD} element={<RequireAuth><DashboardPage /></RequireAuth>} />
                 <Route path={ROUTES.ADMIN_DASHBOARD} element={<RequireAuth><AdminDashboardPage /></RequireAuth>} />
                 <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
+                <Route path={ROUTES.COLLABORATE} element={<RequireAuth><CollaboratePage /></RequireAuth>} />
 
                 {/* 404 */}
                 <Route

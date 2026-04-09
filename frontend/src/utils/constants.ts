@@ -21,6 +21,7 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   ADMIN_DASHBOARD: '/admin',
   CHAT: '/chat',
+  COLLABORATE: '/collaborate',
   LOGIN: '/login',
   REGISTER: '/register',
   PRICING: '/pricing',
