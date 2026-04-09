@@ -170,23 +170,17 @@ const ProfilePage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            My Profile
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage your account settings and preferences
-          </p>
+    <div className="min-h-screen">
+      {/* Hero Header with Avatar */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 dark:from-purple-800 dark:via-indigo-800 dark:to-blue-800">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-20 -right-20 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/3 w-48 h-48 bg-blue-300 rounded-full blur-3xl"></div>
         </div>
-
-        {/* Profile Picture */}
-        <Card className="mb-6">
-          <CardContent className="text-center py-8">
-            <div className="relative inline-block">
-              <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex items-center justify-center mx-auto mb-4 border-4 border-white dark:border-gray-800 shadow-lg">
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+          <div className="flex items-center gap-6">
+            <div className="relative flex-shrink-0">
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/30 shadow-xl">
                 {avatarPreview ? (
                   <img
                     src={avatarPreview}
@@ -194,16 +188,16 @@ const ProfilePage = () => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <UserCircleIcon className="w-20 h-20 text-gray-400" />
+                  <UserCircleIcon className="w-16 h-16 text-white/60" />
                 )}
               </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingAvatar}
-                className="absolute bottom-4 right-0 bg-primary-600 hover:bg-primary-700 text-white p-2 rounded-full shadow-lg transition-colors disabled:opacity-50"
+                className="absolute -bottom-1 -right-1 bg-white text-purple-600 p-1.5 rounded-xl shadow-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                 title="Change profile picture"
               >
-                <CameraIcon className="w-5 h-5" />
+                <CameraIcon className="w-4 h-4" />
               </button>
               <input
                 ref={fileInputRef}
@@ -213,28 +207,32 @@ const ProfilePage = () => {
                 className="hidden"
               />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {user?.full_name || 'User'}
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">{user?.email}</p>
-            {user?.is_verified && (
-              <span className="inline-flex items-center px-3 py-1 mt-2 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                ✓ Verified
-              </span>
-            )}
-          </CardContent>
-        </Card>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-1">
+                {user?.full_name || 'User'}
+              </h1>
+              <p className="text-purple-200">{user?.email}</p>
+              {user?.is_verified && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 mt-2 rounded-full text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">
+                  ✓ Verified
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
         {/* Tabs */}
-        <div className="flex space-x-1 mb-6 overflow-x-auto">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25'
+                  : 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 shadow-sm border border-gray-200/60 dark:border-gray-700/50'
               }`}
             >
               <span>{tab.icon}</span>
@@ -391,32 +389,32 @@ const ProfilePage = () => {
 
                 {/* Travel Stats */}
                 {user?.profile && (
-                  <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  <div className="pt-6 border-t border-gray-200/60 dark:border-gray-700/50">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
                       Travel Statistics
                     </h3>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                        <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                      <div className="text-center p-5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl border border-blue-100/60 dark:border-blue-800/30">
+                        <div className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                           {user.profile.total_trips}
                         </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">
                           Total Trips
                         </div>
                       </div>
-                      <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                        <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+                      <div className="text-center p-5 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl border border-emerald-100/60 dark:border-emerald-800/30">
+                        <div className="text-3xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                           {user.profile.total_flights}
                         </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">
                           Flights
                         </div>
                       </div>
-                      <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                        <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                      <div className="text-center p-5 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-2xl border border-purple-100/60 dark:border-purple-800/30">
+                        <div className="text-3xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
                           {user.profile.total_hotel_nights}
                         </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 font-medium">
                           Hotel Nights
                         </div>
                       </div>
