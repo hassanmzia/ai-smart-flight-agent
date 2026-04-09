@@ -150,13 +150,13 @@ const PredictionsPage = () => {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
-        <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 -mt-6">
+        <div className="grid grid-cols-3 gap-1 sm:flex sm:gap-2">
           {(['prices', 'besttime', 'trends'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-3 rounded-t-xl font-semibold text-sm whitespace-nowrap transition-all ${
+              className={`px-2 sm:px-5 py-2 sm:py-3 rounded-t-xl font-semibold text-xs sm:text-sm text-center transition-all ${
                 activeTab === tab
                   ? 'bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 shadow-lg'
                   : 'bg-white/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
