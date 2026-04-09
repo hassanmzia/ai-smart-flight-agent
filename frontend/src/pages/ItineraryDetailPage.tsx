@@ -225,52 +225,54 @@ const ItineraryDetailPage = () => {
   const isCancelled = itineraryStatus === 'cancelled';
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" onClick={() => navigate('/itinerary')}>
-            <ArrowLeftIcon className="h-5 w-5 mr-2" />
-            Back to Trips
-          </Button>
+    <div className="min-h-screen">
+      <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 dark:from-orange-800 dark:via-amber-800 dark:to-yellow-800">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-10 -right-20 w-64 h-64 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-yellow-300 rounded-full blur-3xl"></div>
+        </div>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={() => navigate('/itinerary')} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 text-white font-medium hover:bg-white/30 transition-all text-sm">
+              <ArrowLeftIcon className="h-4 w-4" />
+              Back to Trips
+            </button>
 
           {!isNewItinerary && (
             <div className="flex items-center gap-2">
               {deleteConfirm ? (
                 <>
-                  <span className="text-sm text-red-600 dark:text-red-400 font-medium">Delete this trip?</span>
-                  <Button
+                  <span className="text-sm text-white/80 font-medium">Delete this trip?</span>
+                  <button
                     onClick={handleDeleteItinerary}
-                    variant="secondary"
-                    size="sm"
-                    className="!bg-red-600 !text-white hover:!bg-red-700"
+                    className="px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700"
                   >
                     Yes, Delete
-                  </Button>
-                  <Button onClick={() => setDeleteConfirm(false)} variant="secondary" size="sm">
+                  </button>
+                  <button onClick={() => setDeleteConfirm(false)} className="px-3 py-1.5 bg-white/20 text-white text-sm font-medium rounded-lg hover:bg-white/30">
                     Cancel
-                  </Button>
+                  </button>
                 </>
               ) : (
-                <Button
+                <button
                   onClick={() => setDeleteConfirm(true)}
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white text-sm font-medium rounded-lg hover:bg-red-500/30 transition-all"
                 >
-                  <TrashIcon className="h-4 w-4 mr-1" />
+                  <TrashIcon className="h-4 w-4" />
                   Delete
-                </Button>
+                </button>
               )}
             </div>
           )}
         </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          {isNewItinerary ? 'Create New Trip' : formData.title || 'Edit Trip'}
-        </h1>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white truncate">
+            {isNewItinerary ? 'Create New Trip' : formData.title || 'Edit Trip'}
+          </h1>
+        </div>
       </div>
 
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
       {/* ── Status Progress Bar ── */}
       {!isNewItinerary && !isCancelled && (
         <Card className="mb-6">
@@ -597,6 +599,7 @@ const ItineraryDetailPage = () => {
           onSubmitted={() => setShowFeedbackModal(false)}
         />
       )}
+      </div>
     </div>
   );
 };
