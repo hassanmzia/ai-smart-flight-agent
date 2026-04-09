@@ -9,6 +9,32 @@ from .views import (
     chat,
     text_to_speech,
     auto_build_itinerary,
+    # Multi-Modal
+    voice_to_trip,
+    image_to_trip,
+    analyze_screenshot,
+    # Autonomous Booking
+    autonomous_book,
+    confirm_autonomous_booking,
+    # Debate
+    debate_options,
+    # Predictive Intelligence
+    predict_prices,
+    best_time_to_visit,
+    destination_trends,
+    # Personalization
+    get_travel_dna,
+    get_recommendations,
+    # Subscription
+    subscription_status,
+    check_feature_access,
+    # Affiliate
+    generate_affiliate_link,
+    affiliate_report,
+    affiliate_partners,
+    # Price Watch
+    create_price_watch,
+    list_price_watches,
 )
 
 app_name = 'agents'
@@ -25,4 +51,30 @@ urlpatterns = [
     path('chat', chat, name='chat'),
     path('tts', text_to_speech, name='text_to_speech'),
     path('auto-build', auto_build_itinerary, name='auto_build_itinerary'),
+    # Multi-Modal Agent
+    path('voice-to-trip', voice_to_trip, name='voice_to_trip'),
+    path('image-to-trip', image_to_trip, name='image_to_trip'),
+    path('analyze-screenshot', analyze_screenshot, name='analyze_screenshot'),
+    # Autonomous Booking
+    path('autonomous-book', autonomous_book, name='autonomous_book'),
+    path('confirm-booking', confirm_autonomous_booking, name='confirm_autonomous_booking'),
+    # Multi-Agent Debate
+    path('debate', debate_options, name='debate_options'),
+    # Predictive Intelligence
+    path('predict-prices', predict_prices, name='predict_prices'),
+    path('best-time', best_time_to_visit, name='best_time_to_visit'),
+    path('trends', destination_trends, name='destination_trends'),
+    # Personalization
+    path('travel-dna', get_travel_dna, name='get_travel_dna'),
+    path('recommendations', get_recommendations, name='get_recommendations'),
+    # Subscription
+    path('subscription', subscription_status, name='subscription_status'),
+    path('check-feature', check_feature_access, name='check_feature_access'),
+    # Affiliate
+    path('affiliate/link', generate_affiliate_link, name='generate_affiliate_link'),
+    path('affiliate/report', affiliate_report, name='affiliate_report'),
+    path('affiliate/partners', affiliate_partners, name='affiliate_partners'),
+    # Price Watch
+    path('price-watch/create', create_price_watch, name='create_price_watch'),
+    path('price-watch/list', list_price_watches, name='list_price_watches'),
 ]
