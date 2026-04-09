@@ -14,6 +14,7 @@ from langchain.schema import HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 import operator
 import logging
+from datetime import datetime as _dt
 from django.conf import settings
 
 from utils.airport_resolver import resolve_airport_to_city, AIRPORT_TO_CITY, get_hub_airport, get_hub_airport, AIRPORT_TO_CITY
@@ -107,7 +108,7 @@ Return flight details in a structured format.
             results = self.tool.search_flights(
                 origin=origin,
                 destination=destination,
-                date=state.get('departure_date', '2025-10-10'),
+                date=state.get('departure_date', _dt.now().strftime('%Y-%m-%d')),
                 trip_type=trip_type,
                 return_date=state.get('return_date') if trip_type == 1 else None,
                 passengers=state.get('passengers', 1)
@@ -255,7 +256,7 @@ Focus on hotels near the destination airport or city center.
             try:
                 hotel_results = self.tool.search_hotels(
                     location=location_query,
-                    check_in_date=state.get('departure_date', '2025-10-10'),
+                    check_in_date=state.get('departure_date', _dt.now().strftime('%Y-%m-%d')),
                     check_out_date=state.get('return_date', '2025-10-12'),
                     adults=state.get('passengers', 2)
                 )
@@ -275,7 +276,7 @@ Focus on hotels near the destination airport or city center.
                     try:
                         hub_results = self.tool.search_hotels(
                             location=hub_query,
-                            check_in_date=state.get('departure_date', '2025-10-10'),
+                            check_in_date=state.get('departure_date', _dt.now().strftime('%Y-%m-%d')),
                             check_out_date=state.get('return_date', '2025-10-12'),
                             adults=state.get('passengers', 2)
                         )
@@ -354,7 +355,7 @@ Focus on finding cost-effective and reliable options.
             try:
                 car_rental_results = self.tool._run(
                     pickup_location=pickup_location,
-                    pickup_date=state.get('departure_date', '2025-10-10'),
+                    pickup_date=state.get('departure_date', _dt.now().strftime('%Y-%m-%d')),
                     dropoff_date=state.get('return_date', '2025-10-12'),
                     car_type=None
                 )
@@ -374,7 +375,7 @@ Focus on finding cost-effective and reliable options.
                     try:
                         hub_raw = self.tool._run(
                             pickup_location=hub_query,
-                            pickup_date=state.get('departure_date', '2025-10-10'),
+                            pickup_date=state.get('departure_date', _dt.now().strftime('%Y-%m-%d')),
                             dropoff_date=state.get('return_date', '2025-10-12'),
                             car_type=None
                         )
