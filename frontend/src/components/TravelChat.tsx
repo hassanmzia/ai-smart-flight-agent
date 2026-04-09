@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common';
 import Button from '@/components/common/Button';
 import Loading from '@/components/common/Loading';
-import { API_BASE_URL } from '@/utils/constants';
+import api from '@/services/api';
 
 // ── Types ──
 
@@ -74,20 +74,16 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
       setLoading(true);
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/agents/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: text.trim(),
-            conversation: messages
-              .filter((m) => m.role !== 'system')
-              .map((m) => ({ role: m.role, content: m.content })),
-            extracted_params: extractedParams,
-            confirmed: false,
-          }),
+        const response = await api.post('/api/agents/chat', {
+          message: text.trim(),
+          conversation: messages
+            .filter((m) => m.role !== 'system')
+            .map((m) => ({ role: m.role, content: m.content })),
+          extracted_params: extractedParams,
+          confirmed: false,
         });
 
-        const data = await response.json();
+        const data = response.data;
 
         if (data.success) {
           const assistantMsg: ChatMessage = {
@@ -108,17 +104,18 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
             ...prev,
             {
               role: 'assistant',
-              content: `Sorry, I encountered an error: ${data.error}. Please try again.`,
+              content: `Sorry, I encountered an error: ${data.error || 'Unknown error'}. Please try again.`,
               timestamp: new Date(),
             },
           ]);
         }
       } catch (err: any) {
+        const errorMsg = err?.response?.data?.error || err?.response?.data?.detail || err?.message || 'Could not reach the server';
         setMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
-            content: 'Sorry, I could not reach the server. Please try again.',
+            content: `Sorry, I encountered an error: ${errorMsg}. Please try again.`,
             timestamp: new Date(),
           },
         ]);
@@ -142,18 +139,14 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
     ]);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/agents/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: '',
-          conversation: [],
-          extracted_params: extractedParams,
-          confirmed: true,
-        }),
+      const response = await api.post('/api/agents/chat', {
+        message: '',
+        conversation: [],
+        extracted_params: extractedParams,
+        confirmed: true,
       });
 
-      const data = await response.json();
+      const data = response.data;
 
       if (data.success && data.planning_result) {
         setMessages((prev) => [
@@ -275,14 +268,12 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
     setIsSpeaking(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/agents/tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cleanText }),
+      const response = await api.post('/api/agents/tts', { text: cleanText }, {
+        responseType: 'blob',
       });
 
-      if (response.ok) {
-        const blob = await response.blob();
+      if (response.status === 200) {
+        const blob = response.data;
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         audioRef.current = audio;
