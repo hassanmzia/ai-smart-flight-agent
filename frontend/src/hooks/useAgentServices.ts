@@ -35,7 +35,7 @@ export const useSubscription = () =>
 export const useCheckFeature = () =>
   useMutation<FeatureCheck, Error, string>({
     mutationFn: async (feature) => {
-      const { data } = await api.post('/api/agents/check-feature', { feature });
+      const { data } = await api.post(API_ENDPOINTS.AGENT.CHECK_FEATURE, { feature });
       return data;
     },
   });
@@ -95,7 +95,7 @@ export const useRecommendations = (limit = 5) =>
 export const useDebate = () =>
   useMutation<DebateResult, Error, { options: DebateOption[]; context?: Record<string, unknown>; use_llm?: boolean }>({
     mutationFn: async (params) => {
-      const { data } = await api.post('/api/agents/debate', params);
+      const { data } = await api.post(API_ENDPOINTS.AGENT.DEBATE, params);
       return data;
     },
   });
@@ -107,8 +107,8 @@ export const useAffiliatePartners = (clickType?: string) =>
     queryKey: ['affiliate-partners', clickType],
     queryFn: async () => {
       const url = clickType
-        ? `${API_ENDPOINTS.AGENT.AFFILIATE_LINK}/../partners?type=${clickType}`
-        : '/api/agents/affiliate/partners';
+        ? `${API_ENDPOINTS.AGENT.AFFILIATE_PARTNERS}?type=${clickType}`
+        : API_ENDPOINTS.AGENT.AFFILIATE_PARTNERS;
       const { data } = await api.get(url);
       return data;
     },
@@ -171,7 +171,7 @@ export const useAutonomousBook = () =>
 export const useConfirmBooking = () =>
   useMutation<Record<string, unknown>, Error, { task_id: string }>({
     mutationFn: async (params) => {
-      const { data } = await api.post('/api/agents/confirm-booking', params);
+      const { data } = await api.post(API_ENDPOINTS.AGENT.CONFIRM_BOOKING, params);
       return data;
     },
   });
