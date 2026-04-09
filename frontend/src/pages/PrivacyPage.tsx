@@ -236,7 +236,6 @@ const PrivacyPage = () => {
           </CardContent>
         </Card>
       </div>
-      </div>
     </div>
   );
 };
