@@ -1658,6 +1658,7 @@ def text_to_speech(request):
     if openai_key and openai_key not in ('your_openai_api_key_here', ''):
         try:
             voice = request.data.get('voice', 'nova')  # nova, alloy, echo, fable, onyx, shimmer
+            logger.info(f"Calling OpenAI TTS: voice={voice}, text_len={len(text)}")
             el_response = http_requests.post(
                 'https://api.openai.com/v1/audio/speech',
                 headers={
@@ -1675,11 +1676,14 @@ def text_to_speech(request):
 
             if el_response.status_code == 200:
                 from django.http import HttpResponse as DjangoHttpResponse
+                logger.info(f"OpenAI TTS success: {len(el_response.content)} bytes")
                 response = DjangoHttpResponse(
                     el_response.content,
                     content_type='audio/mpeg',
                 )
                 response['Content-Disposition'] = 'inline; filename="speech.mp3"'
+                response['Content-Length'] = len(el_response.content)
+                response['Access-Control-Allow-Origin'] = '*'
                 return response
             else:
                 logger.warning(f"OpenAI TTS error: {el_response.status_code} {el_response.text[:200]}")

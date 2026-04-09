@@ -256,6 +256,9 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
       audioRef.current.pause();
       audioRef.current = null;
     }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
 
     // Strip markdown for speech
     const cleanText = text
@@ -271,44 +274,73 @@ const TravelChat = ({ onPlanReady, onParamsExtracted, initialVoiceEnabled = fals
     try {
       const response = await api.post('/api/agents/tts', { text: cleanText }, {
         responseType: 'blob',
+        timeout: 30000,
       });
 
-      if (response.status === 200) {
-        const blob = response.data;
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        audioRef.current = audio;
+      // Ensure we have a proper audio blob
+      const blob = response.data instanceof Blob
+        ? new Blob([response.data], { type: 'audio/mpeg' })
+        : new Blob([response.data], { type: 'audio/mpeg' });
 
-        audio.onended = () => {
-          setIsSpeaking(false);
-          URL.revokeObjectURL(url);
-          audioRef.current = null;
-        };
-        audio.onerror = () => {
-          setIsSpeaking(false);
-          URL.revokeObjectURL(url);
-          audioRef.current = null;
-        };
+      if (blob.size < 100) {
+        console.warn('TTS response too small, falling back to browser TTS');
+        fallbackSpeak(cleanText);
+        return;
+      }
 
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsSpeaking(false);
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+      };
+      audio.onerror = (e) => {
+        console.warn('Audio playback error, falling back to browser TTS:', e);
+        setIsSpeaking(false);
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+        fallbackSpeak(cleanText);
+      };
+
+      try {
         await audio.play();
-      } else {
-        // Fallback to browser TTS
+      } catch (playErr) {
+        console.warn('Audio play() rejected (autoplay policy?), falling back:', playErr);
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
         fallbackSpeak(cleanText);
       }
-    } catch {
-      // Fallback to browser TTS
+    } catch (err) {
+      console.warn('Backend TTS failed, falling back to browser TTS:', err);
       fallbackSpeak(cleanText);
     }
   };
 
   const fallbackSpeak = (text: string) => {
     if ('speechSynthesis' in window) {
+      // Cancel any pending speech first (Chrome bug workaround)
+      window.speechSynthesis.cancel();
+
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
+
+      // Chrome requires a small delay after cancel() before speak()
+      setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+
+        // Safety timeout: if speech hasn't started after 3 seconds, reset state
+        setTimeout(() => {
+          if (!window.speechSynthesis.speaking) {
+            setIsSpeaking(false);
+          }
+        }, 3000);
+      }, 100);
     } else {
       setIsSpeaking(false);
     }
