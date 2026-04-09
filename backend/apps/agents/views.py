@@ -1730,3 +1730,41 @@ def text_to_speech(request):
         {'error': 'No TTS service available. Configure OPENAI_API_KEY or ELEVENLABS_API_KEY.'},
         status=status.HTTP_503_SERVICE_UNAVAILABLE,
     )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def auto_build_itinerary(request):
+    """
+    Smart Auto-Builder: Build a complete itinerary from minimal input.
+    """
+    destination = request.data.get('destination')
+    start_date = request.data.get('start_date')
+    end_date = request.data.get('end_date')
+
+    if not all([destination, start_date, end_date]):
+        return Response(
+            {'error': 'destination, start_date, and end_date are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        from .auto_builder import SmartItineraryBuilder
+        builder = SmartItineraryBuilder(user=request.user)
+        result = builder.build(
+            destination=destination,
+            start_date=start_date,
+            end_date=end_date,
+            origin=request.data.get('origin', ''),
+            budget=request.data.get('budget'),
+            travelers=request.data.get('travelers', 1),
+            trip_style=request.data.get('trip_style', 'balanced'),
+            preferences=request.data.get('preferences', {}),
+        )
+        return Response({'success': True, 'itinerary': result})
+    except Exception as e:
+        logger.error(f"Auto-build failed: {e}")
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

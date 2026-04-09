@@ -3,7 +3,7 @@ import uuid
 
 from django.db import models
 from django.conf import settings
-from django.core.validators import FileExtensionValidator
+from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.utils import timezone
 
 
@@ -310,3 +310,549 @@ class RAGDocument(models.Model):
             except Exception:
                 pass
         super().save(*args, **kwargs)
+
+
+class AgentConversation(models.Model):
+    """Chat conversation sessions with the AI agent."""
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('archived', 'Archived'),
+        ('deleted', 'Deleted'),
+    ]
+
+    CONVERSATION_TYPE_CHOICES = [
+        ('trip_planning', 'Trip Planning'),
+        ('general', 'General'),
+        ('booking_assist', 'Booking Assistance'),
+        ('price_monitor', 'Price Monitor'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='agent_conversations'
+    )
+    title = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    is_archived = models.BooleanField(default=False)
+    conversation_type = models.CharField(
+        max_length=20,
+        choices=CONVERSATION_TYPE_CHOICES,
+        default='trip_planning'
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'agent_conversations'
+        ordering = ['-updated_at']
+        verbose_name = 'Agent Conversation'
+        verbose_name_plural = 'Agent Conversations'
+        indexes = [
+            models.Index(fields=['user', '-updated_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['conversation_type']),
+            models.Index(fields=['is_archived']),
+        ]
+
+    def __str__(self):
+        title = self.title or 'Untitled'
+        return f"Conversation {self.id} - {title} ({self.status})"
+
+
+class AgentMessage(models.Model):
+    """Individual chat messages within a conversation."""
+
+    SENDER_TYPE_CHOICES = [
+        ('user', 'User'),
+        ('agent', 'Agent'),
+        ('system', 'System'),
+    ]
+
+    MESSAGE_TYPE_CHOICES = [
+        ('text', 'Text'),
+        ('suggestion', 'Suggestion'),
+        ('action', 'Action'),
+        ('flight_result', 'Flight Result'),
+        ('hotel_result', 'Hotel Result'),
+        ('itinerary', 'Itinerary'),
+        ('price_alert', 'Price Alert'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation = models.ForeignKey(
+        AgentConversation,
+        on_delete=models.CASCADE,
+        related_name='messages'
+    )
+    content = models.TextField()
+    sender_type = models.CharField(max_length=10, choices=SENDER_TYPE_CHOICES)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agent_messages'
+    )
+    message_type = models.CharField(
+        max_length=20,
+        choices=MESSAGE_TYPE_CHOICES,
+        default='text'
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    intent = models.CharField(max_length=100, blank=True)
+    response_time_ms = models.IntegerField(null=True, blank=True)
+    tokens_used = models.IntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'agent_messages'
+        ordering = ['created_at']
+        verbose_name = 'Agent Message'
+        verbose_name_plural = 'Agent Messages'
+        indexes = [
+            models.Index(fields=['conversation', 'created_at']),
+            models.Index(fields=['sender_type']),
+            models.Index(fields=['message_type']),
+            models.Index(fields=['intent']),
+        ]
+
+    def __str__(self):
+        return f"[{self.sender_type}] {self.content[:50]}"
+
+
+class AgentTask(models.Model):
+    """Async agent tasks for background processing."""
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='agent_tasks'
+    )
+    task_type = models.CharField(max_length=50)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    parameters = models.JSONField(default=dict, blank=True)
+    result = models.JSONField(default=dict, blank=True)
+    error_message = models.TextField(blank=True)
+
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'agent_tasks'
+        ordering = ['-created_at']
+        verbose_name = 'Agent Task'
+        verbose_name_plural = 'Agent Tasks'
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['task_type', 'status']),
+            models.Index(fields=['completed_at']),
+        ]
+
+    def __str__(self):
+        return f"Task {self.id} - {self.task_type} ({self.status})"
+
+
+class UserPreference(models.Model):
+    """Learned user preferences for AI personalization."""
+
+    BUDGET_RANGE_CHOICES = [
+        ('budget', 'Budget'),
+        ('moderate', 'Moderate'),
+        ('luxury', 'Luxury'),
+        ('any', 'Any'),
+    ]
+
+    TRIP_STYLE_CHOICES = [
+        ('adventure', 'Adventure'),
+        ('relaxation', 'Relaxation'),
+        ('cultural', 'Cultural'),
+        ('business', 'Business'),
+        ('family', 'Family'),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='ai_preferences'
+    )
+    preferences = models.JSONField(default=dict, blank=True)
+    travel_dna = models.JSONField(default=dict, blank=True)
+    preferred_airlines = models.JSONField(default=list, blank=True)
+    preferred_hotel_chains = models.JSONField(default=list, blank=True)
+    preferred_cuisines = models.JSONField(default=list, blank=True)
+    budget_range = models.CharField(
+        max_length=20,
+        choices=BUDGET_RANGE_CHOICES,
+        default='any'
+    )
+    trip_style = models.CharField(
+        max_length=20,
+        choices=TRIP_STYLE_CHOICES,
+        default='cultural'
+    )
+    booking_advance_days = models.IntegerField(
+        default=14,
+        validators=[MinValueValidator(0)]
+    )
+    last_trained = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_preferences'
+        verbose_name = 'User Preference'
+        verbose_name_plural = 'User Preferences'
+
+    def __str__(self):
+        return f"Preferences for {self.user} - {self.trip_style}/{self.budget_range}"
+
+
+class AgentAnalytics(models.Model):
+    """Daily analytics aggregation for agent performance."""
+
+    date = models.DateField(unique=True)
+    metrics = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'agent_analytics'
+        ordering = ['-date']
+        verbose_name = 'Agent Analytics'
+        verbose_name_plural = 'Agent Analytics'
+        indexes = [
+            models.Index(fields=['-date']),
+        ]
+
+    def __str__(self):
+        return f"Analytics for {self.date}"
+
+
+class AIModel(models.Model):
+    """Track AI model versions and configurations."""
+
+    name = models.CharField(max_length=100)
+    version = models.CharField(max_length=50)
+    model_type = models.CharField(max_length=50)
+    is_active = models.BooleanField(default=True)
+    config = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'ai_models'
+        ordering = ['-created_at']
+        verbose_name = 'AI Model'
+        verbose_name_plural = 'AI Models'
+        indexes = [
+            models.Index(fields=['name', 'version']),
+            models.Index(fields=['model_type']),
+            models.Index(fields=['is_active']),
+        ]
+
+    def __str__(self):
+        status = 'active' if self.is_active else 'inactive'
+        return f"{self.name} v{self.version} ({status})"
+
+
+class TripCollaboration(models.Model):
+    """Collaborative trip planning sessions."""
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('closed', 'Closed'),
+    ]
+
+    itinerary = models.ForeignKey(
+        'itineraries.Itinerary',
+        on_delete=models.CASCADE,
+        related_name='collaborations'
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='owned_collaborations'
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    invite_code = models.CharField(max_length=20, unique=True)
+    max_participants = models.IntegerField(
+        default=10,
+        validators=[MinValueValidator(1)]
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'trip_collaborations'
+        ordering = ['-created_at']
+        verbose_name = 'Trip Collaboration'
+        verbose_name_plural = 'Trip Collaborations'
+        indexes = [
+            models.Index(fields=['owner', '-created_at']),
+            models.Index(fields=['invite_code']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f"Collaboration {self.invite_code} - {self.itinerary} ({self.status})"
+
+
+class TripCollaborator(models.Model):
+    """Individual collaborator in a trip collaboration."""
+
+    ROLE_CHOICES = [
+        ('viewer', 'Viewer'),
+        ('editor', 'Editor'),
+        ('admin', 'Admin'),
+    ]
+
+    collaboration = models.ForeignKey(
+        TripCollaboration,
+        on_delete=models.CASCADE,
+        related_name='collaborators'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='trip_collaborations'
+    )
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='editor')
+
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'trip_collaborators'
+        ordering = ['-joined_at']
+        verbose_name = 'Trip Collaborator'
+        verbose_name_plural = 'Trip Collaborators'
+        unique_together = [('collaboration', 'user')]
+        indexes = [
+            models.Index(fields=['collaboration', 'user']),
+            models.Index(fields=['user']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} - {self.collaboration.invite_code} ({self.role})"
+
+
+class CollaborationVote(models.Model):
+    """Voting on options within a collaborative trip."""
+
+    ITEM_TYPE_CHOICES = [
+        ('flight', 'Flight'),
+        ('hotel', 'Hotel'),
+        ('restaurant', 'Restaurant'),
+        ('attraction', 'Attraction'),
+    ]
+
+    VOTE_CHOICES = [
+        ('up', 'Up'),
+        ('down', 'Down'),
+        ('neutral', 'Neutral'),
+    ]
+
+    collaboration = models.ForeignKey(
+        TripCollaboration,
+        on_delete=models.CASCADE,
+        related_name='votes'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='collaboration_votes'
+    )
+    item_type = models.CharField(max_length=20, choices=ITEM_TYPE_CHOICES)
+    item_id = models.CharField(max_length=255)
+    vote = models.CharField(max_length=10, choices=VOTE_CHOICES, default='neutral')
+    comment = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'collaboration_votes'
+        ordering = ['-created_at']
+        verbose_name = 'Collaboration Vote'
+        verbose_name_plural = 'Collaboration Votes'
+        indexes = [
+            models.Index(fields=['collaboration', 'item_type', 'item_id']),
+            models.Index(fields=['user']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} voted {self.vote} on {self.item_type} {self.item_id}"
+
+
+class Subscription(models.Model):
+    """Freemium tier subscription management."""
+
+    PLAN_CHOICES = [
+        ('free', 'Free'),
+        ('pro', 'Pro'),
+        ('business', 'Business'),
+    ]
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('cancelled', 'Cancelled'),
+        ('past_due', 'Past Due'),
+        ('trialing', 'Trialing'),
+    ]
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='subscription'
+    )
+    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default='free')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    stripe_customer_id = models.CharField(max_length=255, blank=True)
+    stripe_subscription_id = models.CharField(max_length=255, blank=True)
+    current_period_start = models.DateTimeField(null=True, blank=True)
+    current_period_end = models.DateTimeField(null=True, blank=True)
+    ai_plans_used = models.IntegerField(default=0)
+    ai_plans_limit = models.IntegerField(default=3)
+    price_alerts_used = models.IntegerField(default=0)
+    price_alerts_limit = models.IntegerField(default=1)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'subscriptions'
+        verbose_name = 'Subscription'
+        verbose_name_plural = 'Subscriptions'
+        indexes = [
+            models.Index(fields=['plan']),
+            models.Index(fields=['status']),
+            models.Index(fields=['stripe_customer_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.user} - {self.plan} ({self.status})"
+
+
+class AffiliateClick(models.Model):
+    """Track affiliate link clicks and revenue."""
+
+    CLICK_TYPE_CHOICES = [
+        ('flight', 'Flight'),
+        ('hotel', 'Hotel'),
+        ('car', 'Car'),
+        ('activity', 'Activity'),
+    ]
+
+    STATUS_CHOICES = [
+        ('clicked', 'Clicked'),
+        ('converted', 'Converted'),
+        ('paid', 'Paid'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='affiliate_clicks'
+    )
+    partner = models.CharField(max_length=100)
+    click_type = models.CharField(max_length=20, choices=CLICK_TYPE_CHOICES)
+    destination = models.CharField(max_length=255, blank=True)
+    tracking_id = models.CharField(max_length=255, unique=True)
+    revenue = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='clicked')
+
+    clicked_at = models.DateTimeField(auto_now_add=True)
+    converted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'affiliate_clicks'
+        ordering = ['-clicked_at']
+        verbose_name = 'Affiliate Click'
+        verbose_name_plural = 'Affiliate Clicks'
+        indexes = [
+            models.Index(fields=['partner', '-clicked_at']),
+            models.Index(fields=['tracking_id']),
+            models.Index(fields=['status']),
+            models.Index(fields=['click_type']),
+            models.Index(fields=['user', '-clicked_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.partner} - {self.click_type} ({self.status}) [{self.tracking_id}]"
+
+
+class PriceWatch(models.Model):
+    """Enhanced price monitoring for flights and hotels."""
+
+    WATCH_TYPE_CHOICES = [
+        ('flight', 'Flight'),
+        ('hotel', 'Hotel'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='price_watches'
+    )
+    watch_type = models.CharField(max_length=10, choices=WATCH_TYPE_CHOICES)
+    search_params = models.JSONField()
+    target_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    current_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    lowest_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    price_history = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+    last_checked = models.DateTimeField(null=True, blank=True)
+    notify_on_any_drop = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'price_watches'
+        ordering = ['-created_at']
+        verbose_name = 'Price Watch'
+        verbose_name_plural = 'Price Watches'
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['watch_type']),
+            models.Index(fields=['is_active']),
+            models.Index(fields=['is_active', 'last_checked']),
+        ]
+
+    def __str__(self):
+        status = 'active' if self.is_active else 'paused'
+        return f"{self.watch_type} watch for {self.user} ({status})"
