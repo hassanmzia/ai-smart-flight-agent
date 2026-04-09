@@ -182,14 +182,57 @@ class PersonalizationService:
         return {}
 
     def _generate_recommendations(self, user, dna, limit):
-        """Generate personalized recommendations based on DNA."""
-        recs = []
+        """Generate personalized recommendations using LLM + behavioral data."""
+        import os, json
 
         fav_dests = dna.get('destinations', {}).get('favorite_destinations', [])
         budget_range = dna.get('budget', {}).get('range', 'moderate')
         style = dna.get('style', {}).get('style', 'balanced')
+        interests = dna.get('style', {}).get('top_interests', [])
+        avg_duration = dna.get('style', {}).get('avg_trip_duration', 5)
+        avg_spend = dna.get('budget', {}).get('average_spend', 0)
 
-        # Simple rule-based recommendations
+        # Gather behavioral signals from recent searches
+        search_history = self._get_search_behavior(user)
+
+        # Try LLM-powered recommendations
+        api_key = getattr(settings, 'OPENAI_API_KEY', os.getenv('OPENAI_API_KEY', ''))
+        if api_key and api_key not in ('your_openai_api_key_here', ''):
+            try:
+                from langchain_openai import ChatOpenAI
+                from langchain.schema import HumanMessage, SystemMessage
+
+                model = ChatOpenAI(
+                    model='gpt-4o-mini', temperature=0.7,
+                    api_key=api_key, request_timeout=30,
+                )
+
+                response = model.invoke([
+                    SystemMessage(content="You are a travel recommendation engine. Return JSON only, no markdown."),
+                    HumanMessage(content=f"""Generate {limit} personalized trip recommendations for a traveler with this profile:
+- Budget range: {budget_range} (avg spend: ${avg_spend:.0f})
+- Travel style: {style}
+- Interests: {', '.join(interests) if interests else 'general sightseeing'}
+- Avg trip duration: {avg_duration} days
+- Past destinations: {', '.join(fav_dests[:5]) if fav_dests else 'none yet'}
+- Recent searches: {json.dumps(search_history[:5], default=str) if search_history else 'none'}
+
+Return JSON array:
+[{{"title": "Trip title", "destination": "City, Country", "reason": "Why this matches their profile", "match_score": 70-99, "based_on": "Which profile traits drove this"}}]
+
+Avoid recommending places they have already visited. Vary destinations across regions. Score higher for closer matches to their interests and budget.""")
+                ])
+
+                content = response.content.strip()
+                if content.startswith('```'):
+                    content = content.split('\n', 1)[1].rsplit('```', 1)[0]
+                recs = json.loads(content)
+                if isinstance(recs, list):
+                    return recs[:limit]
+            except Exception as e:
+                logger.warning(f"LLM recommendations failed: {e}")
+
+        # Fallback: rule-based recommendations with computed scores
         suggestions = {
             'budget': [
                 {'title': 'Budget-Friendly Southeast Asia', 'destination': 'Bangkok, Thailand', 'reason': 'Great value for budget travelers'},
@@ -214,12 +257,33 @@ class PersonalizationService:
         }
 
         recs = suggestions.get(budget_range, suggestions['moderate'])[:limit]
-
-        for rec in recs:
-            rec['match_score'] = 85  # Simplified scoring
+        # Filter out already-visited destinations
+        recs = [r for r in recs if r['destination'] not in fav_dests][:limit]
+        for i, rec in enumerate(recs):
+            rec['match_score'] = max(70, 95 - i * 5)  # Descending scores
             rec['based_on'] = f"Your {budget_range} budget preference and {style} travel style"
-
         return recs
+
+    def _get_search_behavior(self, user):
+        """Gather recent search behavior for behavioral learning."""
+        try:
+            from apps.analytics.models import UserActivity
+            from django.utils import timezone as tz
+            recent = tz.now() - timedelta(days=60)
+            activities = UserActivity.objects.filter(
+                user=user,
+                action__in=['search_flight', 'search_hotel', 'view_attraction'],
+                timestamp__gte=recent,
+            ).order_by('-timestamp').values_list('metadata', flat=True)[:20]
+            searches = []
+            for meta in activities:
+                if isinstance(meta, dict):
+                    dest = meta.get('destination') or meta.get('location', '')
+                    if dest:
+                        searches.append({'destination': dest, 'type': meta.get('type', 'search')})
+            return searches
+        except Exception:
+            return []
 
     def _save_dna(self, user, dna):
         """Save Travel DNA to UserPreference model."""

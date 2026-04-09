@@ -500,20 +500,75 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }))
 
     async def stream_ai_response(self, message, context):
-        """Stream AI response using LangChain with OpenAI streaming."""
+        """Stream AI response using real OpenAI streaming when available."""
         import asyncio
+        import os
 
-        response_text = await database_sync_to_async(self._generate_ai_response)(message, context)
+        openai_key = os.getenv('OPENAI_API_KEY', '')
+        if not openai_key or openai_key in ('your_openai_api_key_here', ''):
+            # Fallback: generate full response then simulate streaming
+            response_text = await database_sync_to_async(self._generate_ai_response)(message, context)
+            words = response_text.split(' ')
+            for i, word in enumerate(words):
+                yield (' ' + word) if i > 0 else word
+                await asyncio.sleep(0.02)
+            return
 
-        # Simulate streaming by yielding word-by-word for smooth UX
-        words = response_text.split(' ')
-        for i, word in enumerate(words):
-            if i > 0:
-                yield ' ' + word
-            else:
-                yield word
-            # Small delay for natural streaming feel
-            await asyncio.sleep(0.02)
+        try:
+            from openai import AsyncOpenAI
+
+            client = AsyncOpenAI(api_key=openai_key)
+
+            # Build RAG context
+            rag_context = ""
+            try:
+                from apps.agents.chat_rag import get_user_data_rag
+                rag = await database_sync_to_async(get_user_data_rag)()
+                rag_context = await database_sync_to_async(rag.retrieve)(self.user, message, n_results=5)
+            except Exception:
+                pass
+
+            system_prompt = f"""You are an expert AI travel planning assistant. You help users plan trips, find flights, hotels, restaurants, and activities. You are knowledgeable, friendly, and proactive.
+
+When a user asks about trip planning:
+- Ask clarifying questions about destination, dates, budget, and preferences
+- Suggest specific flights, hotels, and activities when you have enough info
+- Consider weather, safety, local events, and cultural factors
+- Provide cost estimates and budget breakdowns
+- Offer alternative options at different price points
+
+{f"User's travel data for context:{chr(10)}{rag_context}" if rag_context else ""}
+
+Keep responses concise but helpful. Use markdown formatting for lists and emphasis. If the user's request is vague, ask 1-2 clarifying questions."""
+
+            messages = [{"role": "system", "content": system_prompt}]
+            for msg in context.get('history', []):
+                role = 'assistant' if msg['sender'] == 'agent' else 'user'
+                messages.append({"role": role, "content": msg['content']})
+            messages.append({"role": "user", "content": message})
+
+            model_name = getattr(
+                settings, 'AGENT_CONFIG', {}
+            ).get('MODEL', 'gpt-4o-mini')
+
+            stream = await client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=0.7,
+                stream=True,
+            )
+            async for chunk in stream:
+                delta = chunk.choices[0].delta if chunk.choices else None
+                if delta and delta.content:
+                    yield delta.content
+
+        except Exception as e:
+            logger.warning(f"Real streaming failed, falling back: {e}")
+            response_text = await database_sync_to_async(self._generate_ai_response)(message, context)
+            words = response_text.split(' ')
+            for i, word in enumerate(words):
+                yield (' ' + word) if i > 0 else word
+                await asyncio.sleep(0.02)
 
     def _generate_ai_response(self, message, context):
         """Generate AI response synchronously using LangChain (called from sync context)."""
@@ -589,7 +644,7 @@ Keep responses concise but helpful. Use markdown formatting for lists and emphas
 
     async def build_conversation_context(self):
         """Build context from conversation history for LLM memory."""
-        history = await self.get_conversation_history(limit=20)
+        history = await self.get_conversation_history(limit=50)
         return {'history': history}
 
     async def chat_message(self, event):

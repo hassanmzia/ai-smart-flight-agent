@@ -1869,13 +1869,32 @@ def autonomous_book(request):
 def confirm_autonomous_booking(request):
     """Confirm a previously planned autonomous booking."""
     task_id = request.data.get('task_id')
-    if not task_id:
-        return Response({'error': 'task_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+    package = request.data.get('package', {})
+    payment_method_id = request.data.get('payment_method_id')
+
+    if not task_id and not package:
+        return Response(
+            {'error': 'task_id or package is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     try:
         from .autonomous_booking import AutonomousBookingAgent
+        from .models import AgentTask
         agent = AutonomousBookingAgent(user=request.user)
-        result = agent.confirm_booking(task_id)
+
+        # Resolve package from task_id if not provided directly
+        if not package and task_id:
+            try:
+                task = AgentTask.objects.get(id=task_id, user=request.user)
+                package = task.result.get('package', {}) if task.result else {}
+            except AgentTask.DoesNotExist:
+                return Response(
+                    {'error': 'Task not found'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        result = agent.confirm_booking(package, payment_method_id=payment_method_id)
         return Response(result)
     except Exception as e:
         logger.error(f"Booking confirmation failed: {e}")
@@ -1958,6 +1977,24 @@ def best_time_to_visit(request):
         return Response(result)
     except Exception as e:
         logger.error(f"Best time analysis failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def crowd_levels(request):
+    """Get estimated crowd levels for a destination by month."""
+    destination = request.query_params.get('destination')
+    if not destination:
+        return Response({'error': 'destination query param is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        from .predictive_intelligence import PredictiveIntelligence
+        pi = PredictiveIntelligence()
+        result = pi.predict_crowd_levels(destination)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Crowd level prediction failed: {e}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -2164,4 +2201,348 @@ def list_price_watches(request):
         return Response({'success': True, 'watches': data})
     except Exception as e:
         logger.error(f"List price watches failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Subscription Management (Stripe)
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_subscription(request):
+    """Create or upgrade a subscription via Stripe."""
+    plan = request.data.get('plan', 'pro')
+    payment_method_id = request.data.get('payment_method_id')
+
+    if plan not in ('pro', 'business'):
+        return Response({'error': 'Invalid plan'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        import stripe
+        from .subscription_middleware import get_user_subscription
+        from django.conf import settings as s
+
+        stripe.api_key = getattr(s, 'STRIPE_SECRET_KEY', '')
+
+        sub = get_user_subscription(request.user)
+
+        # Create or retrieve Stripe customer
+        if not sub.stripe_customer_id:
+            customer = stripe.Customer.create(
+                email=request.user.email,
+                name=f"{request.user.first_name} {request.user.last_name}".strip(),
+                metadata={'user_id': str(request.user.id)},
+            )
+            sub.stripe_customer_id = customer.id
+            sub.save(update_fields=['stripe_customer_id'])
+        else:
+            customer = stripe.Customer.retrieve(sub.stripe_customer_id)
+
+        # Attach payment method
+        if payment_method_id:
+            stripe.PaymentMethod.attach(payment_method_id, customer=customer.id)
+            stripe.Customer.modify(
+                customer.id,
+                invoice_settings={'default_payment_method': payment_method_id},
+            )
+
+        # Price IDs should be configured in settings
+        price_ids = getattr(s, 'STRIPE_PRICE_IDS', {
+            'pro': 'price_pro_monthly',
+            'business': 'price_business_monthly',
+        })
+
+        # Cancel existing Stripe subscription if upgrading
+        if sub.stripe_subscription_id:
+            try:
+                stripe.Subscription.delete(sub.stripe_subscription_id)
+            except Exception:
+                pass
+
+        # Create new subscription
+        stripe_sub = stripe.Subscription.create(
+            customer=customer.id,
+            items=[{'price': price_ids.get(plan)}],
+            payment_behavior='default_incomplete',
+            expand=['latest_invoice.payment_intent'],
+        )
+
+        sub.plan = plan
+        sub.status = 'active' if stripe_sub.status == 'active' else 'trialing'
+        sub.stripe_subscription_id = stripe_sub.id
+        from django.utils import timezone as tz
+        from datetime import timedelta
+        sub.current_period_start = tz.now()
+        sub.current_period_end = tz.now() + timedelta(days=30)
+        sub.save()
+
+        return Response({
+            'success': True,
+            'plan': plan,
+            'status': sub.status,
+            'stripe_subscription_id': stripe_sub.id,
+            'client_secret': getattr(
+                getattr(stripe_sub.latest_invoice, 'payment_intent', None),
+                'client_secret', None
+            ),
+        })
+
+    except ImportError:
+        # Stripe not installed — activate plan directly for demo
+        from .subscription_middleware import get_user_subscription
+        from django.utils import timezone as tz
+        from datetime import timedelta
+        sub = get_user_subscription(request.user)
+        sub.plan = plan
+        sub.status = 'active'
+        sub.current_period_start = tz.now()
+        sub.current_period_end = tz.now() + timedelta(days=30)
+        sub.save()
+        return Response({'success': True, 'plan': plan, 'status': 'active', 'mode': 'demo'})
+    except Exception as e:
+        logger.error(f"Subscription creation failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def stripe_webhook(request):
+    """Handle Stripe webhook events for subscription lifecycle."""
+    import json
+
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE', '')
+
+    try:
+        import stripe
+        from django.conf import settings as s
+        stripe.api_key = getattr(s, 'STRIPE_SECRET_KEY', '')
+        webhook_secret = getattr(s, 'STRIPE_WEBHOOK_SECRET', '')
+
+        if webhook_secret:
+            event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+        else:
+            event = json.loads(payload)
+
+        event_type = event.get('type', '') if isinstance(event, dict) else event.type
+        data_obj = event.get('data', {}).get('object', {}) if isinstance(event, dict) else event.data.object
+
+        if event_type == 'customer.subscription.updated':
+            _handle_subscription_update(data_obj)
+        elif event_type == 'customer.subscription.deleted':
+            _handle_subscription_cancelled(data_obj)
+        elif event_type == 'invoice.payment_succeeded':
+            _handle_payment_success(data_obj)
+        elif event_type == 'invoice.payment_failed':
+            _handle_payment_failed(data_obj)
+
+        return Response({'received': True})
+
+    except ImportError:
+        return Response({'received': True, 'mode': 'demo'})
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def _handle_subscription_update(sub_obj):
+    from .models import Subscription
+    try:
+        sub = Subscription.objects.get(stripe_subscription_id=sub_obj.get('id', ''))
+        status_val = sub_obj.get('status', 'active')
+        sub.status = 'active' if status_val == 'active' else status_val
+        sub.save(update_fields=['status'])
+    except Subscription.DoesNotExist:
+        pass
+
+
+def _handle_subscription_cancelled(sub_obj):
+    from .models import Subscription
+    try:
+        sub = Subscription.objects.get(stripe_subscription_id=sub_obj.get('id', ''))
+        sub.plan = 'free'
+        sub.status = 'cancelled'
+        sub.stripe_subscription_id = ''
+        sub.save()
+    except Subscription.DoesNotExist:
+        pass
+
+
+def _handle_payment_success(invoice_obj):
+    from .models import Subscription
+    customer_id = invoice_obj.get('customer', '')
+    try:
+        sub = Subscription.objects.get(stripe_customer_id=customer_id)
+        sub.status = 'active'
+        sub.save(update_fields=['status'])
+    except Subscription.DoesNotExist:
+        pass
+
+
+def _handle_payment_failed(invoice_obj):
+    from .models import Subscription
+    customer_id = invoice_obj.get('customer', '')
+    try:
+        sub = Subscription.objects.get(stripe_customer_id=customer_id)
+        sub.status = 'past_due'
+        sub.save(update_fields=['status'])
+    except Subscription.DoesNotExist:
+        pass
+
+
+# ─────────────────────────────────────────────────
+# Affiliate Redirect & Admin Dashboard
+# ─────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def affiliate_redirect(request, tracking_id):
+    """Redirect user through affiliate link and record the click."""
+    try:
+        from .models import AffiliateClick
+        click = AffiliateClick.objects.get(tracking_id=tracking_id)
+
+        # Build redirect URL from partner config
+        from .affiliate_service import AFFILIATE_PARTNERS
+        partner_config = AFFILIATE_PARTNERS.get(click.partner, {})
+        base_url = partner_config.get('base_url', '')
+        dest = click.destination or ''
+        redirect_url = f"{base_url}?dest={dest}&ref={tracking_id}" if base_url else '#'
+
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect(redirect_url)
+
+    except Exception:
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect('/')
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def affiliate_admin_dashboard(request):
+    """Admin-level affiliate revenue dashboard with detailed analytics."""
+    if not request.user.is_staff:
+        return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+
+    days = int(request.query_params.get('days', 30))
+
+    try:
+        from .models import AffiliateClick
+        from django.db.models import Sum, Count, Avg
+        from django.utils import timezone as tz
+
+        cutoff = tz.now() - tz.timedelta(days=days)
+        qs = AffiliateClick.objects.filter(clicked_at__gte=cutoff)
+
+        total_clicks = qs.count()
+        conversions = qs.filter(status='converted')
+        total_revenue = conversions.aggregate(t=Sum('revenue'))['t'] or 0
+
+        by_partner = list(qs.values('partner').annotate(
+            clicks=Count('id'),
+            conversions_count=Count('id', filter=models_Q(status='converted')),
+            revenue=Sum('revenue'),
+        ))
+
+        by_day = list(qs.extra(select={'day': 'DATE(clicked_at)'}).values('day').annotate(
+            clicks=Count('id'),
+            revenue=Sum('revenue'),
+        ).order_by('day'))
+
+        top_destinations = list(qs.exclude(destination='').values('destination').annotate(
+            clicks=Count('id'),
+            revenue=Sum('revenue'),
+        ).order_by('-clicks')[:10])
+
+        return Response({
+            'success': True,
+            'period_days': days,
+            'summary': {
+                'total_clicks': total_clicks,
+                'total_conversions': conversions.count(),
+                'conversion_rate': f"{(conversions.count() / total_clicks * 100):.1f}%" if total_clicks else "0%",
+                'total_revenue': float(total_revenue),
+                'avg_revenue_per_conversion': float(
+                    conversions.aggregate(a=Avg('revenue'))['a'] or 0
+                ),
+            },
+            'by_partner': by_partner,
+            'by_day': by_day,
+            'top_destinations': top_destinations,
+        })
+    except Exception as e:
+        logger.error(f"Admin dashboard failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def models_Q(**kwargs):
+    from django.db.models import Q
+    return Q(**kwargs)
+
+
+# ─────────────────────────────────────────────────
+# Collaborative Trip — Cost Splitting
+# ─────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def collaboration_cost_split(request, collaboration_id):
+    """Calculate cost splitting for a collaborative trip."""
+    try:
+        from .models import TripCollaboration, TripCollaborator
+        from apps.itineraries.models import Itinerary
+
+        collab = TripCollaboration.objects.get(id=collaboration_id)
+        # Verify access
+        is_member = (
+            collab.owner == request.user
+            or TripCollaborator.objects.filter(collaboration=collab, user=request.user).exists()
+        )
+        if not is_member:
+            return Response({'error': 'Not a member'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Gather costs from itinerary
+        itinerary = collab.itinerary
+        total_cost = float(itinerary.estimated_budget or 0)
+
+        # Count participants
+        collaborators = list(TripCollaborator.objects.filter(
+            collaboration=collab
+        ).select_related('user'))
+        participants = [collab.owner] + [c.user for c in collaborators]
+        n = len(participants)
+
+        per_person = total_cost / n if n > 0 else 0
+
+        # Itemized breakdown from itinerary days
+        item_costs = []
+        if hasattr(itinerary, 'days'):
+            for day in itinerary.days.all():
+                for item in day.items.all():
+                    if item.estimated_cost:
+                        item_costs.append({
+                            'day': day.day_number,
+                            'title': item.title,
+                            'type': item.item_type,
+                            'total': float(item.estimated_cost),
+                            'per_person': float(item.estimated_cost) / n if n > 0 else 0,
+                        })
+
+        return Response({
+            'success': True,
+            'collaboration_id': collaboration_id,
+            'total_cost': total_cost,
+            'num_participants': n,
+            'per_person': round(per_person, 2),
+            'participants': [
+                {'name': p.get_full_name() or p.email, 'share': round(per_person, 2)}
+                for p in participants
+            ],
+            'itemized': item_costs,
+        })
+    except TripCollaboration.DoesNotExist:
+        return Response({'error': 'Collaboration not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.error(f"Cost split failed: {e}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

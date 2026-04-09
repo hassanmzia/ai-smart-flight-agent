@@ -59,13 +59,24 @@ class PriceMonitorService:
 
                 if watch.target_price and new_price <= watch.target_price:
                     should_alert = True
-                    alert_message = f"Price dropped to ${new_price}! Below your target of ${watch.target_price}."
+                    alert_message = (
+                        f"Price dropped to ${new_price}! Below your target of "
+                        f"${watch.target_price}. Book now before it goes back up!"
+                    )
                 elif watch.notify_on_any_drop and old_price and new_price < old_price:
                     drop_amount = old_price - new_price
                     drop_pct = (drop_amount / old_price * 100)
                     if drop_pct >= 3:  # Only alert on 3%+ drops
                         should_alert = True
-                        alert_message = f"Price dropped ${drop_amount:.0f} ({drop_pct:.0f}%) from ${old_price} to ${new_price}!"
+                        recommendation = (
+                            "Book now — this is a great deal!"
+                            if drop_pct >= 10
+                            else "Consider booking soon — prices may rise again."
+                        )
+                        alert_message = (
+                            f"Price dropped ${drop_amount:.0f} ({drop_pct:.0f}%) "
+                            f"from ${old_price} to ${new_price}! {recommendation}"
+                        )
 
                 if should_alert:
                     # Send WebSocket real-time alert

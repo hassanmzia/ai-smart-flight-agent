@@ -22,19 +22,26 @@ from .views import (
     predict_prices,
     best_time_to_visit,
     destination_trends,
+    crowd_levels,
     # Personalization
     get_travel_dna,
     get_recommendations,
     # Subscription
     subscription_status,
     check_feature_access,
+    create_subscription,
+    stripe_webhook,
     # Affiliate
     generate_affiliate_link,
     affiliate_report,
     affiliate_partners,
+    affiliate_redirect,
+    affiliate_admin_dashboard,
     # Price Watch
     create_price_watch,
     list_price_watches,
+    # Collaborative
+    collaboration_cost_split,
 )
 
 app_name = 'agents'
@@ -64,17 +71,24 @@ urlpatterns = [
     path('predict-prices', predict_prices, name='predict_prices'),
     path('best-time', best_time_to_visit, name='best_time_to_visit'),
     path('trends', destination_trends, name='destination_trends'),
+    path('crowd-levels', crowd_levels, name='crowd_levels'),
     # Personalization
     path('travel-dna', get_travel_dna, name='get_travel_dna'),
     path('recommendations', get_recommendations, name='get_recommendations'),
     # Subscription
     path('subscription', subscription_status, name='subscription_status'),
+    path('subscription/create', create_subscription, name='create_subscription'),
     path('check-feature', check_feature_access, name='check_feature_access'),
+    path('stripe-webhook', stripe_webhook, name='stripe_webhook'),
     # Affiliate
     path('affiliate/link', generate_affiliate_link, name='generate_affiliate_link'),
     path('affiliate/report', affiliate_report, name='affiliate_report'),
     path('affiliate/partners', affiliate_partners, name='affiliate_partners'),
+    path('affiliate/redirect/<str:tracking_id>', affiliate_redirect, name='affiliate_redirect'),
+    path('affiliate/admin-dashboard', affiliate_admin_dashboard, name='affiliate_admin_dashboard'),
     # Price Watch
     path('price-watch/create', create_price_watch, name='create_price_watch'),
     path('price-watch/list', list_price_watches, name='list_price_watches'),
+    # Collaborative
+    path('collaboration/<int:collaboration_id>/cost-split', collaboration_cost_split, name='collaboration_cost_split'),
 ]

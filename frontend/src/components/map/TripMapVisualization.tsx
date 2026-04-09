@@ -146,6 +146,17 @@ function getGoogleMapsUrl(lat: number, lng: number, name: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}&query_place_id=${encodeURIComponent(name)}`;
 }
 
+function getWalkingDirectionsUrl(
+  fromLat: number, fromLng: number,
+  toLat: number, toLng: number,
+): string {
+  return `https://www.google.com/maps/dir/?api=1&origin=${fromLat},${fromLng}&destination=${toLat},${toLng}&travelmode=walking`;
+}
+
+function getStreetViewEmbedUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps/embed/v1/streetview?key=&location=${lat},${lng}&heading=210&pitch=10&fov=90`;
+}
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -159,6 +170,7 @@ interface TripMapVisualizationProps {
 export default function TripMapVisualization({ itinerary, onGeocode, isGeocoding }: TripMapVisualizationProps) {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [showRoutes, setShowRoutes] = useState(true);
+  const [streetViewItem, setStreetViewItem] = useState<{ lat: number; lng: number; title: string } | null>(null);
 
   // Collect all items with valid coordinates
   const geoItems = useMemo(() => {
@@ -233,6 +245,24 @@ export default function TripMapVisualization({ itinerary, onGeocode, isGeocoding
     () => [...new Set(geoItems.map((g) => g.dayNumber))].sort((a, b) => a - b),
     [geoItems],
   );
+
+  // Build a "next stop" map for walking directions
+  const nextStopMap = useMemo(() => {
+    const map = new Map<string, { lat: number; lng: number; title: string }>();
+    for (const day of itinerary.days) {
+      const geoOnly = day.items.filter((i) => i.latitude != null && i.longitude != null);
+      for (let i = 0; i < geoOnly.length - 1; i++) {
+        const curr = geoOnly[i];
+        const next = geoOnly[i + 1];
+        map.set(`${day.day_number}-${curr.id}`, {
+          lat: Number(next.latitude),
+          lng: Number(next.longitude),
+          title: next.title,
+        });
+      }
+    }
+    return map;
+  }, [itinerary]);
 
   // Count items that could be geocoded (have a name but no coords)
   const missingCoords = useMemo(() => {
@@ -409,23 +439,43 @@ export default function TripMapVisualization({ itinerary, onGeocode, isGeocoding
                   </div>
 
                   {/* Action links */}
-                  <div className="flex gap-2 pt-2 border-t border-gray-100">
+                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-gray-100">
                     <a
                       href={getStreetViewUrl(g.lat, g.lng)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-medium transition-colors"
+                      className="text-xs px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-medium transition-colors"
                     >
-                      {'\uD83D\uDC41\uFE0F'} 3D Street View
+                      {'\uD83D\uDC41\uFE0F'} Street View
                     </a>
+                    <button
+                      onClick={() => setStreetViewItem({ lat: g.lat, lng: g.lng, title: g.item.title })}
+                      className="text-xs px-2 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 font-medium transition-colors"
+                    >
+                      {'\uD83C\uDF10'} 3D Preview
+                    </button>
                     <a
                       href={getGoogleMapsUrl(g.lat, g.lng, g.item.location_name || g.item.title)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs px-2.5 py-1 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 font-medium transition-colors"
+                      className="text-xs px-2 py-1 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 font-medium transition-colors"
                     >
-                      {'\uD83D\uDDFA\uFE0F'} Google Maps
+                      {'\uD83D\uDDFA\uFE0F'} Maps
                     </a>
+                    {(() => {
+                      const nextStop = nextStopMap.get(`${g.dayNumber}-${g.item.id}`);
+                      if (!nextStop) return null;
+                      return (
+                        <a
+                          href={getWalkingDirectionsUrl(g.lat, g.lng, nextStop.lat, nextStop.lng)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 font-medium transition-colors"
+                        >
+                          {'\uD83D\uDEB6'} Walk to {nextStop.title.substring(0, 15)}{nextStop.title.length > 15 ? '...' : ''}
+                        </a>
+                      );
+                    })()}
                   </div>
                 </div>
               </Popup>
@@ -486,6 +536,33 @@ export default function TripMapVisualization({ itinerary, onGeocode, isGeocoding
             );
           })}
       </div>
+
+      {/* Embedded Street View preview */}
+      {streetViewItem && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-800">
+            <h4 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200">
+              {'\uD83D\uDC41\uFE0F'} Street View — {streetViewItem.title}
+            </h4>
+            <button
+              onClick={() => setStreetViewItem(null)}
+              className="text-indigo-400 hover:text-indigo-600 text-sm"
+            >
+              Close
+            </button>
+          </div>
+          <iframe
+            src={`https://www.google.com/maps/embed?pb=!4v0!6m8!1m7!1s!2m2!1d${streetViewItem.lat}!2d${streetViewItem.lng}!3f0!4f0!5f0.7820865974627469`}
+            width="100%"
+            height="300"
+            style={{ border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            title={`Street View of ${streetViewItem.title}`}
+          />
+        </div>
+      )}
 
       {/* Walking directions info */}
       {showRoutes && routeLines.length > 0 && (

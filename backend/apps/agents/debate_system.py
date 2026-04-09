@@ -275,8 +275,19 @@ Give a final verdict in 2-3 sentences explaining which option wins and why, bala
         return basic_result
 
     def _synthesize(self, arguments: List[Dict], options: List[Dict], context: Dict) -> Dict[str, Any]:
-        """Combine agent scores into a weighted final recommendation."""
+        """Combine agent scores into a weighted final recommendation.
+        Weights adapt to user preferences when provided in context."""
+        # Default weights
         weights = {'Budget Advisor': 0.35, 'Quality Advisor': 0.40, 'Location Advisor': 0.25}
+
+        # Adapt weights based on user context/preferences
+        user_priority = context.get('priority', '').lower() if context else ''
+        if user_priority == 'budget':
+            weights = {'Budget Advisor': 0.55, 'Quality Advisor': 0.25, 'Location Advisor': 0.20}
+        elif user_priority == 'quality':
+            weights = {'Budget Advisor': 0.20, 'Quality Advisor': 0.55, 'Location Advisor': 0.25}
+        elif user_priority == 'location':
+            weights = {'Budget Advisor': 0.20, 'Quality Advisor': 0.30, 'Location Advisor': 0.50}
         option_scores = {}
 
         for arg in arguments:
