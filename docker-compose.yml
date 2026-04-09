@@ -208,7 +208,7 @@ services:
       network: host
       args:
         VITE_API_URL: "https://demo.eminencetechsolutions.com:3090"
-        VITE_WS_URL: "wss://demo.eminencetechsolutions.com:3090/ws"
+        VITE_WS_URL: "wss://demo.eminencetechsolutions.com:3090"
         VITE_MCP_URL: "https://demo.eminencetechsolutions.com:3090/mcp"
     container_name: travel-agent-frontend
     dns:
@@ -219,7 +219,7 @@ services:
     environment:
       NODE_ENV: "production"
       VITE_API_URL: "https://demo.eminencetechsolutions.com:3090"
-      VITE_WS_URL: "wss://demo.eminencetechsolutions.com:3090/ws"
+      VITE_WS_URL: "wss://demo.eminencetechsolutions.com:3090"
       VITE_MCP_URL: "https://demo.eminencetechsolutions.com:3090/mcp"
       PORT: "3090"
     volumes:

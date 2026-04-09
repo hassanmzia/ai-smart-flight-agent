@@ -275,7 +275,13 @@ const ChatPage = () => {
 
           case 'conversation_history':
             if (data.messages && Array.isArray(data.messages)) {
-              setMessages(data.messages.map((m: ChatMessage) => ({ ...m, isStreaming: false })));
+              setMessages(data.messages.map((m: any) => ({
+                id: m.id,
+                role: m.role || (m.sender === 'agent' ? 'assistant' : m.sender) || 'user',
+                content: m.content,
+                timestamp: m.timestamp,
+                isStreaming: false,
+              })));
             }
             break;
 
@@ -326,13 +332,21 @@ const ChatPage = () => {
             const { message } = data;
             streamingMessageRef.current.delete(message.id);
 
+            const completeMsg = {
+              id: message.id,
+              role: 'assistant' as const,
+              content: message.content,
+              timestamp: message.timestamp,
+              isStreaming: false,
+            };
+
             setMessages((prev) => {
               const idx = prev.findIndex((m: ChatMessage) => m.id === message.id);
               if (idx === -1) {
-                return [...prev, { ...message, isStreaming: false }];
+                return [...prev, completeMsg];
               }
               const updated = [...prev];
-              updated[idx] = { ...message, isStreaming: false };
+              updated[idx] = completeMsg;
               return updated;
             });
             break;
