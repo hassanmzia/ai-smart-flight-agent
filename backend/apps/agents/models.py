@@ -293,9 +293,9 @@ class RAGDocument(models.Model):
         verbose_name = 'RAG Document'
         verbose_name_plural = 'RAG Documents'
         indexes = [
-            models.Index(fields=['uploaded_by', '-created_at'], name='rag_doc_upload_c1a2b3_idx'),
-            models.Index(fields=['status'], name='rag_doc_status_d4e5f6_idx'),
-            models.Index(fields=['scope'], name='rag_doc_scope_a7b8c9_idx'),
+            models.Index(fields=['uploaded_by', '-created_at'], name='rag_documen_uploade_84f4bf_idx'),
+            models.Index(fields=['status'], name='rag_documen_status_71a194_idx'),
+            models.Index(fields=['scope'], name='rag_documen_scope_6a2018_idx'),
         ]
 
     def __str__(self):

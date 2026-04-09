@@ -16,28 +16,11 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('agents', '0002_add_rag_document_model'),
+        ('agents', '0003_rename_rag_documents_uploade_c1a2b3_idx_rag_documen_uploade_84f4bf_idx_and_more'),
         ('itineraries', '0001_initial'),
     ]
 
     operations = [
-        # Rename RAGDocument indexes to fit 30-char limit
-        migrations.RenameIndex(
-            model_name='ragdocument',
-            new_name='rag_doc_upload_c1a2b3_idx',
-            old_name='rag_documents_uploade_c1a2b3_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='ragdocument',
-            new_name='rag_doc_status_d4e5f6_idx',
-            old_name='rag_documents_status_d4e5f6_idx',
-        ),
-        migrations.RenameIndex(
-            model_name='ragdocument',
-            new_name='rag_doc_scope_a7b8c9_idx',
-            old_name='rag_documents_scope_a7b8c9_idx',
-        ),
-
         # AgentConversation
         migrations.CreateModel(
             name='AgentConversation',
