@@ -54,20 +54,26 @@ const TouristAttractionSearchPage = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-        🗺️ Tourist Attractions
-      </h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-8">
-        Discover top-rated tourist attractions and landmarks in your destination
-      </p>
+    <div className="min-h-screen">
+      <div className="relative overflow-hidden bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-700 dark:from-violet-800 dark:via-purple-800 dark:to-indigo-900">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-10 -right-20 w-64 h-64 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-violet-300 rounded-full blur-3xl"></div>
+        </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
+            🗺️ Tourist Attractions
+          </h1>
+          <p className="text-violet-100 text-lg">
+            Discover top-rated attractions and landmarks in your destination
+          </p>
+        </div>
+      </div>
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
       {/* Search Form */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Search Tourist Attractions</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card variant="glass" className="mb-8">
+        <div className="p-6">
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Input
@@ -99,7 +105,7 @@ const TouristAttractionSearchPage = () => {
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-shadow"
                 >
                   <option value="">All Categories</option>
                   <option value="museums">🏛️ Museums & Galleries</option>
@@ -117,7 +123,7 @@ const TouristAttractionSearchPage = () => {
               {loading ? 'Searching...' : '🔍 Search Attractions'}
             </Button>
           </form>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Loading State */}
@@ -168,6 +174,7 @@ const TouristAttractionSearchPage = () => {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 };

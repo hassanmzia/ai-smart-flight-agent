@@ -3,17 +3,23 @@ import { GlobeAltIcon, SparklesIcon, UsersIcon, ShieldCheckIcon } from '@heroico
 
 const AboutPage = () => {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+    <div className="min-h-screen">
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 dark:from-blue-800 dark:via-indigo-800 dark:to-purple-900">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-20 -right-20 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-purple-300 rounded-full blur-3xl"></div>
+        </div>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-20 text-center">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
             About AI Travel Agent
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
+          <p className="text-xl text-blue-100 max-w-3xl mx-auto">
             Your intelligent companion for seamless travel planning and booking
           </p>
         </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
 
         {/* Mission Statement */}
         <Card className="mb-12">
@@ -120,6 +126,7 @@ const AboutPage = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   );

@@ -62,15 +62,26 @@ const RestaurantSearchPage: React.FC = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">🍽️ Restaurant Search</h1>
+    <div className="min-h-screen">
+      <div className="relative overflow-hidden bg-gradient-to-br from-rose-500 via-pink-600 to-fuchsia-700 dark:from-rose-800 dark:via-pink-800 dark:to-fuchsia-900">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-10 -right-20 w-64 h-64 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-rose-300 rounded-full blur-3xl"></div>
+        </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
+            🍽️ Restaurant Search
+          </h1>
+          <p className="text-rose-100 text-lg">
+            Discover amazing restaurants at your destination
+          </p>
+        </div>
+      </div>
 
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
       {/* Search Form */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Find Restaurants</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card variant="glass" className="mb-8">
+        <div className="p-6">
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* City */}
@@ -83,7 +94,7 @@ const RestaurantSearchPage: React.FC = () => {
                   value={searchParams.city}
                   onChange={(e) => setSearchParams({ ...searchParams, city: e.target.value })}
                   placeholder="e.g., Los Angeles, LAX, New York"
-                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-shadow"
                   required
                 />
               </div>
@@ -96,7 +107,7 @@ const RestaurantSearchPage: React.FC = () => {
                 <select
                   value={searchParams.cuisine}
                   onChange={(e) => setSearchParams({ ...searchParams, cuisine: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-shadow"
                 >
                   <option value="">Any Cuisine</option>
                   {cuisineOptions.map((cuisine) => (
@@ -120,7 +131,7 @@ const RestaurantSearchPage: React.FC = () => {
                       price_level: e.target.value ? parseInt(e.target.value) : undefined,
                     })
                   }
-                  className="w-full px-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-shadow"
                 >
                   <option value="">Any Price</option>
                   <option value="1">$ (Budget)</option>
@@ -134,12 +145,12 @@ const RestaurantSearchPage: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:bg-gray-400"
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white font-semibold shadow-lg shadow-rose-500/25 hover:shadow-xl transition-all duration-200 disabled:opacity-50"
             >
               {loading ? 'Searching...' : 'Search Restaurants'}
             </button>
           </form>
-        </CardContent>
+        </div>
       </Card>
 
       {/* Error Message */}
@@ -173,7 +184,7 @@ const RestaurantSearchPage: React.FC = () => {
             <div className="mt-8 text-center">
               <button
                 onClick={handleShowMore}
-                className="bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-md hover:shadow-lg"
+                className="py-3 px-8 rounded-xl bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-700 hover:to-pink-700 text-white font-semibold shadow-lg shadow-rose-500/25 hover:shadow-xl transition-all duration-200"
               >
                 Show More ({restaurants.length - displayCount} remaining)
               </button>
@@ -192,6 +203,7 @@ const RestaurantSearchPage: React.FC = () => {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 };

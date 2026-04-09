@@ -52,13 +52,23 @@ const EventsPage = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-        🎉 Events & Festivals
-      </h1>
-      <p className="text-gray-600 dark:text-gray-400 mb-8">
-        Discover exciting local events, festivals, and happenings during your travel dates
-      </p>
+    <div className="min-h-screen">
+      <div className="relative overflow-hidden bg-gradient-to-br from-fuchsia-500 via-purple-600 to-violet-700 dark:from-fuchsia-800 dark:via-purple-800 dark:to-violet-900">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-10 -right-20 w-64 h-64 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-fuchsia-300 rounded-full blur-3xl"></div>
+        </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
+            🎉 Events & Festivals
+          </h1>
+          <p className="text-fuchsia-100 text-lg">
+            Discover exciting local events, festivals, and happenings during your travel dates
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
 
       {/* Search Form */}
       <Card className="mb-8">
@@ -167,6 +177,7 @@ const EventsPage = () => {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 };

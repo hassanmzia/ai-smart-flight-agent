@@ -217,7 +217,22 @@ const HotelBookingPage = () => {
   const total = subtotal + taxes;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="min-h-screen">
+      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 dark:from-emerald-800 dark:via-teal-800 dark:to-cyan-900">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-10 -right-20 w-64 h-64 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-teal-300 rounded-full blur-3xl"></div>
+        </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
+            🏨 Book Your Hotel
+          </h1>
+          <p className="text-emerald-100 text-lg">
+            Complete your reservation in a few easy steps
+          </p>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
       {/* Progress Steps */}
       <div className="mb-8">
         <div className="flex items-center justify-center">
@@ -226,7 +241,7 @@ const HotelBookingPage = () => {
               <div
                 className={`flex items-center justify-center w-10 h-10 rounded-full ${
                   step >= stepNum
-                    ? 'bg-primary-600 text-white'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
                 }`}
               >
@@ -244,7 +259,7 @@ const HotelBookingPage = () => {
               {stepNum < 2 && (
                 <div
                   className={`mx-4 h-0.5 w-16 ${
-                    step > stepNum ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
+                    step > stepNum ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gray-200 dark:bg-gray-700'
                   }`}
                 />
               )}
@@ -693,6 +708,7 @@ const HotelBookingPage = () => {
             </div>
           </Card>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -47,9 +47,14 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 dark:from-blue-900 dark:via-indigo-900 dark:to-purple-950 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute -top-20 -right-20 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-purple-300 rounded-full blur-3xl"></div>
+      </div>
+      <Card variant="glass" className="max-w-md w-full relative z-10">
         <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-2xl mb-4 shadow-lg shadow-blue-500/25">✈️</div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
             Sign in to your account
           </h2>
@@ -109,9 +114,13 @@ const LoginPage = () => {
             </div>
           </div>
 
-          <Button type="submit" className="w-full" size="lg" isLoading={isLoading}>
-            Sign in
-          </Button>
+          <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-blue-500/25 hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Signing in...' : 'Sign in'}
+              </button>
         </form>
 
         <div className="mt-6">
@@ -120,7 +129,7 @@ const LoginPage = () => {
               <div className="w-full border-t border-gray-300 dark:border-gray-600" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+              <span className="px-2 bg-white/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400">
                 Or continue with
               </span>
             </div>

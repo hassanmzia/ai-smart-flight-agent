@@ -31,17 +31,24 @@ const HotelSearchPage = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          🏨 Search Hotels
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Find the perfect place to stay for your trip
-        </p>
+    <div className="min-h-screen">
+      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-700 dark:from-emerald-800 dark:via-teal-800 dark:to-cyan-900">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute -top-10 -right-20 w-64 h-64 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-teal-300 rounded-full blur-3xl"></div>
+        </div>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
+            🏨 Search Hotels
+          </h1>
+          <p className="text-emerald-100 text-lg">
+            Find the perfect place to stay for your trip
+          </p>
+        </div>
       </div>
 
-      <Card className="p-6">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
+      <Card variant="glass" className="p-6">
         <form onSubmit={handleHotelSearch} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
@@ -87,11 +94,12 @@ const HotelSearchPage = () => {
             />
           </div>
 
-          <Button type="submit" className="w-full" size="lg">
-            Search Hotels
-          </Button>
+          <button type="submit" className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-base shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-200 active:scale-[0.98]">
+              Search Hotels
+            </button>
         </form>
       </Card>
+      </div>
     </div>
   );
 };
