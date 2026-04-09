@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db.models import Avg
 from .models import AgentSession, AgentExecution, AgentLog, RAGDocument
 
 
@@ -96,7 +97,7 @@ class AgentSessionSerializer(serializers.ModelSerializer):
         executions = obj.executions.filter(status='completed')
         if not executions.exists():
             return None
-        avg_time = executions.aggregate(models.Avg('execution_time_ms'))['execution_time_ms__avg']
+        avg_time = executions.aggregate(Avg('execution_time_ms'))['execution_time_ms__avg']
         return avg_time
 
 

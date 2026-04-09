@@ -85,8 +85,13 @@ export const API_ENDPOINTS = {
     SUBSCRIPTION: '/api/agents/subscription',
     AFFILIATE_LINK: '/api/agents/affiliate/link',
     AFFILIATE_REPORT: '/api/agents/affiliate/report',
+    AFFILIATE_PARTNERS: '/api/agents/affiliate/partners',
     PRICE_WATCH_CREATE: '/api/agents/price-watch/create',
     PRICE_WATCH_LIST: '/api/agents/price-watch/list',
+    CONFIRM_BOOKING: '/api/agents/confirm-booking',
+    ANALYZE_SCREENSHOT: '/api/agents/analyze-screenshot',
+    CHECK_FEATURE: '/api/agents/check-feature',
+    AUTO_BUILD: '/api/agents/auto-build',
   },
   PRICE_ALERTS: {
     CREATE: '/api/price-alerts',
