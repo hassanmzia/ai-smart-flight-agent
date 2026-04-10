@@ -6,12 +6,13 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
-from .models import DestinationMedia, TravelStory, TravelTip, DestinationInfo
+from .models import DestinationMedia, TravelStory, TravelTip, DestinationInfo, CuratedGuide
 from .serializers import (
     DestinationMediaSerializer,
     TravelStorySerializer,
     TravelTipSerializer,
     DestinationInfoSerializer,
+    CuratedGuideSerializer,
 )
 
 
@@ -146,6 +147,83 @@ class DestinationInfoViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['destination', 'country', 'summary']
 
 
+class CuratedGuideViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only viewset for AI-curated must-visit/eat/see guides.
+    Supports generating new guides and filtering by destination.
+    """
+
+    queryset = CuratedGuide.objects.all()
+    serializer_class = CuratedGuideSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['destination', 'guide_type']
+    search_fields = ['destination', 'title', 'description']
+
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def generate(self, request):
+        """
+        Generate a curated guide for a destination.
+
+        POST body: {"destination": "Paris", "guide_type": "must_eat"}
+        """
+        destination = request.data.get('destination')
+        guide_type = request.data.get('guide_type')
+
+        if not destination:
+            return Response(
+                {'error': 'destination is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        valid_types = [choice[0] for choice in CuratedGuide.GUIDE_TYPE_CHOICES]
+        if not guide_type:
+            return Response(
+                {'error': f'guide_type is required. Valid types: {valid_types}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if guide_type not in valid_types:
+            return Response(
+                {'error': f'Invalid guide_type. Must be one of: {valid_types}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            from apps.agents.services.guide_agent import GuideAgent
+            agent = GuideAgent()
+            guide = agent.generate_guide(destination, guide_type)
+            serializer = self.get_serializer(guide)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {'error': f'Guide generation failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    def by_destination(self, request):
+        """
+        Return all curated guides for a given destination.
+
+        GET /curated-guides/by_destination/?destination=Paris
+        """
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response(
+                {'error': 'destination query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        guides = CuratedGuide.objects.filter(destination__iexact=destination)
+        serializer = self.get_serializer(guides, many=True)
+        return Response({
+            'destination': destination,
+            'guides': serializer.data,
+            'count': guides.count(),
+        })
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def destination_content(request, destination):
@@ -165,6 +243,9 @@ def destination_content(request, destination):
     info = DestinationInfo.objects.filter(
         destination__iexact=destination,
     ).first()
+    guides = CuratedGuide.objects.filter(
+        destination__iexact=destination,
+    )
 
     return Response({
         'destination': destination,
@@ -172,9 +253,11 @@ def destination_content(request, destination):
         'media': DestinationMediaSerializer(media, many=True).data,
         'stories': TravelStorySerializer(stories, many=True).data,
         'tips': TravelTipSerializer(tips, many=True).data,
+        'guides': CuratedGuideSerializer(guides, many=True).data,
         'counts': {
             'media': media.count(),
             'stories': stories.count(),
             'tips': tips.count(),
+            'guides': guides.count(),
         },
     })

@@ -6,6 +6,7 @@ from .views import (
     TravelStoryViewSet,
     TravelTipViewSet,
     DestinationInfoViewSet,
+    CuratedGuideViewSet,
     destination_content,
 )
 
@@ -16,6 +17,7 @@ router.register(r'media', DestinationMediaViewSet, basename='destination-media')
 router.register(r'stories', TravelStoryViewSet, basename='travel-story')
 router.register(r'tips', TravelTipViewSet, basename='travel-tip')
 router.register(r'info', DestinationInfoViewSet, basename='destination-info')
+router.register(r'curated-guides', CuratedGuideViewSet, basename='curated-guide')
 
 urlpatterns = [
     path('destination-content/<str:destination>/', destination_content, name='destination-content'),

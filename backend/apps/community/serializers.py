@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import DestinationMedia, TravelStory, TravelTip, DestinationInfo
+from .models import DestinationMedia, TravelStory, TravelTip, DestinationInfo, CuratedGuide
 
 
 class DestinationMediaSerializer(serializers.ModelSerializer):
@@ -72,3 +72,28 @@ class DestinationInfoSerializer(serializers.ModelSerializer):
             'official_tourism_url', 'ai_generated', 'updated_at',
         ]
         read_only_fields = ['id', 'updated_at']
+
+
+class CuratedGuideSerializer(serializers.ModelSerializer):
+    """Serializer for CuratedGuide model."""
+
+    guide_type_display = serializers.CharField(
+        source='get_guide_type_display', read_only=True,
+    )
+    item_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CuratedGuide
+        fields = [
+            'id', 'destination', 'guide_type', 'guide_type_display',
+            'title', 'description', 'items', 'item_count',
+            'ai_generated', 'last_updated', 'created_at',
+        ]
+        read_only_fields = [
+            'id', 'ai_generated', 'last_updated', 'created_at',
+        ]
+
+    def get_item_count(self, obj):
+        if isinstance(obj.items, list):
+            return len(obj.items)
+        return 0
