@@ -112,9 +112,9 @@ export default function CommunityPage() {
         api.get('/api/community/tips/', { params }).catch(() => ({ data: { results: [] } })),
       ]);
 
-      setMedia(mediaRes.data?.results || mediaRes.data || []);
-      setStories(storiesRes.data?.results || storiesRes.data || []);
-      setTips(tipsRes.data?.results || tipsRes.data || []);
+      setMedia(mediaRes.data?.items || mediaRes.data?.results || (Array.isArray(mediaRes.data) ? mediaRes.data : []));
+      setStories(storiesRes.data?.items || storiesRes.data?.results || (Array.isArray(storiesRes.data) ? storiesRes.data : []));
+      setTips(tipsRes.data?.items || tipsRes.data?.results || (Array.isArray(tipsRes.data) ? tipsRes.data : []));
     } catch {
       // fail silently
     } finally {
