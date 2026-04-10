@@ -3474,3 +3474,381 @@ def destination_etiquette(request):
     except Exception as e:
         logger.error(f"Etiquette summary failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Phase 6: Social & Viral Growth Endpoints
+# ─────────────────────────────────────────────────
+
+# --- Travel Story Generator ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_story(request):
+    """Generate an AI travel story from trip data."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        result = StoryGeneratorService.generate_story(user=request.user, data=request.data)
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Story generation failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_social_cards(request):
+    """Generate Instagram-ready story cards."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        story_id = request.data.get('story_id')
+        if not story_id:
+            return Response({'error': 'story_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = StoryGeneratorService.generate_social_cards(story_id=int(story_id))
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Social cards generation failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_story(request, share_token):
+    """Get a published story by share token."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        result = StoryGeneratorService.get_story(share_token=share_token)
+        if not result.get('success'):
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Get story failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_stories(request):
+    """List current user's generated stories."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        result = StoryGeneratorService.list_user_stories(user=request.user)
+        return Response({'success': True, 'stories': result})
+    except Exception as e:
+        logger.error(f"List stories failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def public_stories(request):
+    """List public published stories."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        result = StoryGeneratorService.list_public_stories(
+            destination=request.query_params.get('destination'),
+            format=request.query_params.get('format'),
+            limit=int(request.query_params.get('limit', 20)),
+        )
+        return Response({'success': True, 'stories': result})
+    except Exception as e:
+        logger.error(f"Public stories failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def toggle_story_like(request):
+    """Toggle like on a story."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        story_id = request.data.get('story_id')
+        if not story_id:
+            return Response({'error': 'story_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = StoryGeneratorService.toggle_like(user=request.user, story_id=int(story_id))
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Toggle like failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_story_comment(request):
+    """Add a comment to a story."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        story_id = request.data.get('story_id')
+        content = request.data.get('content', '').strip()
+        if not story_id or not content:
+            return Response({'error': 'story_id and content are required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = StoryGeneratorService.add_comment(user=request.user, story_id=int(story_id), content=content)
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Add comment failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def publish_story(request):
+    """Publish a story (make it public)."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        story_id = request.data.get('story_id')
+        if not story_id:
+            return Response({'error': 'story_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = StoryGeneratorService.publish_story(user=request.user, story_id=int(story_id))
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Publish story failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# --- Trip Templates & Clone ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_trip_template(request):
+    """Create a new trip template."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        result = TripTemplateService.create_template(user=request.user, data=request.data)
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Create template failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def generate_trip_template(request):
+    """AI-generate a trip template."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        destination = request.data.get('destination')
+        if not destination:
+            return Response({'error': 'destination is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = TripTemplateService.generate_template_from_ai(
+            user=request.user,
+            destination=destination,
+            duration_days=int(request.data.get('duration_days', 3)),
+            style=request.data.get('style', 'adventure'),
+            budget=float(request.data.get('budget', 0)),
+        )
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Generate template failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def browse_templates(request):
+    """Browse community trip templates."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        result = TripTemplateService.browse_templates(
+            destination=request.query_params.get('destination'),
+            style=request.query_params.get('style'),
+            min_budget=float(request.query_params['min_budget']) if request.query_params.get('min_budget') else None,
+            max_budget=float(request.query_params['max_budget']) if request.query_params.get('max_budget') else None,
+            sort_by=request.query_params.get('sort_by', 'popular'),
+            limit=int(request.query_params.get('limit', 20)),
+        )
+        return Response({'success': True, 'templates': result})
+    except Exception as e:
+        logger.error(f"Browse templates failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_template_detail(request, template_id):
+    """Get trip template details."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        result = TripTemplateService.get_template(template_id=int(template_id))
+        if not result.get('success'):
+            return Response(result, status=status.HTTP_404_NOT_FOUND)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Get template failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def clone_template(request):
+    """Clone a trip template."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        template_id = request.data.get('template_id')
+        if not template_id:
+            return Response({'error': 'template_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = TripTemplateService.clone_template(
+            user=request.user,
+            template_id=int(template_id),
+            customizations=request.data.get('customizations'),
+        )
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Clone template failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def like_template(request):
+    """Like a trip template."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        template_id = request.data.get('template_id')
+        if not template_id:
+            return Response({'error': 'template_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = TripTemplateService.like_template(user=request.user, template_id=int(template_id))
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Like template failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def rate_template(request):
+    """Rate a trip template."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        template_id = request.data.get('template_id')
+        rating = request.data.get('rating')
+        if not template_id or rating is None:
+            return Response({'error': 'template_id and rating are required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = TripTemplateService.rate_template(user=request.user, template_id=int(template_id), rating=float(rating))
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Rate template failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def featured_templates(request):
+    """Get featured trip templates."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        result = TripTemplateService.get_featured_templates(limit=int(request.query_params.get('limit', 6)))
+        return Response({'success': True, 'templates': result})
+    except Exception as e:
+        logger.error(f"Featured templates failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_templates(request):
+    """Get current user's templates."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        result = TripTemplateService.get_creator_templates(user=request.user)
+        return Response({'success': True, 'templates': result})
+    except Exception as e:
+        logger.error(f"My templates failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# --- Content Hub ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_content(request):
+    """Submit user content (photo, story, tip, etc.)."""
+    try:
+        from .services.content_hub_service import ContentHubService
+        result = ContentHubService.submit_content(user=request.user, data=request.data)
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Submit content failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def destination_content(request):
+    """Get community content for a destination."""
+    try:
+        from .services.content_hub_service import ContentHubService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = ContentHubService.get_destination_content(
+            destination=destination,
+            content_type=request.query_params.get('type'),
+            sort_by=request.query_params.get('sort_by', 'popular'),
+            limit=int(request.query_params.get('limit', 20)),
+        )
+        return Response({'success': True, 'content': result})
+    except Exception as e:
+        logger.error(f"Destination content failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def vote_content(request):
+    """Upvote or downvote content."""
+    try:
+        from .services.content_hub_service import ContentHubService
+        content_id = request.data.get('content_id')
+        vote = request.data.get('vote')
+        if not content_id or vote not in ('up', 'down'):
+            return Response({'error': 'content_id and vote (up/down) are required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = ContentHubService.vote_content(user=request.user, content_id=int(content_id), vote=vote)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Vote content failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def trending_content(request):
+    """Get trending content from the past week."""
+    try:
+        from .services.content_hub_service import ContentHubService
+        result = ContentHubService.get_trending_content(limit=int(request.query_params.get('limit', 10)))
+        return Response({'success': True, 'content': result})
+    except Exception as e:
+        logger.error(f"Trending content failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_content(request):
+    """Get current user's submitted content."""
+    try:
+        from .services.content_hub_service import ContentHubService
+        result = ContentHubService.get_user_content(
+            user=request.user,
+            status=request.query_params.get('status'),
+        )
+        return Response({'success': True, 'content': result})
+    except Exception as e:
+        logger.error(f"My content failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def destination_content_stats(request):
+    """Get content stats for a destination."""
+    try:
+        from .services.content_hub_service import ContentHubService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = ContentHubService.get_destination_stats(destination=destination)
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Content stats failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

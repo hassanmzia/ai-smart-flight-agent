@@ -84,6 +84,32 @@ from .views import (
     search_destinations_kb,
     destination_festivals,
     destination_etiquette,
+    # Phase 6: Social & Viral Growth
+    generate_story,
+    generate_social_cards,
+    get_story,
+    my_stories,
+    public_stories,
+    toggle_story_like,
+    add_story_comment,
+    publish_story,
+    # Trip Templates
+    create_trip_template,
+    generate_trip_template,
+    browse_templates,
+    get_template_detail,
+    clone_template,
+    like_template,
+    rate_template,
+    featured_templates,
+    my_templates,
+    # Content Hub
+    submit_content,
+    destination_content,
+    vote_content,
+    trending_content,
+    my_content,
+    destination_content_stats,
 )
 
 app_name = 'agents'
@@ -175,4 +201,30 @@ urlpatterns = [
     path('destinations/search', search_destinations_kb, name='search_destinations_kb'),
     path('destinations/festivals', destination_festivals, name='destination_festivals'),
     path('destinations/etiquette', destination_etiquette, name='destination_etiquette'),
+    # Phase 6: Stories
+    path('stories/generate', generate_story, name='generate_story'),
+    path('stories/social-cards', generate_social_cards, name='generate_social_cards'),
+    path('stories/mine', my_stories, name='my_stories'),
+    path('stories/public', public_stories, name='public_stories'),
+    path('stories/like', toggle_story_like, name='toggle_story_like'),
+    path('stories/comment', add_story_comment, name='add_story_comment'),
+    path('stories/publish', publish_story, name='publish_story'),
+    path('stories/<str:share_token>', get_story, name='get_story'),
+    # Phase 6: Trip Templates
+    path('templates/create', create_trip_template, name='create_trip_template'),
+    path('templates/generate', generate_trip_template, name='generate_trip_template'),
+    path('templates/browse', browse_templates, name='browse_templates'),
+    path('templates/featured', featured_templates, name='featured_templates'),
+    path('templates/mine', my_templates, name='my_templates'),
+    path('templates/clone', clone_template, name='clone_template'),
+    path('templates/like', like_template, name='like_template'),
+    path('templates/rate', rate_template, name='rate_template'),
+    path('templates/<int:template_id>', get_template_detail, name='get_template_detail'),
+    # Phase 6: Content Hub
+    path('content/submit', submit_content, name='submit_content'),
+    path('content/destination', destination_content, name='destination_content'),
+    path('content/vote', vote_content, name='vote_content'),
+    path('content/trending', trending_content, name='trending_content'),
+    path('content/mine', my_content, name='my_content'),
+    path('content/stats', destination_content_stats, name='destination_content_stats'),
 ]

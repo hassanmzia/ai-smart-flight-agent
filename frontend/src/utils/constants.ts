@@ -37,6 +37,9 @@ export const ROUTES = {
   TRIP_MEMORY: '/trip-memory',
   PARTNERSHIPS: '/partnerships',
   DESTINATION_KB: '/destination-kb',
+  TRAVEL_STORIES: '/travel-stories',
+  TRIP_GALLERY: '/trip-gallery',
+  CONTENT_HUB: '/content-hub',
 } as const;
 
 // Local storage keys
@@ -122,6 +125,28 @@ export const API_ENDPOINTS = {
     DESTINATION_SEARCH: '/api/agents/destinations/search',
     DESTINATION_FESTIVALS: '/api/agents/destinations/festivals',
     DESTINATION_ETIQUETTE: '/api/agents/destinations/etiquette',
+    // Phase 6: Social & Viral Growth
+    STORIES_GENERATE: '/api/agents/stories/generate',
+    STORIES_SOCIAL_CARDS: '/api/agents/stories/social-cards',
+    STORIES_MINE: '/api/agents/stories/mine',
+    STORIES_PUBLIC: '/api/agents/stories/public',
+    STORIES_LIKE: '/api/agents/stories/like',
+    STORIES_COMMENT: '/api/agents/stories/comment',
+    STORIES_PUBLISH: '/api/agents/stories/publish',
+    TEMPLATES_CREATE: '/api/agents/templates/create',
+    TEMPLATES_GENERATE: '/api/agents/templates/generate',
+    TEMPLATES_BROWSE: '/api/agents/templates/browse',
+    TEMPLATES_FEATURED: '/api/agents/templates/featured',
+    TEMPLATES_MINE: '/api/agents/templates/mine',
+    TEMPLATES_CLONE: '/api/agents/templates/clone',
+    TEMPLATES_LIKE: '/api/agents/templates/like',
+    TEMPLATES_RATE: '/api/agents/templates/rate',
+    CONTENT_SUBMIT: '/api/agents/content/submit',
+    CONTENT_DESTINATION: '/api/agents/content/destination',
+    CONTENT_VOTE: '/api/agents/content/vote',
+    CONTENT_TRENDING: '/api/agents/content/trending',
+    CONTENT_MINE: '/api/agents/content/mine',
+    CONTENT_STATS: '/api/agents/content/stats',
   },
   COMMUNITY: {
     CURATED_GUIDES_GENERATE: '/api/community/curated-guides/generate/',

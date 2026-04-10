@@ -10,6 +10,9 @@ from .models import (
     PartnerBusiness, PartnerCoupon, CouponRedemption,
     ReferralCode, Referral,
     DestinationKnowledge, CulturalInfo, UserDestinationTip,
+    # Phase 6: Social & Viral Growth
+    TravelStoryGenerated, StoryLike, StoryComment,
+    TripTemplate, TemplateClone, ContentItem,
 )
 
 
@@ -458,4 +461,68 @@ class UserDestinationTipAdmin(admin.ModelAdmin):
     list_filter = ['status', 'created_at']
     search_fields = ['user__email', 'destination__destination', 'title']
     readonly_fields = ['upvotes', 'downvotes', 'ai_moderation_score', 'ai_moderation_notes',
+                       'created_at', 'updated_at']
+
+
+# ─────────────────────────────────────────────────
+# Phase 6: Social & Viral Growth Admin
+# ─────────────────────────────────────────────────
+
+class StoryCommentInline(admin.TabularInline):
+    model = StoryComment
+    extra = 0
+    fields = ['user', 'content', 'created_at']
+    readonly_fields = ['created_at']
+
+
+@admin.register(TravelStoryGenerated)
+class TravelStoryGeneratedAdmin(admin.ModelAdmin):
+    list_display = ['title', 'user', 'destination', 'format', 'status', 'is_public',
+                    'views_count', 'likes_count', 'shares_count', 'created_at']
+    list_filter = ['format', 'status', 'is_public', 'created_at']
+    search_fields = ['title', 'destination', 'user__email']
+    readonly_fields = ['share_token', 'views_count', 'likes_count', 'shares_count', 'created_at', 'updated_at']
+    inlines = [StoryCommentInline]
+
+
+@admin.register(StoryLike)
+class StoryLikeAdmin(admin.ModelAdmin):
+    list_display = ['user', 'story', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['user__email']
+
+
+class TemplateCloneInline(admin.TabularInline):
+    model = TemplateClone
+    extra = 0
+    fields = ['user', 'itinerary_id', 'created_at']
+    readonly_fields = ['created_at']
+
+
+@admin.register(TripTemplate)
+class TripTemplateAdmin(admin.ModelAdmin):
+    list_display = ['title', 'creator', 'destination', 'style', 'duration_days',
+                    'estimated_budget', 'clone_count', 'likes_count', 'rating', 'is_featured', 'is_verified']
+    list_filter = ['style', 'is_featured', 'is_verified', 'created_at']
+    search_fields = ['title', 'destination', 'creator__email']
+    readonly_fields = ['clone_count', 'likes_count', 'views_count', 'rating', 'rating_count',
+                       'created_at', 'updated_at']
+    inlines = [TemplateCloneInline]
+
+
+@admin.register(TemplateClone)
+class TemplateCloneAdmin(admin.ModelAdmin):
+    list_display = ['user', 'template', 'itinerary_id', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['user__email', 'template__title']
+    readonly_fields = ['created_at']
+
+
+@admin.register(ContentItem)
+class ContentItemAdmin(admin.ModelAdmin):
+    list_display = ['title', 'user', 'destination', 'content_type', 'status',
+                    'upvotes', 'downvotes', 'ai_moderation_score', 'created_at']
+    list_filter = ['content_type', 'status', 'created_at']
+    search_fields = ['title', 'destination', 'user__email']
+    readonly_fields = ['upvotes', 'downvotes', 'views_count', 'ai_moderation_score',
                        'created_at', 'updated_at']
