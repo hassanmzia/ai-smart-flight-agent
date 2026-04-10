@@ -1,3 +1,5 @@
+import json
+import logging
 import os
 from pathlib import Path
 from datetime import datetime
@@ -354,6 +356,358 @@ class ItineraryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+    # ── AI Trip Storytelling ──
+
+    @action(detail=True, methods=['post'], url_path='generate-story')
+    def generate_story(self, request, pk=None):
+        """
+        Generate a rich, immersive day-by-day travel narrative for the itinerary.
+
+        Tries OpenAI (GPT) when OPENAI_API_KEY is configured; otherwise falls
+        back to a deterministic template-based narrative engine.
+
+        Returns a structured JSON story and saves the narrative text to the
+        itinerary's ``ai_narrative`` field.
+        """
+        logger = logging.getLogger(__name__)
+        itinerary = self.get_object()
+
+        # Prefetch days and items
+        days = itinerary.days.all().order_by('day_number')
+        days_data = []
+        for day in days:
+            items = day.items.all().order_by('order', 'start_time')
+            days_data.append({
+                'day': day,
+                'items': list(items),
+            })
+
+        # Try OpenAI first, fall back to template
+        api_key = getattr(settings, 'OPENAI_API_KEY', '')
+        story = None
+
+        if api_key:
+            try:
+                story = self._generate_story_openai(itinerary, days_data, api_key)
+            except Exception as exc:
+                logger.warning(
+                    "OpenAI story generation failed, falling back to template: %s", exc
+                )
+
+        if story is None:
+            story = self._generate_story_template(itinerary, days_data)
+
+        # Persist a readable narrative to ai_narrative for PDF export
+        narrative_lines = [f"# {story['title']}", ""]
+        if story.get('summary'):
+            narrative_lines += [story['summary'], ""]
+        for day_story in story.get('days', []):
+            date_str = f" ({day_story['date']})" if day_story.get('date') else ""
+            narrative_lines.append(
+                f"## Day {day_story['day_number']}: {day_story['title']}{date_str}"
+            )
+            narrative_lines.append("")
+            narrative_lines.append(day_story.get('narrative', ''))
+            narrative_lines.append("")
+            if day_story.get('highlights'):
+                narrative_lines.append("**Highlights:**")
+                for hl in day_story['highlights']:
+                    narrative_lines.append(f"- {hl}")
+                narrative_lines.append("")
+
+        itinerary.ai_narrative = "\n".join(narrative_lines)
+        itinerary.save(update_fields=['ai_narrative', 'updated_at'])
+
+        return Response({
+            'success': True,
+            'story': story,
+            'message': 'Travel story generated successfully.',
+        })
+
+    # ── OpenAI story generation ──
+
+    @staticmethod
+    def _generate_story_openai(itinerary, days_data, api_key):
+        """Call OpenAI to produce a structured travel narrative."""
+        import openai
+
+        # Build a concise itinerary summary for the prompt
+        itinerary_summary_parts = []
+        for entry in days_data:
+            day = entry['day']
+            date_str = day.date.strftime('%A, %B %d, %Y') if day.date else ''
+            items_desc = []
+            for item in entry['items']:
+                time_str = item.start_time.strftime('%I:%M %p') if item.start_time else 'Flexible'
+                cost_str = f" (${item.estimated_cost:.0f})" if item.estimated_cost else ""
+                loc = item.location_name or ''
+                items_desc.append(
+                    f"  - {time_str}: [{item.item_type}] {item.title}"
+                    f"{' at ' + loc if loc else ''}{cost_str}"
+                )
+            items_text = "\n".join(items_desc) if items_desc else "  (free day)"
+            itinerary_summary_parts.append(
+                f"Day {day.day_number} ({date_str}): {day.title or 'Untitled'}\n{items_text}"
+            )
+
+        itinerary_text = "\n\n".join(itinerary_summary_parts)
+
+        system_prompt = (
+            "You are a world-class travel writer. Given a trip itinerary, "
+            "produce an immersive, evocative day-by-day travel narrative. "
+            "Return ONLY valid JSON (no markdown fences) with this schema:\n"
+            "{\n"
+            '  "title": "string — a captivating story title",\n'
+            '  "destination": "string",\n'
+            '  "summary": "string — 2-3 sentence overview",\n'
+            '  "days": [\n'
+            "    {\n"
+            '      "day_number": int,\n'
+            '      "date": "string (e.g. Monday, June 5, 2025)",\n'
+            '      "title": "string — evocative day title",\n'
+            '      "narrative": "string — 3-5 paragraph immersive narrative",\n'
+            '      "highlights": ["string", ...],\n'
+            '      "mood": "string — one-word mood like adventurous, relaxed, cultural"\n'
+            "    }\n"
+            "  ]\n"
+            "}\n"
+        )
+
+        user_prompt = (
+            f"Trip: {itinerary.title}\n"
+            f"Destination: {itinerary.destination}\n"
+            f"Dates: {itinerary.start_date} to {itinerary.end_date}\n"
+            f"Travelers: {itinerary.number_of_travelers}\n\n"
+            f"Itinerary:\n{itinerary_text}\n\n"
+            "Write the travel story now."
+        )
+
+        client = openai.OpenAI(api_key=api_key)
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.8,
+            max_tokens=4000,
+        )
+
+        raw = response.choices[0].message.content.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+            if raw.endswith("```"):
+                raw = raw[:-3]
+            raw = raw.strip()
+
+        story = json.loads(raw)
+        return story
+
+    # ── Template-based fallback story generation ──
+
+    @staticmethod
+    def _generate_story_template(itinerary, days_data):
+        """
+        Produce a compelling template-based narrative without any AI API.
+
+        Uses item types, times-of-day, and destination context to craft
+        evocative prose.
+        """
+
+        def _time_of_day(t):
+            """Return a descriptive time-of-day string from a time object."""
+            if t is None:
+                return "during the day"
+            hour = t.hour
+            if hour < 6:
+                return "in the early pre-dawn hours"
+            elif hour < 9:
+                return "as the morning sun casts a golden glow"
+            elif hour < 12:
+                return "as the morning unfolds"
+            elif hour < 14:
+                return "around midday"
+            elif hour < 17:
+                return "in the warm afternoon"
+            elif hour < 20:
+                return "as the evening settles in"
+            else:
+                return "under the night sky"
+
+        def _item_narrative(item, destination):
+            """Create a narrative sentence for a single itinerary item."""
+            name = item.title or "an unnamed stop"
+            location = item.location_name or destination
+            time_ctx = _time_of_day(item.start_time)
+            item_type = (item.item_type or '').lower()
+
+            templates = {
+                'restaurant': (
+                    f"{time_ctx.capitalize()}, you savor the local cuisine at "
+                    f"{name}, letting the flavors of {location} dance on your palate."
+                ),
+                'hotel': (
+                    f"{time_ctx.capitalize()}, you settle into the comfort of "
+                    f"{name}, your home away from home in {location}."
+                ),
+                'flight': (
+                    f"{time_ctx.capitalize()}, you board your flight — "
+                    f"{name} — feeling the anticipation build as the journey begins."
+                ),
+                'attraction': (
+                    f"{time_ctx.capitalize()}, you discover the wonders of "
+                    f"{name}, immersing yourself in everything {location} has to offer."
+                ),
+                'activity': (
+                    f"{time_ctx.capitalize()}, you dive into an unforgettable experience — "
+                    f"{name} — creating memories that will last a lifetime."
+                ),
+                'transport': (
+                    f"{time_ctx.capitalize()}, you hop aboard {name}, "
+                    f"watching the scenery of {location} glide past your window."
+                ),
+                'note': (
+                    f"{time_ctx.capitalize()}, a gentle reminder: {name}."
+                ),
+            }
+
+            return templates.get(item_type, (
+                f"{time_ctx.capitalize()}, you experience {name} in {location}, "
+                f"adding another chapter to your adventure."
+            ))
+
+        destination = itinerary.destination
+        num_days = len(days_data)
+        total_items = sum(len(e['items']) for e in days_data)
+
+        # Determine overall mood hints
+        mood_options = [
+            'adventurous', 'cultural', 'relaxed', 'vibrant',
+            'romantic', 'exploratory', 'festive', 'serene',
+        ]
+
+        summary = (
+            f"Embark on a {num_days}-day journey through the heart of {destination}. "
+            f"With {total_items} carefully curated experiences awaiting you, "
+            f"this trip promises a tapestry of unforgettable moments — "
+            f"from hidden local gems to iconic landmarks that define this extraordinary destination."
+        )
+
+        story_days = []
+        for idx, entry in enumerate(days_data):
+            day = entry['day']
+            items = entry['items']
+            day_num = day.day_number
+            date_str = day.date.strftime('%A, %B %d, %Y') if day.date else ''
+
+            # Pick a mood for the day based on item types present
+            item_types = {item.item_type for item in items if item.item_type}
+            if 'attraction' in item_types:
+                mood = 'cultural'
+            elif 'restaurant' in item_types and len(item_types) <= 2:
+                mood = 'relaxed'
+            elif 'activity' in item_types:
+                mood = 'adventurous'
+            elif 'flight' in item_types or 'transport' in item_types:
+                mood = 'exploratory'
+            else:
+                mood = mood_options[idx % len(mood_options)]
+
+            # Day title
+            if idx == 0:
+                day_title = day.title or f"Arrival in {destination}"
+            elif idx == num_days - 1:
+                day_title = day.title or f"Farewell to {destination}"
+            else:
+                day_title = day.title or f"Exploring {destination} — Day {day_num}"
+
+            # Build the narrative paragraphs
+            paragraphs = []
+
+            # Opening paragraph
+            if idx == 0:
+                paragraphs.append(
+                    f"Your adventure begins as you arrive in {destination}. "
+                    f"The air is alive with new scents, sounds, and the promise of discovery. "
+                    f"Today sets the stage for everything that lies ahead."
+                )
+            elif idx == num_days - 1:
+                paragraphs.append(
+                    f"The final day dawns in {destination}, bittersweet and beautiful. "
+                    f"Every moment feels precious as you prepare to carry these memories home."
+                )
+            else:
+                paragraphs.append(
+                    f"Day {day_num} greets you with fresh possibilities in {destination}. "
+                    f"The rhythm of the city beckons, and there is so much still to explore."
+                )
+
+            # Item narratives grouped into a paragraph
+            if items:
+                item_sentences = [
+                    _item_narrative(item, destination) for item in items
+                ]
+                paragraphs.append(" ".join(item_sentences))
+            else:
+                paragraphs.append(
+                    f"Today is yours to wander freely through {destination}, "
+                    f"following your curiosity wherever it leads — perhaps a quiet "
+                    f"cafe, a hidden garden, or a conversation with a friendly local."
+                )
+
+            # Closing paragraph for the day
+            if items:
+                cost_items = [item for item in items if item.estimated_cost]
+                if cost_items:
+                    total_day_cost = sum(float(c.estimated_cost) for c in cost_items)
+                    paragraphs.append(
+                        f"As the day winds down, you reflect on the experiences "
+                        f"that made it special — an estimated ${total_day_cost:.0f} "
+                        f"well invested in memories that money cannot truly measure."
+                    )
+                else:
+                    paragraphs.append(
+                        f"As the day comes to a close, you feel a deep sense of "
+                        f"gratitude for the moments that made it unforgettable."
+                    )
+
+            narrative = "\n\n".join(paragraphs)
+
+            # Highlights
+            highlights = []
+            for item in items[:5]:
+                if item.item_type == 'restaurant':
+                    highlights.append(f"Dining at {item.title}")
+                elif item.item_type == 'attraction':
+                    highlights.append(f"Visiting {item.title}")
+                elif item.item_type == 'activity':
+                    highlights.append(f"Experiencing {item.title}")
+                elif item.item_type == 'flight':
+                    highlights.append(f"Flight: {item.title}")
+                elif item.item_type == 'hotel':
+                    highlights.append(f"Staying at {item.title}")
+                else:
+                    highlights.append(item.title)
+
+            story_days.append({
+                'day_number': day_num,
+                'date': date_str,
+                'title': day_title,
+                'narrative': narrative,
+                'highlights': highlights,
+                'mood': mood,
+            })
+
+        story = {
+            'title': f"A Journey Through {destination}: {num_days} Days of Wonder",
+            'destination': destination,
+            'summary': summary,
+            'days': story_days,
+        }
+
+        return story
 
     # ── Status Workflow Endpoints ──
 
