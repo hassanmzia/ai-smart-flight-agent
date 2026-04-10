@@ -5,6 +5,7 @@ from .models import (
     AgentConversation, AgentMessage, AgentTask, UserPreference,
     AgentAnalytics, AIModel, TripCollaboration, TripCollaborator,
     CollaborationVote, Subscription, AffiliateClick, PriceWatch,
+    TripMemory,
 )
 
 
@@ -332,3 +333,12 @@ class PriceWatchAdmin(admin.ModelAdmin):
     list_filter = ['watch_type', 'is_active', 'created_at']
     search_fields = ['user__email']
     readonly_fields = ['price_history', 'last_checked', 'created_at', 'updated_at']
+
+
+@admin.register(TripMemory)
+class TripMemoryAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'destination', 'sentiment', 'rating', 'trip_date', 'created_at']
+    list_filter = ['sentiment', 'rating', 'trip_date', 'created_at']
+    search_fields = ['user__email', 'destination', 'notes']
+    readonly_fields = ['ai_insights', 'created_at', 'updated_at']
+    date_hierarchy = 'created_at'

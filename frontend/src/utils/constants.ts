@@ -33,6 +33,8 @@ export const ROUTES = {
   AI_RATINGS: '/ai-ratings',
   LANGUAGE_TOOL: '/language-tool',
   DESTINATION_GUIDE: '/destination-guide',
+  AGENT_HUB: '/agent-hub',
+  TRIP_MEMORY: '/trip-memory',
 } as const;
 
 // Local storage keys

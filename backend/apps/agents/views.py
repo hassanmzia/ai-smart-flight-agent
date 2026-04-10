@@ -2849,3 +2849,358 @@ def crowd_levels_detail(request):
     except Exception as e:
         logger.error(f"Crowd levels detail failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Memory & Learning System
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def record_trip_memory(request):
+    """Record a trip memory for the learning system."""
+    destination = request.data.get('destination', '').strip()
+    if not destination:
+        return Response(
+            {'error': 'destination is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    trip_date = request.data.get('trip_date')
+    sentiment = request.data.get('sentiment', 'neutral')
+    highlights = request.data.get('highlights', [])
+    lowlights = request.data.get('lowlights', [])
+    tags = request.data.get('tags', [])
+    budget_spent = request.data.get('budget_spent')
+    rating = request.data.get('rating', 0)
+    notes = request.data.get('notes', '')
+
+    try:
+        from .services.memory_service import MemoryService
+        service = MemoryService()
+        memory = service.record_trip(
+            user=request.user,
+            destination=destination,
+            trip_date=trip_date,
+            sentiment=sentiment,
+            highlights=highlights,
+            lowlights=lowlights,
+            tags=tags,
+            budget_spent=budget_spent,
+            rating=rating,
+            notes=notes,
+        )
+        return Response({'success': True, 'memory': memory}, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        logger.error(f"Record trip memory failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def trip_memories(request):
+    """Get all trip memories for the authenticated user."""
+    try:
+        from .services.memory_service import MemoryService
+        service = MemoryService()
+        memories = service.get_trip_history(user=request.user)
+        return Response({'success': True, 'memories': memories})
+    except Exception as e:
+        logger.error(f"Get trip memories failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def travel_insights(request):
+    """Get AI-generated insights from trip history."""
+    try:
+        from .services.memory_service import MemoryService
+        service = MemoryService()
+        insights = service.generate_insights(user=request.user)
+        return Response({'success': True, 'insights': insights})
+    except Exception as e:
+        logger.error(f"Travel insights failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def proactive_suggestions(request):
+    """Get proactive destination suggestions based on travel history."""
+    try:
+        from .services.memory_service import MemoryService
+        service = MemoryService()
+        suggestions = service.get_proactive_suggestions(user=request.user)
+        return Response({'success': True, 'suggestions': suggestions})
+    except Exception as e:
+        logger.error(f"Proactive suggestions failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def feedback_summary(request):
+    """Get aggregated travel feedback summary."""
+    try:
+        from .services.memory_service import MemoryService
+        service = MemoryService()
+        summary = service.get_feedback_summary(user=request.user)
+        return Response({'success': True, 'summary': summary})
+    except Exception as e:
+        logger.error(f"Feedback summary failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Phase 4.1: Autonomous Agent Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def flight_status_check(request):
+    """Check real-time flight status and disruption recovery options."""
+    flight_number = request.data.get('flight_number')
+    date = request.data.get('date')
+    airline = request.data.get('airline', '')
+
+    if not flight_number or not date:
+        return Response(
+            {'error': 'flight_number and date are required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from .services.flight_monitor import FlightMonitorAgent
+        agent = FlightMonitorAgent()
+        result = agent.check_flight_status(flight_number, date, airline)
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Flight status check failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def flight_rebooking(request):
+    """Get rebooking options for disrupted flights."""
+    origin = request.data.get('origin')
+    destination = request.data.get('destination')
+    date = request.data.get('date')
+
+    if not all([origin, destination, date]):
+        return Response(
+            {'error': 'origin, destination, and date are required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from .services.flight_monitor import FlightMonitorAgent
+        agent = FlightMonitorAgent()
+        options = agent.get_rebooking_options(
+            origin=origin,
+            destination=destination,
+            date=date,
+            original_price=float(request.data.get('original_price', 0)),
+            airline_preference=request.data.get('airline_preference', ''),
+        )
+        return Response({'success': True, 'alternatives': options})
+    except Exception as e:
+        logger.error(f"Flight rebooking failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def weather_adapt(request):
+    """Adapt itinerary based on weather conditions."""
+    destination = request.data.get('destination')
+    activities = request.data.get('activities', [])
+    weather = request.data.get('weather', {})
+
+    if not destination:
+        return Response(
+            {'error': 'destination is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from .services.weather_adapt import WeatherAdaptAgent
+
+        # If no weather provided, fetch from LiveContextService
+        if not weather:
+            from .services.live_context import LiveContextService
+            ctx_service = LiveContextService()
+            weather = ctx_service.get_weather_impact(destination)
+
+        agent = WeatherAdaptAgent()
+        result = agent.adapt_itinerary(destination, activities, weather)
+        result['weather'] = weather
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Weather adaptation failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def disruption_impact(request):
+    """Assess impact of a flight disruption on the trip."""
+    disruption_type = request.data.get('disruption_type', 'none')
+    delay_minutes = int(request.data.get('delay_minutes', 0))
+    trip_items = request.data.get('trip_items', [])
+
+    try:
+        from .services.flight_monitor import FlightMonitorAgent
+        agent = FlightMonitorAgent()
+        result = agent.assess_disruption_impact(disruption_type, delay_minutes, trip_items)
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Disruption impact failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Phase 4.2: Specialized Agent Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def budget_tracker(request):
+    """Track and analyze trip budget."""
+    destination = request.data.get('destination')
+    budget = request.data.get('budget')
+    items = request.data.get('items', [])
+
+    if not destination or budget is None:
+        return Response(
+            {'error': 'destination and budget are required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from .services.finance_agent import FinanceAgent
+        agent = FinanceAgent()
+        result = agent.track_budget(destination, float(budget), items)
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Budget tracking failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def budget_optimizer(request):
+    """Get optimal budget allocation."""
+    destination = request.data.get('destination')
+    budget = request.data.get('budget')
+    start_date = request.data.get('start_date')
+    end_date = request.data.get('end_date')
+    travelers = request.data.get('travelers', 1)
+
+    if not destination or budget is None:
+        return Response(
+            {'error': 'destination and budget are required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from .services.finance_agent import FinanceAgent
+        agent = FinanceAgent()
+        result = agent.optimize_budget(
+            destination, float(budget), start_date or '', end_date or '', int(travelers)
+        )
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Budget optimization failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def etiquette_guide(request):
+    """Get cultural etiquette for a destination."""
+    destination = request.query_params.get('destination')
+    if not destination:
+        return Response(
+            {'error': 'destination query parameter is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    faith = request.query_params.get('faith')
+
+    try:
+        from .services.culture_agent import CultureAgent
+        agent = CultureAgent()
+        result = agent.get_etiquette_guide(destination, user_faith=faith)
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Etiquette guide failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def local_customs(request):
+    """Get local customs for a destination."""
+    destination = request.query_params.get('destination')
+    if not destination:
+        return Response(
+            {'error': 'destination query parameter is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from .services.culture_agent import CultureAgent
+        agent = CultureAgent()
+        result = agent.get_local_customs(destination)
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Local customs failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def trip_health_check(request):
+    """Assess health considerations for a trip."""
+    destination = request.data.get('destination')
+    if not destination:
+        return Response(
+            {'error': 'destination is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from .services.health_agent import HealthAgent
+        agent = HealthAgent()
+        result = agent.assess_trip_health(
+            destination=destination,
+            user_conditions=request.data.get('conditions', []),
+            medications=request.data.get('medications', []),
+            pace=request.data.get('pace', 'moderate'),
+            max_walking_km=float(request.data.get('max_walking_km', 10)),
+        )
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Health check failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def pacing_plan(request):
+    """Generate an activity pacing plan."""
+    try:
+        from .services.health_agent import HealthAgent
+        agent = HealthAgent()
+        result = agent.generate_pacing_plan(
+            activities_per_day=int(request.data.get('activities_per_day', 5)),
+            max_walking_km=float(request.data.get('max_walking_km', 10)),
+            pace=request.data.get('pace', 'moderate'),
+            trip_days=int(request.data.get('trip_days', 1)),
+        )
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Pacing plan failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
