@@ -49,6 +49,24 @@ from .views import (
     # Language Tools
     translate_text,
     common_phrases,
+    # Memory & Learning
+    record_trip_memory,
+    trip_memories,
+    travel_insights,
+    proactive_suggestions,
+    feedback_summary,
+    # Autonomous Agent v2
+    flight_status_check,
+    flight_rebooking,
+    weather_adapt,
+    disruption_impact,
+    # Specialized Agents
+    budget_tracker,
+    budget_optimizer,
+    etiquette_guide,
+    local_customs,
+    trip_health_check,
+    pacing_plan,
 )
 
 app_name = 'agents'
@@ -105,4 +123,22 @@ urlpatterns = [
     # Language Tools
     path('translate', translate_text, name='translate_text'),
     path('common-phrases', common_phrases, name='common_phrases'),
+    # Memory & Learning
+    path('memories', trip_memories, name='trip_memories'),
+    path('memories/record', record_trip_memory, name='record_trip_memory'),
+    path('memories/insights', travel_insights, name='travel_insights'),
+    path('memories/suggestions', proactive_suggestions, name='proactive_suggestions'),
+    path('memories/summary', feedback_summary, name='feedback_summary'),
+    # Autonomous Agent v2
+    path('flight-status', flight_status_check, name='flight_status_check'),
+    path('flight-rebook', flight_rebooking, name='flight_rebooking'),
+    path('weather-adapt', weather_adapt, name='weather_adapt'),
+    path('disruption-impact', disruption_impact, name='disruption_impact'),
+    # Specialized Agents
+    path('budget/track', budget_tracker, name='budget_tracker'),
+    path('budget/optimize', budget_optimizer, name='budget_optimizer'),
+    path('etiquette', etiquette_guide, name='etiquette_guide'),
+    path('local-customs', local_customs, name='local_customs'),
+    path('health-check', trip_health_check, name='trip_health_check'),
+    path('pacing-plan', pacing_plan, name='pacing_plan'),
 ]

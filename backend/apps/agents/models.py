@@ -943,3 +943,50 @@ class PriceWatch(models.Model):
     def __str__(self):
         status = 'active' if self.is_active else 'paused'
         return f"{self.watch_type} watch for {self.user} ({status})"
+
+
+class TripMemory(models.Model):
+    """Long-term memory of user's travel experiences for learning."""
+
+    SENTIMENT_CHOICES = [
+        ('loved', 'Loved'),
+        ('liked', 'Liked'),
+        ('neutral', 'Neutral'),
+        ('disliked', 'Disliked'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='trip_memories',
+    )
+    destination = models.CharField(max_length=200, db_index=True)
+    trip_date = models.DateField(null=True, blank=True)
+    sentiment = models.CharField(max_length=20, choices=SENTIMENT_CHOICES, default='neutral')
+    highlights = models.JSONField(default=list, blank=True, help_text='Things the user loved')
+    lowlights = models.JSONField(default=list, blank=True, help_text='Things the user disliked')
+    tags = models.JSONField(default=list, blank=True, help_text='e.g. ["beach", "food", "history"]')
+    budget_spent = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    travel_style_used = models.CharField(max_length=50, blank=True)
+    notes = models.TextField(blank=True)
+    rating = models.IntegerField(default=0, help_text='1-5 overall rating')
+
+    # AI-generated insights
+    ai_insights = models.JSONField(default=dict, blank=True, help_text='AI analysis of the trip')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'trip_memories'
+        ordering = ['-trip_date', '-created_at']
+        verbose_name = 'Trip Memory'
+        verbose_name_plural = 'Trip Memories'
+        indexes = [
+            models.Index(fields=['user', '-trip_date'], name='trip_mem_user_date_idx'),
+            models.Index(fields=['destination'], name='trip_mem_dest_idx'),
+            models.Index(fields=['sentiment'], name='trip_mem_sentiment_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.user} - {self.destination} ({self.sentiment})"
