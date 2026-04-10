@@ -43,6 +43,12 @@ from .views import (
     list_price_watches,
     # Collaborative
     collaboration_cost_split,
+    # Real-Time Awareness
+    live_context,
+    crowd_levels_detail,
+    # Language Tools
+    translate_text,
+    common_phrases,
 )
 
 app_name = 'agents'
@@ -93,4 +99,10 @@ urlpatterns = [
     path('price-watch/list', list_price_watches, name='list_price_watches'),
     # Collaborative
     path('collaboration/<int:collaboration_id>/cost-split', collaboration_cost_split, name='collaboration_cost_split'),
+    # Real-Time Awareness
+    path('live-context', live_context, name='live_context'),
+    path('crowd-levels-detail', crowd_levels_detail, name='crowd_levels_detail'),
+    # Language Tools
+    path('translate', translate_text, name='translate_text'),
+    path('common-phrases', common_phrases, name='common_phrases'),
 ]

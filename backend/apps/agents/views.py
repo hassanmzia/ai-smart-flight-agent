@@ -2068,6 +2068,199 @@ def get_recommendations(request):
 
 
 # ─────────────────────────────────────────────────
+# Language Translation
+# ─────────────────────────────────────────────────
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def translate_text(request):
+    """Translate text between languages using LLM."""
+    text = request.data.get('text', '').strip()
+    source_lang = request.data.get('source_lang', 'auto')
+    target_lang = request.data.get('target_lang', 'en')
+
+    if not text:
+        return Response({'error': 'Text is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    import os
+    api_key = getattr(settings, 'OPENAI_API_KEY', os.getenv('OPENAI_API_KEY', ''))
+    if api_key and api_key not in ('your_openai_api_key_here', ''):
+        try:
+            from langchain_openai import ChatOpenAI
+            from langchain.schema import HumanMessage, SystemMessage
+
+            model = ChatOpenAI(model='gpt-4o-mini', temperature=0.1,
+                               api_key=api_key, request_timeout=15)
+            src = f"from {source_lang}" if source_lang != 'auto' else "(auto-detect language)"
+            resp = model.invoke([
+                SystemMessage(content="You are a precise translator. Return ONLY the translated text."),
+                HumanMessage(content=f"Translate {src} to {target_lang}:\n\n{text}"),
+            ])
+            return Response({
+                'translated_text': resp.content.strip(),
+                'source_lang': source_lang, 'target_lang': target_lang,
+                'original_text': text,
+            })
+        except Exception as e:
+            logger.warning(f"LLM translation failed: {e}")
+
+    return Response({
+        'translated_text': text, 'source_lang': source_lang,
+        'target_lang': target_lang, 'original_text': text,
+        'note': 'Translation service unavailable',
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def common_phrases(request):
+    """Get common travel phrases for a destination language."""
+    language = request.query_params.get('language', 'en')
+    PACKS = {
+        'es': {'language_name': 'Spanish', 'phrases': [
+            {'phrase': 'Hola', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': 'Gracias', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': 'Por favor', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': '\u00bfCu\u00e1nto cuesta?', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': '\u00bfD\u00f3nde est\u00e1...?', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': 'La cuenta, por favor', 'translation': 'The bill, please', 'category': 'restaurant'},
+            {'phrase': 'No entiendo', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': 'Necesito ayuda', 'translation': 'I need help', 'category': 'emergency'},
+            {'phrase': '\u00bfHabla ingl\u00e9s?', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': 'Adi\u00f3s', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'fr': {'language_name': 'French', 'phrases': [
+            {'phrase': 'Bonjour', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': 'Merci', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': "S'il vous pla\u00eet", 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': 'Combien \u00e7a co\u00fbte?', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': 'O\u00f9 est...?', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': "L'addition, s'il vous pla\u00eet", 'translation': 'The bill, please', 'category': 'restaurant'},
+            {'phrase': 'Je ne comprends pas', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': "J'ai besoin d'aide", 'translation': 'I need help', 'category': 'emergency'},
+            {'phrase': 'Parlez-vous anglais?', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': 'Au revoir', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'de': {'language_name': 'German', 'phrases': [
+            {'phrase': 'Hallo', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': 'Danke', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': 'Bitte', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': 'Wie viel kostet das?', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': 'Wo ist...?', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': 'Die Rechnung, bitte', 'translation': 'The bill, please', 'category': 'restaurant'},
+            {'phrase': 'Ich verstehe nicht', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': 'Ich brauche Hilfe', 'translation': 'I need help', 'category': 'emergency'},
+            {'phrase': 'Sprechen Sie Englisch?', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': 'Tsch\u00fcss', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'ja': {'language_name': 'Japanese', 'phrases': [
+            {'phrase': '\u3053\u3093\u306b\u3061\u306f', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': '\u3042\u308a\u304c\u3068\u3046', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': '\u304a\u306d\u304c\u3044\u3057\u307e\u3059', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': '\u3044\u304f\u3089\u3067\u3059\u304b?', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': '...\u306f\u3069\u3053\u3067\u3059\u304b?', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': '\u304a\u4f1a\u8a08\u304a\u306d\u304c\u3044\u3057\u307e\u3059', 'translation': 'Check please', 'category': 'restaurant'},
+            {'phrase': '\u308f\u304b\u308a\u307e\u305b\u3093', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': '\u52a9\u3051\u3066\u304f\u3060\u3055\u3044', 'translation': 'Help me', 'category': 'emergency'},
+            {'phrase': '\u82f1\u8a9e\u3092\u8a71\u305b\u307e\u3059\u304b?', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': '\u3055\u3088\u3046\u306a\u3089', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'ar': {'language_name': 'Arabic', 'phrases': [
+            {'phrase': '\u0645\u0631\u062d\u0628\u0627', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': '\u0634\u0643\u0631\u0627', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': '\u0645\u0646 \u0641\u0636\u0644\u0643', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': '\u0628\u0643\u0645 \u0647\u0630\u0627\u061f', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': '\u0623\u064a\u0646...?\u200f', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': '\u0627\u0644\u062d\u0633\u0627\u0628 \u0645\u0646 \u0641\u0636\u0644\u0643', 'translation': 'The bill please', 'category': 'restaurant'},
+            {'phrase': '\u0644\u0627 \u0623\u0641\u0647\u0645', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': '\u0623\u062d\u062a\u0627\u062c \u0645\u0633\u0627\u0639\u062f\u0629', 'translation': 'I need help', 'category': 'emergency'},
+            {'phrase': '\u0647\u0644 \u062a\u062a\u0643\u0644\u0645 \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a\u0629\u061f', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': '\u0645\u0639 \u0627\u0644\u0633\u0644\u0627\u0645\u0629', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'zh': {'language_name': 'Chinese', 'phrases': [
+            {'phrase': '\u4f60\u597d', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': '\u8c22\u8c22', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': '\u8bf7', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': '\u591a\u5c11\u94b1\uff1f', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': '...\u5728\u54ea\u91cc\uff1f', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': '\u4e70\u5355', 'translation': 'The bill', 'category': 'restaurant'},
+            {'phrase': '\u6211\u4e0d\u61c2', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': '\u6211\u9700\u8981\u5e2e\u52a9', 'translation': 'I need help', 'category': 'emergency'},
+            {'phrase': '\u4f60\u4f1a\u8bf4\u82f1\u8bed\u5417\uff1f', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': '\u518d\u89c1', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'hi': {'language_name': 'Hindi', 'phrases': [
+            {'phrase': '\u0928\u092e\u0938\u094d\u0924\u0947', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': '\u0927\u0928\u094d\u092f\u0935\u093e\u0926', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': '\u0915\u0943\u092a\u092f\u093e', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': '\u092f\u0939 \u0915\u093f\u0924\u0928\u0947 \u0915\u093e \u0939\u0948?', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': '...\u0915\u0939\u093e\u0901 \u0939\u0948?', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': '\u092c\u093f\u0932 \u0926\u0940\u091c\u093f\u090f', 'translation': 'The bill please', 'category': 'restaurant'},
+            {'phrase': '\u092e\u0941\u091d\u0947 \u0938\u092e\u091d \u0928\u0939\u0940\u0902 \u0906\u092f\u093e', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': '\u092e\u0941\u091d\u0947 \u092e\u0926\u0926 \u091a\u093e\u0939\u093f\u090f', 'translation': 'I need help', 'category': 'emergency'},
+            {'phrase': '\u0915\u094d\u092f\u093e \u0906\u092a \u0905\u0902\u0917\u094d\u0930\u0947\u091c\u0940 \u092c\u094b\u0932\u0924\u0947 \u0939\u0948\u0902?', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': '\u0905\u0932\u0935\u093f\u0926\u093e', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'ko': {'language_name': 'Korean', 'phrases': [
+            {'phrase': '\uc548\ub155\ud558\uc138\uc694', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': '\uac10\uc0ac\ud569\ub2c8\ub2e4', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': '\uc8fc\uc138\uc694', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': '\uc5bc\ub9c8\uc608\uc694?', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': '...\uc5b4\ub514\uc5d0\uc694?', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': '\uacc4\uc0b0\uc11c \uc8fc\uc138\uc694', 'translation': 'Check please', 'category': 'restaurant'},
+            {'phrase': '\ubabb \uc54c\uc544\ub4e3\uaca0\uc5b4\uc694', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': '\ub3c4\uc640\uc8fc\uc138\uc694', 'translation': 'Help me', 'category': 'emergency'},
+            {'phrase': '\uc601\uc5b4 \ud560 \uc218 \uc788\uc5b4\uc694?', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': '\uc548\ub155\ud788 \uac00\uc138\uc694', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'tr': {'language_name': 'Turkish', 'phrases': [
+            {'phrase': 'Merhaba', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': 'Te\u015fekk\u00fcr ederim', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': 'L\u00fctfen', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': 'Bu ne kadar?', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': '...nerede?', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': 'Hesap l\u00fctfen', 'translation': 'The bill please', 'category': 'restaurant'},
+            {'phrase': 'Anlam\u0131yorum', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': 'Yard\u0131ma ihtiyac\u0131m var', 'translation': 'I need help', 'category': 'emergency'},
+            {'phrase': '\u0130ngilizce biliyor musunuz?', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': 'Ho\u015f\u00e7a kal\u0131n', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'it': {'language_name': 'Italian', 'phrases': [
+            {'phrase': 'Ciao', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': 'Grazie', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': 'Per favore', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': 'Quanto costa?', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': "Dov'\u00e8...?", 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': 'Il conto, per favore', 'translation': 'The bill, please', 'category': 'restaurant'},
+            {'phrase': 'Non capisco', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': 'Ho bisogno di aiuto', 'translation': 'I need help', 'category': 'emergency'},
+            {'phrase': 'Parla inglese?', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': 'Arrivederci', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+        'pt': {'language_name': 'Portuguese', 'phrases': [
+            {'phrase': 'Ol\u00e1', 'translation': 'Hello', 'category': 'greeting'},
+            {'phrase': 'Obrigado', 'translation': 'Thank you', 'category': 'greeting'},
+            {'phrase': 'Por favor', 'translation': 'Please', 'category': 'greeting'},
+            {'phrase': 'Quanto custa?', 'translation': 'How much?', 'category': 'shopping'},
+            {'phrase': 'Onde fica...?', 'translation': 'Where is...?', 'category': 'directions'},
+            {'phrase': 'A conta, por favor', 'translation': 'The bill, please', 'category': 'restaurant'},
+            {'phrase': 'N\u00e3o entendo', 'translation': "I don't understand", 'category': 'general'},
+            {'phrase': 'Preciso de ajuda', 'translation': 'I need help', 'category': 'emergency'},
+            {'phrase': 'Voc\u00ea fala ingl\u00eas?', 'translation': 'Do you speak English?', 'category': 'general'},
+            {'phrase': 'Tchau', 'translation': 'Goodbye', 'category': 'greeting'},
+        ]},
+    }
+    pack = PACKS.get(language)
+    if pack:
+        return Response({'success': True, 'language': language, **pack})
+    available = {k: v['language_name'] for k, v in PACKS.items()}
+    return Response({
+        'success': True, 'language': language, 'language_name': 'Unknown',
+        'phrases': [], 'available_languages': available,
+    })
+
+
+# ─────────────────────────────────────────────────
 # Subscription Endpoints
 # ─────────────────────────────────────────────────
 
@@ -2564,4 +2757,95 @@ def collaboration_cost_split(request, collaboration_id):
         return Response({'error': 'Collaboration not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(f"Cost split failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Real-Time Awareness / Live Context Endpoints
+# ─────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def live_context(request):
+    """
+    Aggregated live context for a destination.
+
+    Query Parameters:
+    - destination (required): City / destination name
+    - latitude (optional): float
+    - longitude (optional): float
+    - date (optional): YYYY-MM-DD
+    - attraction (optional): attraction name for crowd detail
+    """
+    destination = request.query_params.get('destination')
+    if not destination:
+        return Response(
+            {'error': 'destination query parameter is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    latitude = request.query_params.get('latitude')
+    longitude = request.query_params.get('longitude')
+    date = request.query_params.get('date')
+    attraction = request.query_params.get('attraction')
+
+    try:
+        lat = float(latitude) if latitude else None
+        lng = float(longitude) if longitude else None
+    except (ValueError, TypeError):
+        lat = None
+        lng = None
+
+    try:
+        from .services.live_context import LiveContextService
+        service = LiveContextService()
+        result = service.get_live_context(
+            destination=destination,
+            latitude=lat,
+            longitude=lng,
+            date=date,
+        )
+
+        # If an attraction was specified, include its crowd detail
+        if attraction:
+            result['attraction_crowd_detail'] = service.get_crowd_levels(
+                destination=destination,
+                attraction_name=attraction,
+            )
+
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Live context failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def crowd_levels_detail(request):
+    """
+    Hourly crowd-level heatmap for a destination or specific attraction.
+
+    Query Parameters:
+    - destination (required): City / destination name
+    - attraction_name (optional): Specific attraction within the destination
+    """
+    destination = request.query_params.get('destination')
+    if not destination:
+        return Response(
+            {'error': 'destination query parameter is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    attraction_name = request.query_params.get('attraction_name')
+
+    try:
+        from .services.live_context import LiveContextService
+        service = LiveContextService()
+        result = service.get_crowd_levels(
+            destination=destination,
+            attraction_name=attraction_name,
+        )
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Crowd levels detail failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

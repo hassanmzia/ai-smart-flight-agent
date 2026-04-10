@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import DestinationMedia, TravelStory, TravelTip, DestinationInfo
+from .models import DestinationMedia, TravelStory, TravelTip, DestinationInfo, CuratedGuide
 
 
 @admin.register(DestinationMedia)
@@ -82,3 +82,17 @@ class DestinationInfoAdmin(admin.ModelAdmin):
     list_filter = ['ai_generated', 'country']
     search_fields = ['destination', 'country', 'summary']
     readonly_fields = ['updated_at']
+
+
+@admin.register(CuratedGuide)
+class CuratedGuideAdmin(admin.ModelAdmin):
+    """Admin interface for CuratedGuide model."""
+
+    list_display = [
+        'destination', 'guide_type', 'title', 'ai_generated',
+        'last_updated', 'created_at',
+    ]
+    list_filter = ['guide_type', 'ai_generated', 'last_updated']
+    search_fields = ['destination', 'title', 'description']
+    readonly_fields = ['last_updated', 'created_at']
+    date_hierarchy = 'created_at'

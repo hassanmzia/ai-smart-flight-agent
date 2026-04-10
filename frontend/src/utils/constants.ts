@@ -31,6 +31,8 @@ export const ROUTES = {
   TRAVEL_PROFILE: '/travel-profile',
   SAFETY_DASHBOARD: '/safety-dashboard',
   AI_RATINGS: '/ai-ratings',
+  LANGUAGE_TOOL: '/language-tool',
+  DESTINATION_GUIDE: '/destination-guide',
 } as const;
 
 // Local storage keys
@@ -96,6 +98,13 @@ export const API_ENDPOINTS = {
     ANALYZE_SCREENSHOT: '/api/agents/analyze-screenshot',
     CHECK_FEATURE: '/api/agents/check-feature',
     AUTO_BUILD: '/api/agents/auto-build',
+    TRANSLATE: '/api/agents/translate',
+    COMMON_PHRASES: '/api/agents/common-phrases',
+    LIVE_CONTEXT: '/api/agents/live-context',
+    CROWD_LEVELS_DETAIL: '/api/agents/crowd-levels-detail',
+  },
+  COMMUNITY: {
+    CURATED_GUIDES_GENERATE: '/api/community/curated-guides/generate/',
   },
   PRICE_ALERTS: {
     CREATE: '/api/price-alerts',

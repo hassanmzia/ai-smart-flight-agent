@@ -154,3 +154,40 @@ class DestinationInfo(models.Model):
 
     def __str__(self):
         return f"{self.destination}, {self.country}"
+
+
+class CuratedGuide(models.Model):
+    """AI-curated must-visit/eat/see lists per destination."""
+
+    GUIDE_TYPE_CHOICES = [
+        ('must_visit', 'Must Visit'),
+        ('must_eat', 'Must Eat'),
+        ('must_see', 'Must See'),
+        ('must_do', 'Must Do'),
+        ('hidden_gem', 'Hidden Gem'),
+    ]
+
+    destination = models.CharField(max_length=200, db_index=True)
+    guide_type = models.CharField(max_length=20, choices=GUIDE_TYPE_CHOICES)
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    items = models.JSONField(
+        default=list,
+        help_text=(
+            'Array of {name, description, rating, price_range, '
+            'best_time, address, website_url, image_url, tags}'
+        ),
+    )
+    ai_generated = models.BooleanField(default=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'community_curated_guides'
+        unique_together = ['destination', 'guide_type']
+        ordering = ['destination', 'guide_type']
+        verbose_name = 'Curated Guide'
+        verbose_name_plural = 'Curated Guides'
+
+    def __str__(self):
+        return f"{self.get_guide_type_display()} - {self.destination}"
