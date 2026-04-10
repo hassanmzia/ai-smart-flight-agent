@@ -587,11 +587,13 @@ class ItineraryViewSet(viewsets.ModelViewSet):
         errors = []
 
         for idx, item in enumerate(items_missing):
-            query = (item.location_name or item.title).strip()
+            raw = (item.location_name or item.title).strip()
+            query = self._clean_geocode_query(raw)
             if item.location_address:
                 query = f"{query}, {item.location_address}"
             elif itinerary.destination:
                 query = f"{query}, {itinerary.destination}"
+            _logger.info(f"Geocoding '{item.title}' -> query='{query}'")
 
             # Respect Nominatim rate limit: 1 req/sec
             if idx > 0:
@@ -620,6 +622,45 @@ class ItineraryViewSet(viewsets.ModelViewSet):
             'items_failed': errors,
             'itinerary': serializer.data,
         })
+
+    @staticmethod
+    def _clean_geocode_query(raw: str) -> str:
+        """Extract a meaningful place name from a descriptive title.
+
+        Turns things like "Lunch at Naked Farmer again for a refreshing
+        meal (~$15/person)." into "Naked Farmer".
+        """
+        import re
+        q = raw.strip().rstrip('.')
+
+        # Strip cost annotations like (~$15/person), ($20), ~$30
+        q = re.sub(r'\(?\~?\$[\d,.]+[^)]*\)?', '', q).strip()
+
+        # Strip trailing parenthetical descriptions
+        q = re.sub(r'\([^)]*\)\s*$', '', q).strip()
+
+        # Extract the noun after "at/to/in/visit/explore" — the place name
+        m = re.search(
+            r'(?:at|to|visit|explore|check.?in(?:\s+at)?|check.?out(?:\s+from)?)\s+(?:the\s+)?(.+)',
+            q, re.IGNORECASE,
+        )
+        if m:
+            q = m.group(1).strip()
+
+        # Strip common prefixes
+        q = re.sub(
+            r'^(?:Breakfast|Lunch|Dinner|Brunch|Morning|Afternoon|Evening|Enjoy|Return|Head)\s+(?:at\s+)?',
+            '', q, flags=re.IGNORECASE,
+        ).strip()
+
+        # Strip trailing descriptive clauses (", enjoying ...", " for a ...")
+        q = re.split(r'[,;]\s+(?:enjoying|for a|again|where|featuring|with)', q, flags=re.IGNORECASE)[0].strip()
+
+        # If nothing useful remains, fall back to original
+        if len(q) < 3:
+            q = raw.strip()
+
+        return q
 
     @staticmethod
     def _geocode_query(query: str, logger) -> tuple | None:

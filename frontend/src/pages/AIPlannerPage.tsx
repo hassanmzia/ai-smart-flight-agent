@@ -73,6 +73,19 @@ function parseItineraryNarrative(text: string): ParsedDay[] {
   return days;
 }
 
+/** Extract a place name from a descriptive activity title. */
+function extractPlaceName(title: string): string {
+  let q = title.replace(/\(?\~?\$[\d,.]+[^)]*\)?/g, '').trim(); // strip costs
+  q = q.replace(/\([^)]*\)\s*$/g, '').trim(); // strip trailing parens
+  // Extract noun after "at/to/visit/explore"
+  const m = q.match(/(?:at|to|visit|explore)\s+(?:the\s+)?(.+)/i);
+  if (m) q = m[1].trim();
+  // Strip trailing clauses
+  q = q.split(/[,;]\s+(?:enjoying|for a|again|where|featuring|with)/i)[0].trim();
+  q = q.replace(/\.\s*$/, ''); // strip trailing period
+  return q.length >= 3 ? q : title;
+}
+
 function guessItemType(text: string): ParsedActivity['itemType'] {
   const lower = text.toLowerCase();
   if (/\b(flight|fly|airport|depart|land|board)\b/.test(lower)) return 'flight';
@@ -315,7 +328,7 @@ const AIPlannerPage = () => {
             await createItineraryItem({
               day: dayId, item_type: activity.itemType, order: itemOrder++,
               title: activity.title, start_time: timeHHMM, estimated_cost: activity.estimatedCost,
-              location_name: activity.title,
+              location_name: extractPlaceName(activity.title),
             });
           }
         } else if (!isFirstDay && !isLastDay) {
