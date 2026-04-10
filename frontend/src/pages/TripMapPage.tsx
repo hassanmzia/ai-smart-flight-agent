@@ -65,14 +65,14 @@ const TripMapPage = () => {
         if (first) setSelectedTrip(first);
         else if (list.length > 0) setSelectedTrip(list[0]);
 
-        // Auto-geocode itineraries that have items with names but no coordinates
+        // Auto-geocode itineraries that have items with names/titles but no coordinates
         // Uses browser-side Nominatim (no Docker network dependency)
         for (const trip of list) {
           const needsGeocode = trip.days?.some((d) =>
             d.items?.some(
               (i) =>
                 (i.latitude == null || i.longitude == null) &&
-                i.location_name,
+                (i.location_name || i.title),
             ),
           );
           if (needsGeocode) {
@@ -161,12 +161,13 @@ const TripMapPage = () => {
         const updatedItems = [...day.items];
         for (let i = 0; i < updatedItems.length; i++) {
           const item = updatedItems[i];
-          if ((item.latitude == null || item.longitude == null) && item.location_name) {
+          const locationQuery = item.location_name || item.title;
+          if ((item.latitude == null || item.longitude == null) && locationQuery) {
             // Respect Nominatim rate limit: 1 req/sec
             if (changed) {
               await new Promise((r) => setTimeout(r, 1100));
             }
-            const coords = await geocodeLocation(item.location_name, trip.destination);
+            const coords = await geocodeLocation(locationQuery, trip.destination);
             if (coords) {
               updatedItems[i] = { ...item, latitude: coords.lat, longitude: coords.lng };
               changed = true;

@@ -264,12 +264,12 @@ export default function TripMapVisualization({ itinerary, onGeocode, isGeocoding
     return map;
   }, [itinerary]);
 
-  // Count items that could be geocoded (have a name but no coords)
+  // Count items that could be geocoded (have a name or title but no coords)
   const missingCoords = useMemo(() => {
     let count = 0;
     for (const day of itinerary.days) {
       for (const item of day.items) {
-        if ((item.latitude == null || item.longitude == null) && item.location_name) {
+        if ((item.latitude == null || item.longitude == null) && (item.location_name || item.title)) {
           count++;
         }
       }
