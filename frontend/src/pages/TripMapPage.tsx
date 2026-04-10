@@ -74,10 +74,7 @@ const TripMapPage = () => {
                 i.location_name,
             ),
           );
-          const alreadyHasGeo = trip.days?.some((d) =>
-            d.items?.some((i) => i.latitude != null && i.longitude != null),
-          );
-          if (needsGeocode && !alreadyHasGeo) {
+          if (needsGeocode) {
             // Auto-geocode in background — don't await, let it update state when done
             autoGeocode(trip.id);
           }
@@ -125,13 +122,15 @@ const TripMapPage = () => {
   const hasGeoData = (trip: MapItinerary) =>
     trip.days?.some((d) => d.items?.some((i) => i.latitude != null && i.longitude != null));
 
-  const handleGeocode = useCallback(async (itineraryId: string) => {
+  const handleGeocode = useCallback(async (itineraryId: string | number) => {
     setIsGeocoding(true);
     try {
       const res = await api.post(`/api/itineraries/itineraries/${itineraryId}/geocode-items/`);
       if (res.data?.itinerary) {
         const updated: MapItinerary = res.data.itinerary;
-        setItineraries((prev) => prev.map((it) => (it.id === itineraryId ? updated : it)));
+        setItineraries((prev) =>
+          prev.map((it) => (String(it.id) === String(itineraryId) ? updated : it)),
+        );
         setSelectedTrip(updated);
       }
     } catch {
@@ -142,13 +141,16 @@ const TripMapPage = () => {
   }, []);
 
   // Auto-geocode a trip silently in the background
-  const autoGeocode = useCallback(async (itineraryId: string) => {
+  const autoGeocode = useCallback(async (itineraryId: string | number) => {
     try {
       setIsGeocoding(true);
       const res = await api.post(`/api/itineraries/itineraries/${itineraryId}/geocode-items/`);
-      if (res.data?.itinerary && res.data.items_geocoded > 0) {
+      if (res.data?.itinerary) {
         const updated: MapItinerary = res.data.itinerary;
-        setItineraries((prev) => prev.map((it) => (it.id === itineraryId ? updated : it)));
+        // Always update — the returned itinerary has the latest coordinates
+        setItineraries((prev) =>
+          prev.map((it) => (String(it.id) === String(itineraryId) ? updated : it)),
+        );
         setSelectedTrip(updated);
       }
     } catch {
