@@ -990,3 +990,296 @@ class TripMemory(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.destination} ({self.sentiment})"
+
+
+# ─────────────────────────────────────────────────
+# Phase 5: Monetization & Partnerships Models
+# ─────────────────────────────────────────────────
+
+class PartnerBusiness(models.Model):
+    """Local businesses that partner with the platform for coupons/deals."""
+
+    CATEGORY_CHOICES = [
+        ('hotel', 'Hotel'),
+        ('restaurant', 'Restaurant'),
+        ('attraction', 'Attraction'),
+        ('tour', 'Tour Operator'),
+        ('transport', 'Transport'),
+        ('shopping', 'Shopping'),
+        ('spa', 'Spa & Wellness'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('active', 'Active'),
+        ('suspended', 'Suspended'),
+        ('inactive', 'Inactive'),
+    ]
+
+    name = models.CharField(max_length=200)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    description = models.TextField(blank=True)
+    destination = models.CharField(max_length=200, db_index=True, help_text='City or region')
+    address = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+    contact_email = models.EmailField()
+    contact_phone = models.CharField(max_length=30, blank=True)
+    logo_url = models.URLField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00,
+                                          help_text='Revenue share % when AI saves money')
+    rating = models.DecimalField(max_digits=3, decimal_places=1, default=0)
+    total_coupons_redeemed = models.IntegerField(default=0)
+    total_revenue_generated = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    onboarded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                      null=True, blank=True, related_name='onboarded_partners')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'partner_businesses'
+        ordering = ['-rating', 'name']
+        verbose_name_plural = 'Partner Businesses'
+        indexes = [
+            models.Index(fields=['category', 'destination'], name='partner_cat_dest_idx'),
+            models.Index(fields=['status'], name='partner_status_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.category}) - {self.destination}"
+
+
+class PartnerCoupon(models.Model):
+    """Coupon codes offered by partner businesses."""
+
+    DISCOUNT_TYPE_CHOICES = [
+        ('percentage', 'Percentage Off'),
+        ('fixed', 'Fixed Amount Off'),
+        ('bogo', 'Buy One Get One'),
+        ('freebie', 'Free Item/Service'),
+    ]
+
+    partner = models.ForeignKey(PartnerBusiness, on_delete=models.CASCADE, related_name='coupons')
+    code = models.CharField(max_length=50, unique=True, db_index=True)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    discount_type = models.CharField(max_length=20, choices=DISCOUNT_TYPE_CHOICES, default='percentage')
+    discount_value = models.DecimalField(max_digits=10, decimal_places=2,
+                                          help_text='Percentage or fixed amount')
+    min_spend = models.DecimalField(max_digits=10, decimal_places=2, default=0,
+                                     help_text='Minimum spend to use coupon')
+    max_uses = models.IntegerField(default=0, help_text='0 = unlimited')
+    times_used = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_until = models.DateTimeField(null=True, blank=True)
+    terms = models.TextField(blank=True, help_text='Terms and conditions')
+    qr_data = models.TextField(blank=True, help_text='QR code data for in-store redemption')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'partner_coupons'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['partner', 'is_active'], name='coupon_partner_active_idx'),
+            models.Index(fields=['valid_until'], name='coupon_valid_until_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.code} - {self.title} ({self.partner.name})"
+
+    @property
+    def is_valid(self):
+        now = timezone.now()
+        if not self.is_active:
+            return False
+        if self.valid_until and now > self.valid_until:
+            return False
+        if self.max_uses > 0 and self.times_used >= self.max_uses:
+            return False
+        return True
+
+
+class CouponRedemption(models.Model):
+    """Tracks when users redeem coupons."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='coupon_redemptions')
+    coupon = models.ForeignKey(PartnerCoupon, on_delete=models.CASCADE, related_name='redemptions')
+    redeemed_at = models.DateTimeField(auto_now_add=True)
+    savings_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    order_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    platform_commission = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        db_table = 'coupon_redemptions'
+        ordering = ['-redeemed_at']
+        indexes = [
+            models.Index(fields=['user', '-redeemed_at'], name='redemption_user_date_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.user} redeemed {self.coupon.code}"
+
+
+class ReferralCode(models.Model):
+    """User referral codes for earning rewards."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                 related_name='referral_code')
+    code = models.CharField(max_length=20, unique=True, db_index=True)
+    total_referrals = models.IntegerField(default=0)
+    successful_referrals = models.IntegerField(default=0)
+    total_earnings = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'referral_codes'
+
+    def __str__(self):
+        return f"{self.user} - {self.code}"
+
+
+class Referral(models.Model):
+    """Individual referral tracking."""
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('signed_up', 'Signed Up'),
+        ('converted', 'Converted'),
+        ('rewarded', 'Rewarded'),
+    ]
+
+    referrer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                  related_name='referrals_made')
+    referred_user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                       null=True, blank=True, related_name='referred_by')
+    referral_code = models.ForeignKey(ReferralCode, on_delete=models.CASCADE, related_name='referrals')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    reward_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    referred_email = models.EmailField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    converted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'referrals'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['referrer', 'status'], name='referral_referrer_status_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.referrer} → {self.referred_email or self.referred_user}"
+
+
+class DestinationKnowledge(models.Model):
+    """Structured destination knowledge base entry."""
+
+    destination = models.CharField(max_length=200, unique=True, db_index=True)
+    country = models.CharField(max_length=100, db_index=True)
+    continent = models.CharField(max_length=50, blank=True)
+    summary = models.TextField(blank=True, help_text='AI-generated overview')
+    history = models.TextField(blank=True)
+    culture = models.TextField(blank=True)
+    heritage_sites = models.JSONField(default=list, blank=True)
+    festivals = models.JSONField(default=list, blank=True, help_text='Major festivals with dates')
+    customs = models.JSONField(default=list, blank=True, help_text='Local customs and norms')
+    best_months = models.JSONField(default=list, blank=True)
+    languages_spoken = models.JSONField(default=list, blank=True)
+    currency = models.CharField(max_length=10, blank=True)
+    timezone_info = models.CharField(max_length=50, blank=True)
+    official_tourism_url = models.URLField(blank=True)
+    emergency_numbers = models.JSONField(default=dict, blank=True)
+    visa_info = models.TextField(blank=True)
+    ai_generated = models.BooleanField(default=True)
+    views_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'destination_knowledge'
+        ordering = ['-views_count']
+        verbose_name_plural = 'Destination Knowledge'
+        indexes = [
+            models.Index(fields=['country'], name='dest_knowledge_country_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.destination}, {self.country}"
+
+
+class CulturalInfo(models.Model):
+    """Religion & etiquette guides for destinations."""
+
+    CATEGORY_CHOICES = [
+        ('dress_code', 'Dress Code'),
+        ('tipping', 'Tipping Etiquette'),
+        ('greetings', 'Greetings & Gestures'),
+        ('dining', 'Dining Etiquette'),
+        ('religious', 'Religious Customs'),
+        ('business', 'Business Etiquette'),
+        ('photography', 'Photography Rules'),
+        ('laws', 'Local Laws & Regulations'),
+        ('taboos', 'Cultural Taboos'),
+    ]
+
+    destination = models.ForeignKey(DestinationKnowledge, on_delete=models.CASCADE,
+                                     related_name='cultural_info')
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    severity = models.CharField(max_length=20, default='advisory',
+                                 choices=[('info', 'Info'), ('advisory', 'Advisory'),
+                                          ('important', 'Important'), ('critical', 'Critical')])
+    ai_generated = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cultural_info'
+        ordering = ['category', '-created_at']
+        verbose_name_plural = 'Cultural Info'
+        indexes = [
+            models.Index(fields=['destination', 'category'], name='cultural_dest_cat_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.destination.destination} - {self.title}"
+
+
+class UserDestinationTip(models.Model):
+    """User-contributed tips moderated by AI."""
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('flagged', 'Flagged'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='destination_tips')
+    destination = models.ForeignKey(DestinationKnowledge, on_delete=models.CASCADE,
+                                     related_name='user_tips')
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    category = models.CharField(max_length=50, blank=True, help_text='e.g. food, transport, safety')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    upvotes = models.IntegerField(default=0)
+    downvotes = models.IntegerField(default=0)
+    ai_moderation_score = models.FloatField(default=0, help_text='AI quality score 0-1')
+    ai_moderation_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_destination_tips'
+        ordering = ['-upvotes', '-created_at']
+        indexes = [
+            models.Index(fields=['destination', 'status'], name='user_tip_dest_status_idx'),
+            models.Index(fields=['user'], name='user_tip_user_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.user} tip: {self.title}"
