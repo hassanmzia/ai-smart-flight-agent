@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.shopping',
     'apps.safety',
     'apps.commute',
+    'apps.community',
 ]
 
 MIDDLEWARE = [

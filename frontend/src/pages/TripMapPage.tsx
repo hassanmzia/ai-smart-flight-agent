@@ -6,6 +6,12 @@ import type { MapItinerary } from '@/components/map/TripMapVisualization';
 const TripMapVisualization = lazy(
   () => import('@/components/map/TripMapVisualization'),
 );
+const ImmersiveTripViewer = lazy(
+  () => import('@/components/map/ImmersiveTripViewer'),
+);
+const TripStoryView = lazy(
+  () => import('@/components/trip/TripStoryView'),
+);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,7 +25,7 @@ interface RecommendationItem {
   based_on: string;
 }
 
-type Tab = 'map' | 'trips' | 'dna' | 'recs';
+type Tab = 'immersive' | 'map' | 'story' | 'trips' | 'dna' | 'recs';
 
 // ---------------------------------------------------------------------------
 // TripMapPage
@@ -31,7 +37,7 @@ const TripMapPage = () => {
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
   const [travelDna, setTravelDna] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>('map');
+  const [activeTab, setActiveTab] = useState<Tab>('immersive');
   const [selectedTrip, setSelectedTrip] = useState<MapItinerary | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
 
@@ -164,11 +170,13 @@ const TripMapPage = () => {
 
   // ---- tab config ----
 
-  const TABS: { key: Tab; label: string }[] = [
-    { key: 'map', label: 'Trip Map' },
-    { key: 'trips', label: 'My Trips' },
-    { key: 'dna', label: 'Travel DNA' },
-    { key: 'recs', label: 'Recommendations' },
+  const TABS: { key: Tab; label: string; icon: string }[] = [
+    { key: 'immersive', label: 'Immersive View', icon: '\uD83C\uDF0D' },
+    { key: 'story', label: 'Trip Story', icon: '\uD83D\uDCD6' },
+    { key: 'map', label: 'Classic Map', icon: '\uD83D\uDDFA\uFE0F' },
+    { key: 'trips', label: 'My Trips', icon: '\u2708\uFE0F' },
+    { key: 'dna', label: 'Travel DNA', icon: '\uD83E\uDDEC' },
+    { key: 'recs', label: 'For You', icon: '\uD83C\uDFAF' },
   ];
 
   return (
@@ -188,18 +196,18 @@ const TripMapPage = () => {
 
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 -mt-6">
-        <div className="grid grid-cols-4 gap-1 sm:flex sm:gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 sm:flex sm:gap-2">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-2 sm:px-5 py-2 sm:py-3 rounded-t-xl font-semibold text-xs sm:text-sm text-center transition-all ${
+              className={`px-2 sm:px-4 py-2 sm:py-3 rounded-t-xl font-semibold text-xs sm:text-sm text-center transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === tab.key
                   ? 'bg-white dark:bg-gray-800 text-teal-600 dark:text-teal-400 shadow-lg'
                   : 'bg-white/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
               }`}
             >
-              {tab.label}
+              <span className="hidden sm:inline">{tab.icon}</span> {tab.label}
             </button>
           ))}
         </div>
@@ -213,6 +221,125 @@ const TripMapPage = () => {
           </div>
         ) : (
           <>
+            {/* ============================================================ */}
+            {/* IMMERSIVE VIEW TAB */}
+            {/* ============================================================ */}
+            {activeTab === 'immersive' && (
+              <div className="space-y-6">
+                {/* Trip selector */}
+                {itineraries.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      Itinerary:
+                    </span>
+                    {itineraries.map((trip) => (
+                      <button
+                        key={trip.id}
+                        onClick={() => setSelectedTrip(trip)}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                          selectedTrip?.id === trip.id
+                            ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300'
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-teal-300'
+                        }`}
+                      >
+                        {trip.title || trip.destination}
+                        {hasGeoData(trip) && (
+                          <span className="ml-1.5 inline-block w-2 h-2 rounded-full bg-teal-500" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {selectedTrip ? (
+                  <Suspense
+                    fallback={
+                      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex items-center justify-center" style={{ height: 600 }}>
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-10 w-10 border-4 border-teal-500 border-t-transparent mx-auto mb-3" />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Loading immersive view...</p>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <ImmersiveTripViewer
+                      itinerary={selectedTrip}
+                      onGeocode={handleGeocode}
+                      isGeocoding={isGeocoding}
+                    />
+                  </Suspense>
+                ) : (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
+                    <p className="text-5xl mb-4">{'\uD83C\uDF0D'}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      No Trips Yet
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                      Create an itinerary with the AI Trip Planner to experience the immersive fly-through view.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ============================================================ */}
+            {/* TRIP STORY TAB */}
+            {/* ============================================================ */}
+            {activeTab === 'story' && (
+              <div className="space-y-6">
+                {/* Trip selector */}
+                {itineraries.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      Itinerary:
+                    </span>
+                    {itineraries.map((trip) => (
+                      <button
+                        key={trip.id}
+                        onClick={() => setSelectedTrip(trip)}
+                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                          selectedTrip?.id === trip.id
+                            ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                            : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:border-purple-300'
+                        }`}
+                      >
+                        {trip.title || trip.destination}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {selectedTrip ? (
+                  <Suspense
+                    fallback={
+                      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex items-center justify-center" style={{ height: 300 }}>
+                        <div className="text-center">
+                          <div className="animate-spin rounded-full h-10 w-10 border-4 border-purple-500 border-t-transparent mx-auto mb-3" />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Loading story view...</p>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <TripStoryView
+                      itineraryId={selectedTrip.id}
+                      itineraryTitle={selectedTrip.title}
+                      destination={selectedTrip.destination}
+                    />
+                  </Suspense>
+                ) : (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-12 text-center">
+                    <p className="text-5xl mb-4">{'\uD83D\uDCD6'}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      No Trips Yet
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                      Create an itinerary with the AI Trip Planner to generate your trip story.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ============================================================ */}
             {/* MAP TAB */}
             {/* ============================================================ */}

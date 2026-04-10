@@ -27,6 +27,7 @@ export const ROUTES = {
   PRICING: '/pricing',
   PREDICTIONS: '/predictions',
   TRIP_MAP: '/my-travel',
+  COMMUNITY: '/community',
 } as const;
 
 // Local storage keys
