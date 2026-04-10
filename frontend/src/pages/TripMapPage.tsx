@@ -64,6 +64,24 @@ const TripMapPage = () => {
         );
         if (first) setSelectedTrip(first);
         else if (list.length > 0) setSelectedTrip(list[0]);
+
+        // Auto-geocode itineraries that have items with names but no coordinates
+        for (const trip of list) {
+          const needsGeocode = trip.days?.some((d) =>
+            d.items?.some(
+              (i) =>
+                (i.latitude == null || i.longitude == null) &&
+                i.location_name,
+            ),
+          );
+          const alreadyHasGeo = trip.days?.some((d) =>
+            d.items?.some((i) => i.latitude != null && i.longitude != null),
+          );
+          if (needsGeocode && !alreadyHasGeo) {
+            // Auto-geocode in background — don't await, let it update state when done
+            autoGeocode(trip.id);
+          }
+        }
       }
       if (dnaRes.status === 'fulfilled' && dnaRes.value.data.travel_dna) {
         setTravelDna(dnaRes.value.data.travel_dna);
@@ -118,6 +136,23 @@ const TripMapPage = () => {
       }
     } catch {
       // Geocoding is best-effort; errors are non-fatal
+    } finally {
+      setIsGeocoding(false);
+    }
+  }, []);
+
+  // Auto-geocode a trip silently in the background
+  const autoGeocode = useCallback(async (itineraryId: string) => {
+    try {
+      setIsGeocoding(true);
+      const res = await api.post(`/api/itineraries/itineraries/${itineraryId}/geocode-items/`);
+      if (res.data?.itinerary && res.data.items_geocoded > 0) {
+        const updated: MapItinerary = res.data.itinerary;
+        setItineraries((prev) => prev.map((it) => (it.id === itineraryId ? updated : it)));
+        setSelectedTrip(updated);
+      }
+    } catch {
+      // Silent — user can still click the manual geocode button
     } finally {
       setIsGeocoding(false);
     }
