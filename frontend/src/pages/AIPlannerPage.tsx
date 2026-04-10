@@ -75,14 +75,20 @@ function parseItineraryNarrative(text: string): ParsedDay[] {
 
 /** Extract a place name from a descriptive activity title. */
 function extractPlaceName(title: string): string {
-  let q = title.replace(/\(?\~?\$[\d,.]+[^)]*\)?/g, '').trim(); // strip costs
-  q = q.replace(/\([^)]*\)\s*$/g, '').trim(); // strip trailing parens
-  // Extract noun after "at/to/visit/explore"
-  const m = q.match(/(?:at|to|visit|explore)\s+(?:the\s+)?(.+)/i);
+  let q = title.replace(/\.\s*$/, '').trim();
+  // Strip costs: (~$15/person), ($20), ~$30
+  q = q.replace(/\(?\~?\$[\d,.]+[^)]*\)?/g, '').trim();
+  // Strip parentheticals: (free), (optional)
+  q = q.replace(/\([^)]*\)/g, '').trim();
+  // Take text before first descriptive comma
+  q = q.split(/,\s+(?:an?\s|offering|enjoying|featuring|where|with|for|located|which|this)/i)[0].trim();
+  // Extract place name after preposition
+  const m = q.match(/\b(?:at|to|into)\s+(?:the\s+)?(?!your\b|a\s|an\s)(.+)/i);
   if (m) q = m[1].trim();
-  // Strip trailing clauses
-  q = q.split(/[,;]\s+(?:enjoying|for a|again|where|featuring|with)/i)[0].trim();
-  q = q.replace(/\.\s*$/, ''); // strip trailing period
+  // Strip leading action verbs
+  q = q.replace(/^(?:Visit|Attend|Explore|Enjoy|Head|Return|Go|Walk|Drive|Take|Spend|Have|Grab)\s+(?:to\s+)?(?:the\s+)?/i, '').trim();
+  // Strip trailing filler
+  q = q.split(/\s+(?:again\b|to\s+relax|to\s+freshen|for\s+a\s|for\s+the\s)/i)[0].trim();
   return q.length >= 3 ? q : title;
 }
 
