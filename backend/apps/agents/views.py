@@ -2018,7 +2018,7 @@ def destination_trends(request):
 # Personalization Endpoints
 # ─────────────────────────────────────────────────
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def get_travel_dna(request):
     """Build and return the user's Travel DNA profile."""
@@ -2030,6 +2030,25 @@ def get_travel_dna(request):
     except Exception as e:
         logger.error(f"Travel DNA failed: {e}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET', 'PATCH', 'PUT'])
+@permission_classes([IsAuthenticated])
+def user_preferences(request):
+    """Get or update the user's Travel DNA v2 preferences."""
+    from .models import UserPreference
+    from .serializers import UserPreferenceSerializer
+
+    pref, _ = UserPreference.objects.get_or_create(user=request.user)
+
+    if request.method == 'GET':
+        return Response(UserPreferenceSerializer(pref).data)
+
+    serializer = UserPreferenceSerializer(pref, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Review, Rating
+from .models import Review, Rating, AIRating
 
 
 class RatingInline(admin.TabularInline):
@@ -73,3 +73,39 @@ class RatingAdmin(admin.ModelAdmin):
     list_display = ['review', 'aspect', 'score']
     list_filter = ['aspect']
     search_fields = ['review__title']
+
+
+@admin.register(AIRating)
+class AIRatingAdmin(admin.ModelAdmin):
+    """Admin interface for AI-generated quality ratings."""
+    list_display = [
+        'entity_name', 'entity_type', 'destination',
+        'overall_score_badge', 'safety_score', 'value_score',
+        'review_count', 'ai_generated', 'last_updated',
+    ]
+    list_filter = ['entity_type', 'ai_generated', 'destination']
+    search_fields = ['entity_name', 'destination']
+    readonly_fields = [
+        'overall_score', 'safety_score', 'value_score',
+        'food_score', 'culture_score', 'accessibility_score',
+        'community_rating', 'review_count', 'summary',
+        'pros', 'cons', 'best_for', 'enjoyment_factors',
+        'ai_generated', 'last_updated', 'created_at',
+    ]
+    date_hierarchy = 'created_at'
+
+    def overall_score_badge(self, obj):
+        """Display overall score with color coding."""
+        score = float(obj.overall_score)
+        if score >= 8.0:
+            color = '#198754'
+        elif score >= 6.0:
+            color = '#ffc107'
+        else:
+            color = '#dc3545'
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-weight: bold;">{}/10</span>',
+            color, obj.overall_score,
+        )
+    overall_score_badge.short_description = 'Overall Score'

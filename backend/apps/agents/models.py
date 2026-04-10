@@ -486,6 +486,40 @@ class UserPreference(models.Model):
         ('family', 'Family'),
     ]
 
+    PACE_CHOICES = [
+        ('slow', 'Slow Traveler'),
+        ('moderate', 'Moderate'),
+        ('packed', 'Packed Schedule'),
+    ]
+
+    DIETARY_CHOICES = [
+        ('none', 'No Restrictions'),
+        ('vegetarian', 'Vegetarian'),
+        ('vegan', 'Vegan'),
+        ('halal', 'Halal'),
+        ('kosher', 'Kosher'),
+        ('gluten_free', 'Gluten Free'),
+        ('other', 'Other'),
+    ]
+
+    FAITH_CHOICES = [
+        ('none', 'Not Specified'),
+        ('islam', 'Islam'),
+        ('christianity', 'Christianity'),
+        ('judaism', 'Judaism'),
+        ('hinduism', 'Hinduism'),
+        ('buddhism', 'Buddhism'),
+        ('sikhism', 'Sikhism'),
+        ('other', 'Other'),
+    ]
+
+    MOBILITY_CHOICES = [
+        ('full', 'Full Mobility'),
+        ('limited', 'Limited Mobility'),
+        ('wheelchair', 'Wheelchair'),
+        ('elderly', 'Elderly-Friendly'),
+    ]
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -510,6 +544,59 @@ class UserPreference(models.Model):
         default=14,
         validators=[MinValueValidator(0)]
     )
+
+    # --- Travel DNA v2 fields ---
+    # Dietary needs
+    dietary_preference = models.CharField(
+        max_length=20, choices=DIETARY_CHOICES, default='none',
+    )
+    dietary_allergies = models.JSONField(
+        default=list, blank=True,
+        help_text='List of food allergies, e.g. ["peanuts", "shellfish"]',
+    )
+
+    # Faith profile
+    faith = models.CharField(
+        max_length=20, choices=FAITH_CHOICES, default='none',
+    )
+    prayer_reminders = models.BooleanField(default=False)
+    faith_site_interest = models.BooleanField(
+        default=False,
+        help_text='Show mosques, temples, churches near itinerary stops',
+    )
+
+    # Health profile
+    mobility = models.CharField(
+        max_length=20, choices=MOBILITY_CHOICES, default='full',
+    )
+    max_walking_km_per_day = models.DecimalField(
+        max_digits=4, decimal_places=1, default=10.0,
+        help_text='Maximum comfortable walking distance in km per day',
+    )
+    health_conditions = models.JSONField(
+        default=list, blank=True,
+        help_text='List of health conditions to consider, e.g. ["asthma", "diabetes"]',
+    )
+    medications = models.JSONField(
+        default=list, blank=True,
+        help_text='Medications with timezone adjustment needs',
+    )
+
+    # Pace preference
+    pace = models.CharField(
+        max_length=20, choices=PACE_CHOICES, default='moderate',
+    )
+    max_activities_per_day = models.IntegerField(
+        default=5,
+        validators=[MinValueValidator(1)],
+    )
+
+    # Language proficiency
+    languages_spoken = models.JSONField(
+        default=list, blank=True,
+        help_text='Languages the user speaks, e.g. ["en", "es", "fr"]',
+    )
+
     last_trained = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

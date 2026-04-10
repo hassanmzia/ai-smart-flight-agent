@@ -238,12 +238,36 @@ const Header = () => {
                     <Menu.Item>
                       {({ active }) => (
                         <Link
-                          to="/safety"
+                          to={ROUTES.SAFETY_DASHBOARD}
                           className={`${
                             active ? 'bg-gray-50 dark:bg-gray-700' : ''
                           } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
                         >
-                          <span>🛡️</span> Safety
+                          <span>🛡️</span> Safety Intelligence
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to={ROUTES.AI_RATINGS}
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>⭐</span> AI Ratings
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to={ROUTES.TRAVEL_PROFILE}
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🧬</span> Travel DNA
                         </Link>
                       )}
                     </Menu.Item>
@@ -466,7 +490,9 @@ const Header = () => {
             <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Travel Info</div>
             <Link to="/weather" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🌤️ Weather</Link>
             <Link to="/commute" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🚗 Traffic & Commute</Link>
-            <Link to="/safety" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🛡️ Safety</Link>
+            <Link to={ROUTES.SAFETY_DASHBOARD} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🛡️ Safety Intelligence</Link>
+            <Link to={ROUTES.AI_RATINGS} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">⭐ AI Ratings</Link>
+            <Link to={ROUTES.TRAVEL_PROFILE} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🧬 Travel DNA</Link>
 
             <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
               <Link to={ROUTES.COLLABORATE} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">👥 Collaborate</Link>

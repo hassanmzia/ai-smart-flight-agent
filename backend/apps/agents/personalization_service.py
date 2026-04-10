@@ -19,7 +19,8 @@ class PersonalizationService:
     def build_travel_dna(self, user) -> Dict[str, Any]:
         """
         Analyze user's booking history, searches, and feedback to build
-        a comprehensive Travel DNA profile.
+        a comprehensive Travel DNA profile (v2 — includes dietary, faith,
+        health, pace, and language dimensions).
         """
         dna = {
             'destinations': self._analyze_destinations(user),
@@ -27,6 +28,11 @@ class PersonalizationService:
             'style': self._analyze_style(user),
             'timing': self._analyze_timing(user),
             'preferences': self._analyze_preferences(user),
+            'dietary': self._analyze_dietary(user),
+            'faith': self._analyze_faith(user),
+            'health': self._analyze_health(user),
+            'pace': self._analyze_pace(user),
+            'languages': self._analyze_languages(user),
         }
 
         # Save to UserPreference
@@ -183,6 +189,81 @@ class PersonalizationService:
             pass
         return {}
 
+    # ------------------------------------------------------------------
+    # Travel DNA v2 analysis methods
+    # ------------------------------------------------------------------
+
+    def _analyze_dietary(self, user) -> Dict[str, Any]:
+        """Analyze dietary preferences and restrictions."""
+        try:
+            from .models import UserPreference
+            pref = UserPreference.objects.filter(user=user).first()
+            if pref:
+                return {
+                    'preference': pref.dietary_preference,
+                    'allergies': pref.dietary_allergies or [],
+                    'preferred_cuisines': pref.preferred_cuisines or [],
+                }
+        except Exception:
+            pass
+        return {'preference': 'none', 'allergies': [], 'preferred_cuisines': []}
+
+    def _analyze_faith(self, user) -> Dict[str, Any]:
+        """Analyze faith-related travel preferences."""
+        try:
+            from .models import UserPreference
+            pref = UserPreference.objects.filter(user=user).first()
+            if pref:
+                return {
+                    'faith': pref.faith,
+                    'prayer_reminders': pref.prayer_reminders,
+                    'faith_site_interest': pref.faith_site_interest,
+                }
+        except Exception:
+            pass
+        return {'faith': 'none', 'prayer_reminders': False, 'faith_site_interest': False}
+
+    def _analyze_health(self, user) -> Dict[str, Any]:
+        """Analyze health and mobility preferences."""
+        try:
+            from .models import UserPreference
+            pref = UserPreference.objects.filter(user=user).first()
+            if pref:
+                return {
+                    'mobility': pref.mobility,
+                    'max_walking_km': float(pref.max_walking_km_per_day),
+                    'health_conditions': pref.health_conditions or [],
+                    'medications': pref.medications or [],
+                }
+        except Exception:
+            pass
+        return {'mobility': 'full', 'max_walking_km': 10.0, 'health_conditions': [], 'medications': []}
+
+    def _analyze_pace(self, user) -> Dict[str, Any]:
+        """Analyze pace and activity density preferences."""
+        try:
+            from .models import UserPreference
+            pref = UserPreference.objects.filter(user=user).first()
+            if pref:
+                return {
+                    'pace': pref.pace,
+                    'max_activities_per_day': pref.max_activities_per_day,
+                }
+        except Exception:
+            pass
+        return {'pace': 'moderate', 'max_activities_per_day': 5}
+
+    def _analyze_languages(self, user) -> Dict[str, Any]:
+        """Analyze language proficiency."""
+        try:
+            from .models import UserPreference
+            pref = UserPreference.objects.filter(user=user).first()
+            if pref and pref.languages_spoken:
+                return {'spoken': pref.languages_spoken}
+        except Exception:
+            pass
+        return {'spoken': ['en']}
+
     def _generate_recommendations(self, user, dna, limit):
         """Generate personalized recommendations using LLM + behavioral data."""
         import os, json
@@ -209,6 +290,13 @@ class PersonalizationService:
                     api_key=api_key, request_timeout=30,
                 )
 
+                # Gather v2 DNA dimensions
+                dietary = dna.get('dietary', {})
+                faith_info = dna.get('faith', {})
+                health_info = dna.get('health', {})
+                pace_info = dna.get('pace', {})
+                langs = dna.get('languages', {}).get('spoken', ['en'])
+
                 response = model.invoke([
                     SystemMessage(content="You are a travel recommendation engine. Return JSON only, no markdown."),
                     HumanMessage(content=f"""Generate {limit} personalized trip recommendations for a traveler with this profile:
@@ -218,11 +306,16 @@ class PersonalizationService:
 - Avg trip duration: {avg_duration} days
 - Past destinations: {', '.join(fav_dests[:5]) if fav_dests else 'none yet'}
 - Recent searches: {json.dumps(search_history[:5], default=str) if search_history else 'none'}
+- Dietary: {dietary.get('preference', 'none')}, allergies: {dietary.get('allergies', [])}
+- Faith: {faith_info.get('faith', 'none')}, wants faith sites: {faith_info.get('faith_site_interest', False)}
+- Mobility: {health_info.get('mobility', 'full')}, max walking: {health_info.get('max_walking_km', 10)} km/day
+- Pace: {pace_info.get('pace', 'moderate')}, max {pace_info.get('max_activities_per_day', 5)} activities/day
+- Languages spoken: {', '.join(langs)}
 
 Return JSON array:
 [{{"title": "Trip title", "destination": "City, Country", "reason": "Why this matches their profile", "match_score": 70-99, "based_on": "Which profile traits drove this"}}]
 
-Avoid recommending places they have already visited. Vary destinations across regions. Score higher for closer matches to their interests and budget.""")
+Factor in dietary/faith/mobility needs when scoring destinations. Avoid recommending places they have already visited. Vary destinations across regions. Score higher for closer matches to their interests, budget, and accessibility needs.""")
                 ])
 
                 content = response.content.strip()
