@@ -586,9 +586,13 @@ class ItineraryViewSet(viewsets.ModelViewSet):
         updated = 0
         errors = []
 
-        for idx, item in enumerate(items_missing):
+        geocode_count = 0
+        for item in items_missing:
             raw = (item.location_name or item.title).strip()
             query = self._clean_geocode_query(raw)
+            if not query:
+                _logger.info(f"Skipping non-location: '{item.title}'")
+                continue
             if item.location_address:
                 query = f"{query}, {item.location_address}"
             elif itinerary.destination:
@@ -596,8 +600,9 @@ class ItineraryViewSet(viewsets.ModelViewSet):
             _logger.info(f"Geocoding '{item.title}' -> query='{query}'")
 
             # Respect Nominatim rate limit: 1 req/sec
-            if idx > 0:
+            if geocode_count > 0:
                 _time.sleep(1.2)
+            geocode_count += 1
 
             coords = self._geocode_query(query, _logger)
             if coords:
@@ -627,38 +632,51 @@ class ItineraryViewSet(viewsets.ModelViewSet):
     def _clean_geocode_query(raw: str) -> str:
         """Extract a meaningful place name from a descriptive title.
 
-        Turns things like "Lunch at Naked Farmer again for a refreshing
-        meal (~$15/person)." into "Naked Farmer".
+        Examples:
+          "Lunch at Naked Farmer again for a refreshing meal (~$15/person)."
+            → "Naked Farmer"
+          "Attend the Miami Beach Pride festival, an annual LGBTQ+ celebration"
+            → "Miami Beach Pride festival"
+          "CASA NEOS, offering Mediterranean flavors, located at 40 SW North River Dr (~$15)"
+            → "CASA NEOS"
+          "Return to your hotel to relax and freshen up."
+            → ""  (skip — not a real location)
         """
         import re
         q = raw.strip().rstrip('.')
 
-        # Strip cost annotations like (~$15/person), ($20), ~$30
+        # 1. Strip cost annotations: (~$15/person), ($20), ~$30
         q = re.sub(r'\(?\~?\$[\d,.]+[^)]*\)?', '', q).strip()
+        # Strip remaining parentheticals: (free), (optional), etc.
+        q = re.sub(r'\([^)]*\)', '', q).strip()
 
-        # Strip trailing parenthetical descriptions
-        q = re.sub(r'\([^)]*\)\s*$', '', q).strip()
+        # 2. Take text before first descriptive comma
+        #    "CASA NEOS, offering Mediterranean flavors" → "CASA NEOS"
+        #    But keep commas in addresses: "40 SW North River Dr, Miami"
+        parts = re.split(r',\s+(?:an?\s|offering|enjoying|featuring|where|with|for|located|which|this|the\s)', q, maxsplit=1, flags=re.IGNORECASE)
+        q = parts[0].strip()
 
-        # Extract the noun after "at/to/in/visit/explore" — the place name
+        # 3. Extract place name after preposition: "Lunch at Naked Farmer" → "Naked Farmer"
         m = re.search(
-            r'(?:at|to|visit|explore|check.?in(?:\s+at)?|check.?out(?:\s+from)?)\s+(?:the\s+)?(.+)',
+            r'\b(?:at|to|into|toward)\s+(?:the\s+)?(?!your\b|the\s+hotel|a\s+|an\s+)(.+)',
             q, re.IGNORECASE,
         )
         if m:
             q = m.group(1).strip()
 
-        # Strip common prefixes
+        # 4. Strip leading action verbs
         q = re.sub(
-            r'^(?:Breakfast|Lunch|Dinner|Brunch|Morning|Afternoon|Evening|Enjoy|Return|Head)\s+(?:at\s+)?',
+            r'^(?:Visit|Attend|Explore|Enjoy|Head|Return|Go|Walk|Drive|Take|Spend|Have|Grab)\s+(?:to\s+)?(?:the\s+)?',
             '', q, flags=re.IGNORECASE,
         ).strip()
 
-        # Strip trailing descriptive clauses (", enjoying ...", " for a ...")
-        q = re.split(r'[,;]\s+(?:enjoying|for a|again|where|featuring|with)', q, flags=re.IGNORECASE)[0].strip()
+        # 5. Strip trailing filler: "again", "to relax ...", "for ..."
+        q = re.split(r'\s+(?:again\b|to\s+relax|to\s+freshen|for\s+a\s|for\s+the\s)', q, maxsplit=1, flags=re.IGNORECASE)[0].strip()
 
-        # If nothing useful remains, fall back to original
-        if len(q) < 3:
-            q = raw.strip()
+        # 6. Skip vague non-location phrases
+        skip = {'hotel', 'your hotel', 'the hotel', 'relax', 'rest', 'freshen up', 'pack', 'sleep'}
+        if q.lower() in skip or len(q) < 3:
+            return ''
 
         return q
 
