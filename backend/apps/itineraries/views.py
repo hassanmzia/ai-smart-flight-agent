@@ -568,23 +568,28 @@ class ItineraryViewSet(viewsets.ModelViewSet):
         Returns the count of items updated and the refreshed itinerary.
         """
         import logging as _logging
+        import time as _time
         _logger = _logging.getLogger(__name__)
 
         itinerary = self.get_object()
-        items_missing = ItineraryItem.objects.filter(
+        items_missing = list(ItineraryItem.objects.filter(
             day__itinerary=itinerary,
             latitude__isnull=True,
-        ).exclude(location_name='').exclude(location_name__isnull=True)
+        ).exclude(location_name='').exclude(location_name__isnull=True))
 
         updated = 0
         errors = []
 
-        for item in items_missing:
+        for idx, item in enumerate(items_missing):
             query = item.location_name
             if item.location_address:
                 query = f"{query}, {item.location_address}"
             elif itinerary.destination:
                 query = f"{query}, {itinerary.destination}"
+
+            # Respect Nominatim rate limit: 1 req/sec
+            if idx > 0:
+                _time.sleep(1.2)
 
             coords = self._geocode_query(query, _logger)
             if coords:
@@ -592,8 +597,10 @@ class ItineraryViewSet(viewsets.ModelViewSet):
                 item.longitude = coords[1]
                 item.save(update_fields=['latitude', 'longitude', 'updated_at'])
                 updated += 1
+                _logger.info(f"Geocoded '{item.title}' -> ({coords[0]}, {coords[1]})")
             else:
                 errors.append(item.title)
+                _logger.warning(f"Geocode failed for '{item.title}' (query='{query}')")
 
         serializer = self.get_serializer(itinerary)
         return Response({
@@ -607,6 +614,7 @@ class ItineraryViewSet(viewsets.ModelViewSet):
     def _geocode_query(query: str, logger) -> tuple | None:
         """Try Google Maps first, fall back to Nominatim."""
         import requests as _requests
+        import time as _time
 
         # Try Google Maps client if key is available
         try:
@@ -620,18 +628,27 @@ class ItineraryViewSet(viewsets.ModelViewSet):
             logger.debug(f"Google Maps geocode failed: {e}")
 
         # Fallback: Nominatim (OpenStreetMap) — free, no key needed
-        try:
-            resp = _requests.get(
-                'https://nominatim.openstreetmap.org/search',
-                params={'q': query, 'format': 'json', 'limit': 1},
-                headers={'User-Agent': 'AITravelAgent/1.0'},
-                timeout=5,
-            )
-            if resp.ok and resp.json():
-                data = resp.json()[0]
-                return (float(data['lat']), float(data['lon']))
-        except Exception as e:
-            logger.debug(f"Nominatim geocode failed for '{query}': {e}")
+        for attempt in range(2):
+            try:
+                resp = _requests.get(
+                    'https://nominatim.openstreetmap.org/search',
+                    params={'q': query, 'format': 'json', 'limit': 1},
+                    headers={'User-Agent': 'AITravelAgent/1.0'},
+                    timeout=10,
+                )
+                if resp.status_code == 429:
+                    logger.warning(f"Nominatim rate-limited for '{query}', retrying...")
+                    _time.sleep(2)
+                    continue
+                if resp.ok and resp.json():
+                    data = resp.json()[0]
+                    return (float(data['lat']), float(data['lon']))
+                logger.warning(f"Nominatim empty result for '{query}' (status={resp.status_code})")
+                break
+            except Exception as e:
+                logger.warning(f"Nominatim geocode failed for '{query}': {e}")
+                if attempt == 0:
+                    _time.sleep(1)
 
         return None
 
