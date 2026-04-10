@@ -28,6 +28,9 @@ export const ROUTES = {
   PREDICTIONS: '/predictions',
   TRIP_MAP: '/my-travel',
   COMMUNITY: '/community',
+  TRAVEL_PROFILE: '/travel-profile',
+  SAFETY_DASHBOARD: '/safety-dashboard',
+  AI_RATINGS: '/ai-ratings',
 } as const;
 
 // Local storage keys

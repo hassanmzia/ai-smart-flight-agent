@@ -50,6 +50,9 @@ const PricingPage = lazy(() => import('./pages/PricingPage'));
 const PredictionsPage = lazy(() => import('./pages/PredictionsPage'));
 const TripMapPage = lazy(() => import('./pages/TripMapPage'));
 const CommunityPage = lazy(() => import('./pages/CommunityPage'));
+const TravelProfilePage = lazy(() => import('./pages/TravelProfilePage'));
+const SafetyDashboardPage = lazy(() => import('./pages/SafetyDashboardPage'));
+const AIRatingsPage = lazy(() => import('./pages/AIRatingsPage'));
 
 // Create query client
 const queryClient = new QueryClient({
@@ -121,6 +124,9 @@ function App() {
                 <Route path={ROUTES.PREDICTIONS} element={<RequireAuth><PredictionsPage /></RequireAuth>} />
                 <Route path={ROUTES.TRIP_MAP} element={<RequireAuth><TripMapPage /></RequireAuth>} />
                 <Route path={ROUTES.COMMUNITY} element={<RequireAuth><CommunityPage /></RequireAuth>} />
+                <Route path={ROUTES.TRAVEL_PROFILE} element={<RequireAuth><TravelProfilePage /></RequireAuth>} />
+                <Route path={ROUTES.SAFETY_DASHBOARD} element={<RequireAuth><SafetyDashboardPage /></RequireAuth>} />
+                <Route path={ROUTES.AI_RATINGS} element={<RequireAuth><AIRatingsPage /></RequireAuth>} />
 
                 {/* 404 */}
                 <Route

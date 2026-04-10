@@ -125,3 +125,51 @@ class Rating(models.Model):
 
     def __str__(self):
         return f"{self.review} - {self.get_aspect_display()}: {self.score}/5"
+
+
+class AIRating(models.Model):
+    """AI-generated quality rating for destinations, hotels, restaurants, and attractions."""
+
+    ENTITY_TYPE_CHOICES = [
+        ('destination', 'Destination'),
+        ('hotel', 'Hotel'),
+        ('restaurant', 'Restaurant'),
+        ('attraction', 'Attraction'),
+    ]
+
+    entity_type = models.CharField(max_length=20, choices=ENTITY_TYPE_CHOICES)
+    entity_name = models.CharField(max_length=255, db_index=True)
+    destination = models.CharField(max_length=200, db_index=True)
+
+    # AI-generated scores (1-10)
+    overall_score = models.DecimalField(max_digits=3, decimal_places=1)
+    safety_score = models.DecimalField(max_digits=3, decimal_places=1, null=True)
+    value_score = models.DecimalField(max_digits=3, decimal_places=1, null=True)
+    food_score = models.DecimalField(max_digits=3, decimal_places=1, null=True)
+    culture_score = models.DecimalField(max_digits=3, decimal_places=1, null=True)
+    accessibility_score = models.DecimalField(max_digits=3, decimal_places=1, null=True)
+
+    # Community data
+    community_rating = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    review_count = models.IntegerField(default=0)
+
+    # AI analysis
+    summary = models.TextField()
+    pros = models.JSONField(default=list)
+    cons = models.JSONField(default=list)
+    best_for = models.JSONField(default=list)  # e.g. ["families", "couples", "solo travelers"]
+
+    # Vacation predictor
+    enjoyment_factors = models.JSONField(default=dict)  # factors that affect enjoyment
+
+    ai_generated = models.BooleanField(default=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'reviews_ai_rating'
+        unique_together = ['entity_type', 'entity_name', 'destination']
+        ordering = ['-overall_score']
+
+    def __str__(self):
+        return f"{self.entity_name} ({self.entity_type}) - {self.overall_score}/10"

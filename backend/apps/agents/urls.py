@@ -26,6 +26,7 @@ from .views import (
     # Personalization
     get_travel_dna,
     get_recommendations,
+    user_preferences,
     # Subscription
     subscription_status,
     check_feature_access,
@@ -75,6 +76,7 @@ urlpatterns = [
     # Personalization
     path('travel-dna', get_travel_dna, name='get_travel_dna'),
     path('recommendations', get_recommendations, name='get_recommendations'),
+    path('preferences/me/', user_preferences, name='user_preferences'),
     # Subscription
     path('subscription', subscription_status, name='subscription_status'),
     path('subscription/create', create_subscription, name='create_subscription'),

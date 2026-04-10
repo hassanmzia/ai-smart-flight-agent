@@ -243,13 +243,33 @@ class AgentTaskSerializer(serializers.ModelSerializer):
 
 
 class UserPreferenceSerializer(serializers.ModelSerializer):
+    dietary_preference_display = serializers.CharField(
+        source='get_dietary_preference_display', read_only=True,
+    )
+    faith_display = serializers.CharField(
+        source='get_faith_display', read_only=True,
+    )
+    mobility_display = serializers.CharField(
+        source='get_mobility_display', read_only=True,
+    )
+    pace_display = serializers.CharField(
+        source='get_pace_display', read_only=True,
+    )
+
     class Meta:
         model = UserPreference
         fields = [
             'id', 'user', 'preferences', 'travel_dna', 'preferred_airlines',
             'preferred_hotel_chains', 'preferred_cuisines', 'budget_range',
-            'trip_style', 'booking_advance_days', 'last_trained',
-            'created_at', 'updated_at',
+            'trip_style', 'booking_advance_days',
+            # Travel DNA v2 fields
+            'dietary_preference', 'dietary_preference_display', 'dietary_allergies',
+            'faith', 'faith_display', 'prayer_reminders', 'faith_site_interest',
+            'mobility', 'mobility_display', 'max_walking_km_per_day',
+            'health_conditions', 'medications',
+            'pace', 'pace_display', 'max_activities_per_day',
+            'languages_spoken',
+            'last_trained', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'user', 'travel_dna', 'last_trained', 'created_at', 'updated_at']
 

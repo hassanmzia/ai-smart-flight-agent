@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Review, Rating
+from .models import Review, Rating, AIRating
 
 
 class RatingSerializer(serializers.ModelSerializer):
@@ -29,4 +29,29 @@ class ReviewSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'status', 'is_verified_purchase', 'helpful_count',
             'not_helpful_count', 'created_at', 'updated_at'
+        ]
+
+
+class AIRatingSerializer(serializers.ModelSerializer):
+    """Serializer for AI-generated quality ratings."""
+    entity_type_display = serializers.CharField(
+        source='get_entity_type_display', read_only=True
+    )
+
+    class Meta:
+        model = AIRating
+        fields = [
+            'id', 'entity_type', 'entity_type_display', 'entity_name',
+            'destination', 'overall_score', 'safety_score', 'value_score',
+            'food_score', 'culture_score', 'accessibility_score',
+            'community_rating', 'review_count', 'summary', 'pros', 'cons',
+            'best_for', 'enjoyment_factors', 'ai_generated',
+            'last_updated', 'created_at',
+        ]
+        read_only_fields = [
+            'id', 'overall_score', 'safety_score', 'value_score',
+            'food_score', 'culture_score', 'accessibility_score',
+            'community_rating', 'review_count', 'summary', 'pros', 'cons',
+            'best_for', 'enjoyment_factors', 'ai_generated',
+            'last_updated', 'created_at',
         ]
