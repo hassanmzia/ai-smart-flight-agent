@@ -572,16 +572,22 @@ class ItineraryViewSet(viewsets.ModelViewSet):
         _logger = _logging.getLogger(__name__)
 
         itinerary = self.get_object()
-        items_missing = list(ItineraryItem.objects.filter(
+        # Find items needing geocoding: those with location_name OR title
+        all_items = list(ItineraryItem.objects.filter(
             day__itinerary=itinerary,
             latitude__isnull=True,
-        ).exclude(location_name='').exclude(location_name__isnull=True))
+        ))
+        items_missing = [
+            item for item in all_items
+            if (item.location_name and item.location_name.strip())
+            or (item.title and item.title.strip())
+        ]
 
         updated = 0
         errors = []
 
         for idx, item in enumerate(items_missing):
-            query = item.location_name
+            query = (item.location_name or item.title).strip()
             if item.location_address:
                 query = f"{query}, {item.location_address}"
             elif itinerary.destination:
@@ -595,7 +601,12 @@ class ItineraryViewSet(viewsets.ModelViewSet):
             if coords:
                 item.latitude = coords[0]
                 item.longitude = coords[1]
-                item.save(update_fields=['latitude', 'longitude', 'updated_at'])
+                update_fields = ['latitude', 'longitude', 'updated_at']
+                # Backfill location_name from title if it was empty
+                if not item.location_name and item.title:
+                    item.location_name = item.title
+                    update_fields.append('location_name')
+                item.save(update_fields=update_fields)
                 updated += 1
                 _logger.info(f"Geocoded '{item.title}' -> ({coords[0]}, {coords[1]})")
             else:

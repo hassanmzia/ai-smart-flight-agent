@@ -315,6 +315,7 @@ const AIPlannerPage = () => {
             await createItineraryItem({
               day: dayId, item_type: activity.itemType, order: itemOrder++,
               title: activity.title, start_time: timeHHMM, estimated_cost: activity.estimatedCost,
+              location_name: activity.title,
             });
           }
         } else if (!isFirstDay && !isLastDay) {
