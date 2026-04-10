@@ -52,7 +52,9 @@ const TripMapPage = () => {
 
       if (itinRes.status === 'fulfilled') {
         const data = itinRes.value.data;
-        const list: MapItinerary[] = Array.isArray(data) ? data : data.results || [];
+        const list: MapItinerary[] = Array.isArray(data)
+          ? data
+          : data.items || data.results || [];
         setItineraries(list);
         // Auto-select first itinerary that has geo data
         const first = list.find((it) =>
