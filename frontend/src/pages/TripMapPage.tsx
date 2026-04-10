@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
-import type { MapItinerary, MapItineraryDay } from '@/components/map/TripMapVisualization';
+import type { MapItinerary } from '@/components/map/TripMapVisualization';
 
 const TripMapVisualization = lazy(
   () => import('@/components/map/TripMapVisualization'),
@@ -76,7 +76,7 @@ const TripMapPage = () => {
             ),
           );
           if (needsGeocode) {
-            geocodeTrip(trip);
+            geocodeTrip(trip.id);
             break; // geocode one at a time to respect rate limits
           }
         }
@@ -123,85 +123,33 @@ const TripMapPage = () => {
   const hasGeoData = (trip: MapItinerary) =>
     trip.days?.some((d) => d.items?.some((i) => i.latitude != null && i.longitude != null));
 
-  // Geocode a single location name using Nominatim directly from the browser
-  const geocodeLocation = useCallback(
-    async (name: string, destination?: string): Promise<{ lat: number; lng: number } | null> => {
-      const query = destination ? `${name}, ${destination}` : name;
+  // Geocode via backend endpoint (avoids CORS issues with Nominatim)
+  const geocodeTrip = useCallback(
+    async (itineraryId: string | number) => {
+      setIsGeocoding(true);
       try {
-        const resp = await fetch(
-          `https://nominatim.openstreetmap.org/search?${new URLSearchParams({
-            q: query,
-            format: 'json',
-            limit: '1',
-          })}`,
-          { headers: { 'User-Agent': 'AITravelAgent/1.0' } },
-        );
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.length > 0) {
-            return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-          }
+        const res = await api.post(`/api/itineraries/itineraries/${itineraryId}/geocode-items/`);
+        if (res.data?.itinerary) {
+          const updated: MapItinerary = res.data.itinerary;
+          setItineraries((prev) =>
+            prev.map((it) => (String(it.id) === String(itineraryId) ? updated : it)),
+          );
+          setSelectedTrip(updated);
         }
       } catch {
-        // Nominatim might fail — non-fatal
+        // Geocoding is best-effort
+      } finally {
+        setIsGeocoding(false);
       }
-      return null;
     },
     [],
   );
 
-  // Geocode all items in a trip that lack coordinates (browser-side)
-  const geocodeTrip = useCallback(
-    async (trip: MapItinerary) => {
-      setIsGeocoding(true);
-      let changed = false;
-      const updatedDays: MapItineraryDay[] = [];
-
-      for (const day of trip.days ?? []) {
-        const updatedItems = [...day.items];
-        for (let i = 0; i < updatedItems.length; i++) {
-          const item = updatedItems[i];
-          const locationQuery = item.location_name || item.title;
-          if ((item.latitude == null || item.longitude == null) && locationQuery) {
-            // Respect Nominatim rate limit: 1 req/sec
-            if (changed) {
-              await new Promise((r) => setTimeout(r, 1100));
-            }
-            const coords = await geocodeLocation(locationQuery, trip.destination);
-            if (coords) {
-              updatedItems[i] = { ...item, latitude: coords.lat, longitude: coords.lng };
-              changed = true;
-              // Also persist to backend (fire-and-forget)
-              if (item.id) {
-                api.patch(`/api/itineraries/items/${item.id}/`, {
-                  latitude: coords.lat,
-                  longitude: coords.lng,
-                }).catch(() => {});
-              }
-            }
-          }
-        }
-        updatedDays.push({ ...day, items: updatedItems });
-      }
-
-      if (changed) {
-        const updated: MapItinerary = { ...trip, days: updatedDays };
-        setItineraries((prev) =>
-          prev.map((it) => (String(it.id) === String(trip.id) ? updated : it)),
-        );
-        setSelectedTrip(updated);
-      }
-      setIsGeocoding(false);
-    },
-    [geocodeLocation],
-  );
-
   const handleGeocode = useCallback(
     async (itineraryId: string | number) => {
-      const trip = itineraries.find((it) => String(it.id) === String(itineraryId));
-      if (trip) await geocodeTrip(trip);
+      await geocodeTrip(itineraryId);
     },
-    [itineraries, geocodeTrip],
+    [geocodeTrip],
   );
 
   // ---- auth guard ----
