@@ -5,6 +5,8 @@ serve personalized recommendations.
 """
 import logging
 from typing import Dict, Any, List, Optional
+from datetime import timedelta
+from django.conf import settings
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
 
