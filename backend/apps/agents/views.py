@@ -3204,3 +3204,273 @@ def pacing_plan(request):
     except Exception as e:
         logger.error(f"Pacing plan failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ─────────────────────────────────────────────────
+# Phase 5: Monetization & Partnerships Endpoints
+# ─────────────────────────────────────────────────
+
+# --- Partner & Coupon Endpoints ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def register_partner(request):
+    """Register a new partner business."""
+    try:
+        from .services.partnership_service import PartnershipService
+        result = PartnershipService.register_partner(
+            data=request.data,
+            onboarded_by=request.user,
+        )
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Partner registration failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_coupon(request):
+    """Create a coupon for a partner business."""
+    try:
+        from .services.partnership_service import PartnershipService
+        partner_id = request.data.get('partner_id')
+        if not partner_id:
+            return Response({'error': 'partner_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = PartnershipService.create_coupon(
+            partner_id=int(partner_id),
+            data=request.data,
+        )
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Coupon creation failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_coupons(request):
+    """List active coupons, optionally filtered by destination or category."""
+    try:
+        from .services.partnership_service import PartnershipService
+        result = PartnershipService.get_coupons(
+            destination=request.query_params.get('destination'),
+            category=request.query_params.get('category'),
+        )
+        return Response({'success': True, 'coupons': result})
+    except Exception as e:
+        logger.error(f"List coupons failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def redeem_coupon(request):
+    """Redeem a coupon code."""
+    try:
+        from .services.partnership_service import PartnershipService
+        coupon_code = request.data.get('coupon_code')
+        order_total = float(request.data.get('order_total', 0))
+        if not coupon_code:
+            return Response({'error': 'coupon_code is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = PartnershipService.redeem_coupon(
+            user=request.user,
+            coupon_code=coupon_code,
+            order_total=order_total,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Coupon redemption failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_referral(request):
+    """Get or create the user's referral code and stats."""
+    try:
+        from .services.partnership_service import PartnershipService
+        result = PartnershipService.get_referral_stats(user=request.user)
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Referral stats failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_referral(request):
+    """Record a new referral invitation."""
+    try:
+        from .services.partnership_service import PartnershipService
+        referral_code = request.data.get('referral_code')
+        referred_email = request.data.get('email')
+        if not referral_code or not referred_email:
+            return Response({'error': 'referral_code and email are required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = PartnershipService.record_referral(
+            referral_code=referral_code,
+            referred_email=referred_email,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Send referral failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def partner_dashboard(request):
+    """Get partner business dashboard (for partner owners)."""
+    try:
+        from .services.partnership_service import PartnershipService
+        partner_id = request.query_params.get('partner_id')
+        if not partner_id:
+            return Response({'error': 'partner_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = PartnershipService.get_partner_dashboard(partner_id=int(partner_id))
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Partner dashboard failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def calculate_savings(request):
+    """Calculate revenue share: AI saved you $X -> 10% fee."""
+    try:
+        from .services.partnership_service import PartnershipService
+        savings = float(request.data.get('savings_amount', 0))
+        result = PartnershipService.calculate_revenue_share(
+            user=request.user,
+            savings_amount=savings,
+        )
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Savings calculation failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# --- Destination Knowledge Base Endpoints ---
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def destination_knowledge(request):
+    """Get comprehensive destination knowledge, generating if needed."""
+    try:
+        from .services.destination_kb_service import DestinationKBService
+        destination = request.query_params.get('destination')
+        country = request.query_params.get('country', '')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = DestinationKBService.get_or_generate_destination(
+            destination_name=destination,
+            country=country,
+        )
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Destination knowledge failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def destination_cultural_info(request):
+    """Get cultural info for a destination."""
+    try:
+        from .services.destination_kb_service import DestinationKBService
+        destination_id = request.query_params.get('destination_id')
+        if not destination_id:
+            return Response({'error': 'destination_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = DestinationKBService.generate_cultural_info(destination_id=int(destination_id))
+        return Response({'success': True, 'cultural_info': result})
+    except Exception as e:
+        logger.error(f"Cultural info failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_destination_tip(request):
+    """Submit a user tip for a destination (AI moderated)."""
+    try:
+        from .services.destination_kb_service import DestinationKBService
+        destination_id = request.data.get('destination_id')
+        if not destination_id:
+            return Response({'error': 'destination_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = DestinationKBService.submit_user_tip(
+            user=request.user,
+            destination_id=int(destination_id),
+            data=request.data,
+        )
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Submit tip failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def vote_destination_tip(request):
+    """Upvote or downvote a user tip."""
+    try:
+        from .services.destination_kb_service import DestinationKBService
+        tip_id = request.data.get('tip_id')
+        vote = request.data.get('vote')
+        if not tip_id or vote not in ('up', 'down'):
+            return Response({'error': 'tip_id and vote (up/down) are required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = DestinationKBService.vote_tip(
+            user=request.user,
+            tip_id=int(tip_id),
+            vote=vote,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Vote tip failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_destinations_kb(request):
+    """Search the destination knowledge base."""
+    try:
+        from .services.destination_kb_service import DestinationKBService
+        query = request.query_params.get('q', '')
+        limit = int(request.query_params.get('limit', 10))
+        results = DestinationKBService.search_destinations(query=query, limit=limit)
+        return Response({'success': True, 'destinations': results})
+    except Exception as e:
+        logger.error(f"Destination search failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def destination_festivals(request):
+    """Get festivals for a destination."""
+    try:
+        from .services.destination_kb_service import DestinationKBService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = DestinationKBService.get_festivals(destination_name=destination)
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Festivals lookup failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def destination_etiquette(request):
+    """Get etiquette summary for a destination."""
+    try:
+        from .services.destination_kb_service import DestinationKBService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = DestinationKBService.get_etiquette_summary(destination_name=destination)
+        return Response({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Etiquette summary failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

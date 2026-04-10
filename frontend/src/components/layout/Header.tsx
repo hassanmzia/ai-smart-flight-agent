@@ -315,11 +315,30 @@ const Header = () => {
                         </Link>
                       )}
                     </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to={ROUTES.DESTINATION_KB}
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>📚</span> Destination KB
+                        </Link>
+                      )}
+                    </Menu.Item>
                   </div>
                 </Menu.Items>
               </Transition>
             </Menu>
 
+            {/* Deals & KB */}
+            <Link
+              to={ROUTES.PARTNERSHIPS}
+              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
+            >
+              <span>🏷️</span> Deals
+            </Link>
             <Link
               to={ROUTES.PRICING}
               className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
@@ -546,9 +565,11 @@ const Header = () => {
             <Link to={ROUTES.LANGUAGE_TOOL} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🌐 Language Tool</Link>
             <Link to={ROUTES.DESTINATION_GUIDE} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📍 Destination Guide</Link>
             <Link to={ROUTES.TRIP_MEMORY} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🧠 Trip Memory</Link>
+            <Link to={ROUTES.DESTINATION_KB} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📚 Destination KB</Link>
 
             <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
               <Link to={ROUTES.AGENT_HUB} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🧠 Agent Hub</Link>
+              <Link to={ROUTES.PARTNERSHIPS} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🏷️ Deals & Coupons</Link>
               <Link to={ROUTES.COLLABORATE} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">👥 Collaborate</Link>
               <Link to={ROUTES.PRICING} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">Pricing</Link>
               <Link to={ROUTES.PREDICTIONS} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📊 Predictions</Link>

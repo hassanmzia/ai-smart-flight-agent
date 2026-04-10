@@ -6,6 +6,10 @@ from .models import (
     AgentAnalytics, AIModel, TripCollaboration, TripCollaborator,
     CollaborationVote, Subscription, AffiliateClick, PriceWatch,
     TripMemory,
+    # Phase 5: Monetization & Partnerships
+    PartnerBusiness, PartnerCoupon, CouponRedemption,
+    ReferralCode, Referral,
+    DestinationKnowledge, CulturalInfo, UserDestinationTip,
 )
 
 
@@ -342,3 +346,116 @@ class TripMemoryAdmin(admin.ModelAdmin):
     search_fields = ['user__email', 'destination', 'notes']
     readonly_fields = ['ai_insights', 'created_at', 'updated_at']
     date_hierarchy = 'created_at'
+
+
+# ─────────────────────────────────────────────────
+# Phase 5: Monetization & Partnerships Admin
+# ─────────────────────────────────────────────────
+
+class PartnerCouponInline(admin.TabularInline):
+    model = PartnerCoupon
+    extra = 0
+    fields = ['code', 'title', 'discount_type', 'discount_value', 'is_active', 'times_used']
+    readonly_fields = ['times_used']
+
+
+@admin.register(PartnerBusiness)
+class PartnerBusinessAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'destination', 'status', 'rating',
+                    'total_coupons_redeemed', 'total_revenue_generated', 'created_at']
+    list_filter = ['category', 'status', 'created_at']
+    search_fields = ['name', 'destination', 'contact_email']
+    readonly_fields = ['total_coupons_redeemed', 'total_revenue_generated', 'created_at', 'updated_at']
+    inlines = [PartnerCouponInline]
+
+    fieldsets = (
+        ('Business Info', {'fields': ('name', 'category', 'description', 'destination', 'address', 'website')}),
+        ('Contact', {'fields': ('contact_email', 'contact_phone', 'logo_url')}),
+        ('Status & Revenue', {'fields': ('status', 'commission_rate', 'rating',
+                                          'total_coupons_redeemed', 'total_revenue_generated', 'onboarded_by')}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at')}),
+    )
+
+
+@admin.register(PartnerCoupon)
+class PartnerCouponAdmin(admin.ModelAdmin):
+    list_display = ['code', 'title', 'partner', 'discount_type', 'discount_value',
+                    'is_active', 'times_used', 'valid_until']
+    list_filter = ['discount_type', 'is_active', 'partner__category', 'created_at']
+    search_fields = ['code', 'title', 'partner__name']
+    readonly_fields = ['times_used', 'created_at', 'updated_at']
+
+
+@admin.register(CouponRedemption)
+class CouponRedemptionAdmin(admin.ModelAdmin):
+    list_display = ['user', 'coupon', 'savings_amount', 'order_total', 'platform_commission', 'redeemed_at']
+    list_filter = ['redeemed_at']
+    search_fields = ['user__email', 'coupon__code']
+    readonly_fields = ['redeemed_at']
+    date_hierarchy = 'redeemed_at'
+
+
+@admin.register(ReferralCode)
+class ReferralCodeAdmin(admin.ModelAdmin):
+    list_display = ['user', 'code', 'total_referrals', 'successful_referrals', 'total_earnings', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['user__email', 'code']
+    readonly_fields = ['total_referrals', 'successful_referrals', 'total_earnings', 'created_at']
+
+
+@admin.register(Referral)
+class ReferralAdmin(admin.ModelAdmin):
+    list_display = ['referrer', 'referred_email', 'referred_user', 'status', 'reward_amount', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['referrer__email', 'referred_email']
+    readonly_fields = ['created_at', 'converted_at']
+    date_hierarchy = 'created_at'
+
+
+class CulturalInfoInline(admin.TabularInline):
+    model = CulturalInfo
+    extra = 0
+    fields = ['category', 'title', 'severity', 'ai_generated']
+    readonly_fields = ['ai_generated']
+
+
+class UserDestinationTipInline(admin.TabularInline):
+    model = UserDestinationTip
+    extra = 0
+    fields = ['user', 'title', 'status', 'upvotes', 'downvotes', 'ai_moderation_score']
+    readonly_fields = ['upvotes', 'downvotes', 'ai_moderation_score']
+
+
+@admin.register(DestinationKnowledge)
+class DestinationKnowledgeAdmin(admin.ModelAdmin):
+    list_display = ['destination', 'country', 'continent', 'views_count', 'ai_generated', 'updated_at']
+    list_filter = ['continent', 'ai_generated', 'created_at']
+    search_fields = ['destination', 'country']
+    readonly_fields = ['views_count', 'created_at', 'updated_at']
+    inlines = [CulturalInfoInline, UserDestinationTipInline]
+
+    fieldsets = (
+        ('Location', {'fields': ('destination', 'country', 'continent', 'currency', 'timezone_info')}),
+        ('Content', {'fields': ('summary', 'history', 'culture', 'visa_info')}),
+        ('Structured Data', {'fields': ('heritage_sites', 'festivals', 'customs', 'best_months',
+                                         'languages_spoken', 'emergency_numbers'), 'classes': ('collapse',)}),
+        ('Links & Meta', {'fields': ('official_tourism_url', 'ai_generated', 'views_count')}),
+        ('Timestamps', {'fields': ('created_at', 'updated_at')}),
+    )
+
+
+@admin.register(CulturalInfo)
+class CulturalInfoAdmin(admin.ModelAdmin):
+    list_display = ['destination', 'category', 'title', 'severity', 'ai_generated']
+    list_filter = ['category', 'severity', 'ai_generated']
+    search_fields = ['destination__destination', 'title']
+
+
+@admin.register(UserDestinationTip)
+class UserDestinationTipAdmin(admin.ModelAdmin):
+    list_display = ['user', 'destination', 'title', 'status', 'upvotes', 'downvotes',
+                    'ai_moderation_score', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['user__email', 'destination__destination', 'title']
+    readonly_fields = ['upvotes', 'downvotes', 'ai_moderation_score', 'ai_moderation_notes',
+                       'created_at', 'updated_at']

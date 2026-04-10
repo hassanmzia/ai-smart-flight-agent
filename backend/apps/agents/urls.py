@@ -67,6 +67,23 @@ from .views import (
     local_customs,
     trip_health_check,
     pacing_plan,
+    # Phase 5: Monetization & Partnerships
+    register_partner,
+    create_coupon,
+    list_coupons,
+    redeem_coupon,
+    my_referral,
+    send_referral,
+    partner_dashboard,
+    calculate_savings,
+    # Destination Knowledge Base
+    destination_knowledge,
+    destination_cultural_info,
+    submit_destination_tip,
+    vote_destination_tip,
+    search_destinations_kb,
+    destination_festivals,
+    destination_etiquette,
 )
 
 app_name = 'agents'
@@ -141,4 +158,21 @@ urlpatterns = [
     path('local-customs', local_customs, name='local_customs'),
     path('health-check', trip_health_check, name='trip_health_check'),
     path('pacing-plan', pacing_plan, name='pacing_plan'),
+    # Phase 5: Partnerships & Coupons
+    path('partners/register', register_partner, name='register_partner'),
+    path('partners/dashboard', partner_dashboard, name='partner_dashboard'),
+    path('coupons', list_coupons, name='list_coupons'),
+    path('coupons/create', create_coupon, name='create_coupon'),
+    path('coupons/redeem', redeem_coupon, name='redeem_coupon'),
+    path('referral', my_referral, name='my_referral'),
+    path('referral/send', send_referral, name='send_referral'),
+    path('savings/calculate', calculate_savings, name='calculate_savings'),
+    # Destination Knowledge Base
+    path('destinations/knowledge', destination_knowledge, name='destination_knowledge'),
+    path('destinations/cultural-info', destination_cultural_info, name='destination_cultural_info'),
+    path('destinations/tips/submit', submit_destination_tip, name='submit_destination_tip'),
+    path('destinations/tips/vote', vote_destination_tip, name='vote_destination_tip'),
+    path('destinations/search', search_destinations_kb, name='search_destinations_kb'),
+    path('destinations/festivals', destination_festivals, name='destination_festivals'),
+    path('destinations/etiquette', destination_etiquette, name='destination_etiquette'),
 ]

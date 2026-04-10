@@ -35,6 +35,8 @@ export const ROUTES = {
   DESTINATION_GUIDE: '/destination-guide',
   AGENT_HUB: '/agent-hub',
   TRIP_MEMORY: '/trip-memory',
+  PARTNERSHIPS: '/partnerships',
+  DESTINATION_KB: '/destination-kb',
 } as const;
 
 // Local storage keys
@@ -104,6 +106,22 @@ export const API_ENDPOINTS = {
     COMMON_PHRASES: '/api/agents/common-phrases',
     LIVE_CONTEXT: '/api/agents/live-context',
     CROWD_LEVELS_DETAIL: '/api/agents/crowd-levels-detail',
+    // Phase 5: Partnerships & Destination KB
+    COUPONS: '/api/agents/coupons',
+    COUPONS_CREATE: '/api/agents/coupons/create',
+    COUPONS_REDEEM: '/api/agents/coupons/redeem',
+    REFERRAL: '/api/agents/referral',
+    REFERRAL_SEND: '/api/agents/referral/send',
+    PARTNER_REGISTER: '/api/agents/partners/register',
+    PARTNER_DASHBOARD: '/api/agents/partners/dashboard',
+    SAVINGS_CALCULATE: '/api/agents/savings/calculate',
+    DESTINATION_KB: '/api/agents/destinations/knowledge',
+    DESTINATION_CULTURAL_INFO: '/api/agents/destinations/cultural-info',
+    DESTINATION_TIPS_SUBMIT: '/api/agents/destinations/tips/submit',
+    DESTINATION_TIPS_VOTE: '/api/agents/destinations/tips/vote',
+    DESTINATION_SEARCH: '/api/agents/destinations/search',
+    DESTINATION_FESTIVALS: '/api/agents/destinations/festivals',
+    DESTINATION_ETIQUETTE: '/api/agents/destinations/etiquette',
   },
   COMMUNITY: {
     CURATED_GUIDES_GENERATE: '/api/community/curated-guides/generate/',
