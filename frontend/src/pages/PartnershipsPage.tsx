@@ -73,7 +73,8 @@ export default function PartnershipsPage() {
       if (destination) params.destination = destination;
       if (category) params.category = category;
       const res = await api.get('/api/agents/coupons', { params });
-      setCoupons(res.data?.coupons || []);
+      const items = res.data?.coupons || res.data?.items || res.data?.results || res.data;
+      setCoupons(Array.isArray(items) ? items : []);
     } catch {
       setCoupons([]);
     } finally {
