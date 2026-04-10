@@ -1283,3 +1283,212 @@ class UserDestinationTip(models.Model):
 
     def __str__(self):
         return f"{self.user} tip: {self.title}"
+
+
+# ─────────────────────────────────────────────────
+# Phase 6: Social & Viral Growth Models
+# ─────────────────────────────────────────────────
+
+class TravelStoryGenerated(models.Model):
+    """AI-generated travel story from a trip, shareable on social media."""
+
+    FORMAT_CHOICES = [
+        ('journal', 'Daily Journal'),
+        ('instagram', 'Instagram Story'),
+        ('blog', 'Blog Post'),
+        ('social', 'Social Media Post'),
+        ('thread', 'Twitter/X Thread'),
+    ]
+
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('archived', 'Archived'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='generated_stories')
+    itinerary_id = models.IntegerField(null=True, blank=True, help_text='Source itinerary ID')
+    title = models.CharField(max_length=300)
+    content = models.TextField(help_text='AI-generated narrative')
+    format = models.CharField(max_length=20, choices=FORMAT_CHOICES, default='journal')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    destination = models.CharField(max_length=200, db_index=True)
+    cover_image_url = models.URLField(blank=True)
+    tags = models.JSONField(default=list, blank=True)
+    story_cards = models.JSONField(default=list, blank=True,
+                                    help_text='Array of {day, title, content, mood, image_url}')
+    share_token = models.CharField(max_length=32, unique=True, db_index=True)
+    views_count = models.IntegerField(default=0)
+    likes_count = models.IntegerField(default=0)
+    shares_count = models.IntegerField(default=0)
+    is_public = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'travel_stories_generated'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at'], name='gen_story_user_date_idx'),
+            models.Index(fields=['destination'], name='gen_story_dest_idx'),
+            models.Index(fields=['share_token'], name='gen_story_token_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.title} by {self.user}"
+
+
+class StoryLike(models.Model):
+    """Track individual likes on generated stories."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='story_likes')
+    story = models.ForeignKey(TravelStoryGenerated, on_delete=models.CASCADE,
+                               related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'story_likes'
+        unique_together = ('user', 'story')
+
+
+class StoryComment(models.Model):
+    """Comments on generated stories."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='story_comments')
+    story = models.ForeignKey(TravelStoryGenerated, on_delete=models.CASCADE,
+                               related_name='comments')
+    content = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'story_comments'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} on {self.story.title}"
+
+
+class TripTemplate(models.Model):
+    """Cloneable trip templates created by influencers/users."""
+
+    STYLE_CHOICES = [
+        ('adventure', 'Adventure'),
+        ('luxury', 'Luxury'),
+        ('budget', 'Budget'),
+        ('cultural', 'Cultural'),
+        ('romantic', 'Romantic'),
+        ('family', 'Family'),
+        ('solo', 'Solo'),
+        ('foodie', 'Foodie'),
+        ('spiritual', 'Spiritual'),
+        ('nature', 'Nature'),
+    ]
+
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                 related_name='trip_templates')
+    title = models.CharField(max_length=300)
+    description = models.TextField()
+    destination = models.CharField(max_length=200, db_index=True)
+    country = models.CharField(max_length=100, blank=True)
+    duration_days = models.IntegerField(default=1)
+    style = models.CharField(max_length=20, choices=STYLE_CHOICES, default='adventure')
+    estimated_budget = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency = models.CharField(max_length=3, default='USD')
+    cover_image_url = models.URLField(blank=True)
+    itinerary_data = models.JSONField(default=list, blank=True,
+                                       help_text='Array of {day, activities: [{time, title, description, category, cost}]}')
+    tags = models.JSONField(default=list, blank=True)
+    highlights = models.JSONField(default=list, blank=True, help_text='Top 3-5 highlights')
+    is_featured = models.BooleanField(default=False)
+    is_verified = models.BooleanField(default=False, help_text='Verified influencer template')
+    clone_count = models.IntegerField(default=0)
+    likes_count = models.IntegerField(default=0)
+    views_count = models.IntegerField(default=0)
+    rating = models.DecimalField(max_digits=3, decimal_places=1, default=0)
+    rating_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'trip_templates'
+        ordering = ['-clone_count', '-likes_count', '-created_at']
+        indexes = [
+            models.Index(fields=['destination'], name='template_dest_idx'),
+            models.Index(fields=['style'], name='template_style_idx'),
+            models.Index(fields=['creator'], name='template_creator_idx'),
+            models.Index(fields=['-clone_count'], name='template_clones_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.title} ({self.destination}) by {self.creator}"
+
+
+class TemplateClone(models.Model):
+    """Track when users clone a trip template."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='cloned_templates')
+    template = models.ForeignKey(TripTemplate, on_delete=models.CASCADE,
+                                  related_name='clones')
+    itinerary_id = models.IntegerField(null=True, blank=True,
+                                        help_text='Created itinerary ID from the clone')
+    customizations = models.JSONField(default=dict, blank=True,
+                                       help_text='Changes the user made')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'template_clones'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} cloned {self.template.title}"
+
+
+class ContentItem(models.Model):
+    """Unified content hub item — photos, stories, tips from community."""
+
+    CONTENT_TYPE_CHOICES = [
+        ('photo', 'Photo'),
+        ('story', 'Story'),
+        ('tip', 'Tip'),
+        ('video', 'Video'),
+        ('audio', 'Audio'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('flagged', 'Flagged'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='content_items')
+    destination = models.CharField(max_length=200, db_index=True)
+    content_type = models.CharField(max_length=20, choices=CONTENT_TYPE_CHOICES)
+    title = models.CharField(max_length=300)
+    description = models.TextField(blank=True)
+    media_url = models.URLField(blank=True, help_text='Photo/video/audio URL')
+    body = models.TextField(blank=True, help_text='Text content for stories/tips')
+    tags = models.JSONField(default=list, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    ai_moderation_score = models.FloatField(default=0)
+    upvotes = models.IntegerField(default=0)
+    downvotes = models.IntegerField(default=0)
+    views_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'content_items'
+        ordering = ['-upvotes', '-created_at']
+        indexes = [
+            models.Index(fields=['destination', 'content_type', 'status'], name='content_dest_type_idx'),
+            models.Index(fields=['user'], name='content_user_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.content_type}: {self.title} ({self.destination})"

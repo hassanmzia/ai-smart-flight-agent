@@ -59,6 +59,9 @@ const AgentHubPage = lazy(() => import('./pages/AgentHubPage'));
 const TripMemoryPage = lazy(() => import('./pages/TripMemoryPage'));
 const PartnershipsPage = lazy(() => import('./pages/PartnershipsPage'));
 const DestinationKBPage = lazy(() => import('./pages/DestinationKBPage'));
+const TravelStoriesPage = lazy(() => import('./pages/TravelStoriesPage'));
+const TripGalleryPage = lazy(() => import('./pages/TripGalleryPage'));
+const ContentHubPage = lazy(() => import('./pages/ContentHubPage'));
 
 // Create query client
 const queryClient = new QueryClient({
@@ -139,6 +142,9 @@ function App() {
                 <Route path={ROUTES.TRIP_MEMORY} element={<RequireAuth><TripMemoryPage /></RequireAuth>} />
                 <Route path={ROUTES.PARTNERSHIPS} element={<PartnershipsPage />} />
                 <Route path={ROUTES.DESTINATION_KB} element={<DestinationKBPage />} />
+                <Route path={ROUTES.TRAVEL_STORIES} element={<TravelStoriesPage />} />
+                <Route path={ROUTES.TRIP_GALLERY} element={<TripGalleryPage />} />
+                <Route path={ROUTES.CONTENT_HUB} element={<ContentHubPage />} />
 
                 {/* 404 */}
                 <Route
