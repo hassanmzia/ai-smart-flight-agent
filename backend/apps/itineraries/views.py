@@ -630,51 +630,50 @@ class ItineraryViewSet(viewsets.ModelViewSet):
 
     @staticmethod
     def _clean_geocode_query(raw: str) -> str:
-        """Extract a meaningful place name from a descriptive title.
-
-        Examples:
-          "Lunch at Naked Farmer again for a refreshing meal (~$15/person)."
-            → "Naked Farmer"
-          "Attend the Miami Beach Pride festival, an annual LGBTQ+ celebration"
-            → "Miami Beach Pride festival"
-          "CASA NEOS, offering Mediterranean flavors, located at 40 SW North River Dr (~$15)"
-            → "CASA NEOS"
-          "Return to your hotel to relax and freshen up."
-            → ""  (skip — not a real location)
-        """
+        """Extract a meaningful place name from a descriptive title."""
         import re
         q = raw.strip().rstrip('.')
 
-        # 1. Strip cost annotations: (~$15/person), ($20), ~$30
+        # 1. Strip cost annotations: (~$15/person), ($20), ~$30, (~free, estimated 2 hours)
         q = re.sub(r'\(?\~?\$[\d,.]+[^)]*\)?', '', q).strip()
-        # Strip remaining parentheticals: (free), (optional), etc.
         q = re.sub(r'\([^)]*\)', '', q).strip()
 
-        # 2. Take text before first descriptive comma
-        #    "CASA NEOS, offering Mediterranean flavors" → "CASA NEOS"
-        #    But keep commas in addresses: "40 SW North River Dr, Miami"
-        parts = re.split(r',\s+(?:an?\s|offering|enjoying|featuring|where|with|for|located|which|this|the\s)', q, maxsplit=1, flags=re.IGNORECASE)
+        # 2. Strip pipe separators: "Texas Flame | Best Steakhouse" → "Texas Flame"
+        q = q.split('|')[0].strip()
+
+        # 3. Take text before first descriptive comma/clause
+        parts = re.split(
+            r',\s+(?:an?\s|offering|enjoying|featuring|where|with|located|which|this|the\s|learning|known|overlooking|serving|celebrating|honoring)',
+            q, maxsplit=1, flags=re.IGNORECASE,
+        )
         q = parts[0].strip()
 
-        # 3. Extract place name after preposition: "Lunch at Naked Farmer" → "Naked Farmer"
+        # 4. Strip trailing "for its/for the/for a" clauses
+        q = re.split(r'\s+for\s+(?:its|the|a|an|your|some)\s', q, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+
+        # 5. Extract place name after preposition: "Lunch at Naked Farmer" → "Naked Farmer"
         m = re.search(
-            r'\b(?:at|to|into|toward)\s+(?:the\s+)?(?!your\b|the\s+hotel|a\s+|an\s+)(.+)',
+            r'\b(?:at|to|into|toward)\s+(?:the\s+)?(?!your\b|a\s+|an\s+|relax|rest|sleep|pack|freshen)(.+)',
             q, re.IGNORECASE,
         )
         if m:
             q = m.group(1).strip()
 
-        # 4. Strip leading action verbs
+        # 6. Strip leading action verbs
         q = re.sub(
-            r'^(?:Visit|Attend|Explore|Enjoy|Head|Return|Go|Walk|Drive|Take|Spend|Have|Grab)\s+(?:to\s+)?(?:the\s+)?',
+            r'^(?:Visit|Attend|Explore|Enjoy|Head|Return|Go|Walk|Drive|Take|Spend|Have|Grab|Check\s*out|Check\s*in)\s+(?:to\s+)?(?:the\s+)?',
             '', q, flags=re.IGNORECASE,
         ).strip()
 
-        # 5. Strip trailing filler: "again", "to relax ...", "for ..."
-        q = re.split(r'\s+(?:again\b|to\s+relax|to\s+freshen|for\s+a\s|for\s+the\s)', q, maxsplit=1, flags=re.IGNORECASE)[0].strip()
+        # 7. Strip trailing filler
+        q = re.split(
+            r'\s+(?:again\b|to\s+relax|to\s+freshen|to\s+see|to\s+learn|to\s+enjoy)',
+            q, maxsplit=1, flags=re.IGNORECASE,
+        )[0].strip()
 
-        # 6. Skip vague non-location phrases
-        skip = {'hotel', 'your hotel', 'the hotel', 'relax', 'rest', 'freshen up', 'pack', 'sleep'}
+        # 8. Skip vague non-location phrases
+        skip = {'hotel', 'your hotel', 'the hotel', 'relax', 'rest',
+                'freshen up', 'pack', 'sleep', 'airport', 'the airport'}
         if q.lower() in skip or len(q) < 3:
             return ''
 
