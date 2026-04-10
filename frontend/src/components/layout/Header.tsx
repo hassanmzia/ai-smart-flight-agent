@@ -397,8 +397,14 @@ const Header = () => {
 
                 {/* User menu */}
                 <Menu as="div" className="relative">
-                  <Menu.Button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <UserCircleIcon className="h-8 w-8 text-gray-500 dark:text-gray-400" />
+                  <Menu.Button className="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                    {user?.name ? (
+                      <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-primary-600 text-white text-sm font-semibold select-none">
+                        {user.name.charAt(0).toUpperCase()}
+                      </span>
+                    ) : (
+                      <UserCircleIcon className="h-8 w-8 text-gray-600 dark:text-gray-300" />
+                    )}
                   </Menu.Button>
 
                   <Transition
