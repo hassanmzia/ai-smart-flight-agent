@@ -3392,7 +3392,7 @@ def list_coupons(request):
             destination=request.query_params.get('destination'),
             category=request.query_params.get('category'),
         )
-        return Response({'success': True, 'coupons': result})
+        return Response(result)
     except Exception as e:
         logger.error(f"List coupons failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -3425,8 +3425,10 @@ def my_referral(request):
     """Get or create the user's referral code and stats."""
     try:
         from .services.partnership_service import PartnershipService
+        # Auto-create referral code if user doesn't have one
+        PartnershipService.get_or_create_referral_code(user=request.user)
         result = PartnershipService.get_referral_stats(user=request.user)
-        return Response({'success': True, **result})
+        return Response(result)
     except Exception as e:
         logger.error(f"Referral stats failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

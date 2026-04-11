@@ -73,8 +73,14 @@ export default function PartnershipsPage() {
       if (destination) params.destination = destination;
       if (category) params.category = category;
       const res = await api.get('/api/agents/coupons', { params });
-      const items = res.data?.coupons || res.data?.items || res.data?.results || res.data;
-      setCoupons(Array.isArray(items) ? items : []);
+      // Handle both direct array and nested {coupons: [...]} responses
+      const data = res.data;
+      const items = Array.isArray(data) ? data
+        : Array.isArray(data?.coupons) ? data.coupons
+        : Array.isArray(data?.items) ? data.items
+        : Array.isArray(data?.results) ? data.results
+        : [];
+      setCoupons(items);
     } catch {
       setCoupons([]);
     } finally {
@@ -87,7 +93,18 @@ export default function PartnershipsPage() {
     setLoading(true);
     try {
       const res = await api.get('/api/agents/referral');
-      setReferralStats(res.data || null);
+      const data = res.data;
+      if (data?.code || data?.has_referral_code) {
+        setReferralStats({
+          code: data.code || '',
+          total_referrals: data.total_referrals || 0,
+          successful_referrals: data.successful_referrals || 0,
+          total_earnings: data.total_earnings || 0,
+          recent_referrals: data.recent_referrals || [],
+        });
+      } else {
+        setReferralStats(null);
+      }
     } catch {
       setReferralStats(null);
     } finally {
@@ -147,7 +164,7 @@ export default function PartnershipsPage() {
       {/* Hero */}
       <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 dark:from-emerald-800 dark:via-teal-800 dark:to-cyan-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             Deals, Coupons & Referrals
           </h1>
           <p className="text-teal-100 text-lg">Save money on every trip with exclusive partner deals</p>
@@ -262,7 +279,19 @@ export default function PartnershipsPage() {
               </div>
             ) : loading ? (
               <div className="text-center py-12 text-gray-500">Loading...</div>
-            ) : referralStats ? (
+            ) : !referralStats ? (
+              <div className="text-center py-16">
+                <div className="text-5xl mb-4">🎁</div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Setting up your referral code...</h3>
+                <p className="text-gray-500 mb-4">Refresh the page to see your referral code and start earning rewards.</p>
+                <button
+                  onClick={fetchReferral}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-all"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : (
               <div className="space-y-6">
                 {/* Referral Code Card */}
                 <div className="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl p-8 text-white text-center">
@@ -337,13 +366,20 @@ export default function PartnershipsPage() {
                   </div>
                 )}
               </div>
-            ) : null}
+            )}
           </div>
         )}
 
         {/* Partner Registration Tab */}
         {tab === 'partner' && (
           <div className="max-w-2xl mx-auto">
+            {!isAuthenticated ? (
+              <div className="text-center py-16">
+                <div className="text-5xl mb-4">🔒</div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Sign in to become a partner</h3>
+                <p className="text-gray-500">Create an account or sign in to submit your partner application</p>
+              </div>
+            ) : (
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8">
               <div className="text-center mb-8">
                 <div className="text-5xl mb-3">🤝</div>
@@ -439,6 +475,7 @@ export default function PartnershipsPage() {
                 </button>
               </div>
             </div>
+            )}
           </div>
         )}
       </div>
