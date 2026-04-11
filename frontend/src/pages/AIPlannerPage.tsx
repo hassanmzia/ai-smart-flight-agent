@@ -952,7 +952,7 @@ const AIPlannerPage = () => {
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                       Top Pick - Best Value Flight
                     </h3>
-                    <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">${rec.recommended_flight.price}</span>
+                    <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">${rec.recommended_flight.price}<span className="text-sm font-normal text-blue-500 dark:text-blue-400 ml-1">/person</span></span>
                   </div>
                   <div className="p-5">
                     {/* Airline Header */}
@@ -1052,7 +1052,7 @@ const AIPlannerPage = () => {
                           <th className="hidden sm:table-cell text-center px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Arrive</th>
                           <th className="text-center px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stops</th>
                           <th className="hidden md:table-cell text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Duration</th>
-                          <th className="text-right px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
+                          <th className="text-right px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price/Person</th>
                         </tr>
                       </thead>
                       <tbody>
