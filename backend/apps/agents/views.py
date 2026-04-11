@@ -2538,7 +2538,13 @@ def create_subscription(request):
         from .subscription_middleware import get_user_subscription
         from django.conf import settings as s
 
-        stripe.api_key = getattr(s, 'STRIPE_SECRET_KEY', '')
+        stripe_key = getattr(s, 'STRIPE_SECRET_KEY', '')
+
+        # If Stripe is not configured, activate in demo mode
+        if not stripe_key or stripe_key.startswith('sk_test_placeholder') or len(stripe_key) < 20:
+            raise ImportError("Stripe not configured")
+
+        stripe.api_key = stripe_key
 
         sub = get_user_subscription(request.user)
 
