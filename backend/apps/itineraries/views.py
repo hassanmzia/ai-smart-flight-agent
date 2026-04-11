@@ -387,7 +387,7 @@ class ItineraryViewSet(viewsets.ModelViewSet):
         api_key = getattr(settings, 'OPENAI_API_KEY', '')
         story = None
 
-        if api_key:
+        if api_key and api_key not in ('your_openai_api_key_here', ''):
             try:
                 story = self._generate_story_openai(itinerary, days_data, api_key)
             except Exception as exc:
@@ -483,7 +483,7 @@ class ItineraryViewSet(viewsets.ModelViewSet):
             "Write the travel story now."
         )
 
-        client = openai.OpenAI(api_key=api_key)
+        client = openai.OpenAI(api_key=api_key, timeout=25.0)
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
