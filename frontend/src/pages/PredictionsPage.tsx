@@ -138,12 +138,12 @@ const PredictionsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-amber-600 via-orange-600 to-red-600 text-white">
+      <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
           <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-4">
             Predictive Travel Intelligence
           </h1>
-          <p className="text-lg sm:text-xl text-amber-100 max-w-2xl">
+          <p className="text-lg sm:text-xl text-teal-100 max-w-2xl">
             AI-powered price forecasting, best-time-to-visit analysis, and destination trend insights.
           </p>
         </div>
@@ -158,7 +158,7 @@ const PredictionsPage = () => {
               onClick={() => setActiveTab(tab)}
               className={`px-2 sm:px-5 py-2 sm:py-3 rounded-t-xl font-semibold text-xs sm:text-sm text-center transition-all ${
                 activeTab === tab
-                  ? 'bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 shadow-lg'
+                  ? 'bg-white dark:bg-gray-800 text-teal-600 dark:text-teal-400 shadow-lg'
                   : 'bg-white/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
               }`}
             >

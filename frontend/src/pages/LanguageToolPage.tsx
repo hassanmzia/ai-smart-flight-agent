@@ -164,7 +164,7 @@ export default function LanguageToolPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-10"
         >
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-3">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3">
             Travel Language Toolkit
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-lg">

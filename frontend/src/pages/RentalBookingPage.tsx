@@ -249,7 +249,7 @@ const RentalBookingPage = () => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="text-3xl md:text-4xl font-extrabold text-white mb-2"
+            className="text-2xl md:text-3xl font-bold text-white mb-2"
           >
             Book Your Vacation Rental
           </motion.h1>

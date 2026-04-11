@@ -1,11 +1,6 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  MagnifyingGlassIcon,
-  CalendarIcon,
-  UserGroupIcon,
   SparklesIcon,
-  MapPinIcon,
   ClockIcon,
   ShieldCheckIcon,
   CurrencyDollarIcon,
@@ -14,7 +9,6 @@ import {
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import Button from '@/components/common/Button';
-import Input from '@/components/common/Input';
 import { Card } from '@/components/common';
 import { ROUTES } from '@/utils/constants';
 import useAuthStore from '@/store/authStore';
@@ -22,24 +16,6 @@ import useAuthStore from '@/store/authStore';
 const HomePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
-  const [searchType, setSearchType] = useState<'flight' | 'hotel'>('flight');
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [departureDate, setDepartureDate] = useState('');
-  const [passengers, setPassengers] = useState(1);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    navigate(ROUTES.SEARCH, {
-      state: {
-        searchType,
-        origin,
-        destination,
-        departureDate,
-        passengers,
-      },
-    });
-  };
 
   return (
     <div className="min-h-screen">
@@ -56,7 +32,7 @@ const HomePage = () => {
               <SparklesIcon className="h-4 w-4 md:h-5 md:w-5" />
               <span className="text-xs md:text-sm font-medium">Powered by Advanced AI</span>
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold mb-4 md:mb-6 leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-purple-100">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold mb-4 md:mb-6 leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-purple-100">
               Plan Your Dream Trip
             </h1>
             <p className="text-base md:text-xl lg:text-2xl opacity-95 max-w-3xl mx-auto font-light mb-3 md:mb-4">
@@ -115,76 +91,29 @@ const HomePage = () => {
                   </button>
                 </div>
 
-                {/* Search Form */}
-                <Card className="backdrop-blur-md bg-white/95 dark:bg-gray-900/95 shadow-2xl">
-                  <div className="flex flex-wrap gap-2 mb-6">
+                {/* Popular Pages */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                  {[
+                    { label: 'Weather', icon: '🌤️', route: ROUTES.PREDICTIONS, desc: 'Forecasts & insights' },
+                    { label: 'Predictions', icon: '📊', route: ROUTES.PREDICTIONS, desc: 'Price forecasting' },
+                    { label: 'Collaborate', icon: '👥', route: ROUTES.COLLABORATE, desc: 'Plan with friends' },
+                    { label: 'My Trips', icon: '🗺️', route: ROUTES.ITINERARY, desc: 'View itineraries' },
+                    { label: 'Language', icon: '🌍', route: ROUTES.LANGUAGE_TOOL, desc: 'Travel phrases' },
+                    { label: 'Commute', icon: '🚗', route: ROUTES.TRIP_MAP, desc: 'Traffic & routes' },
+                    { label: 'Rentals', icon: '🏡', route: ROUTES.RENTAL_SEARCH, desc: 'Vacation rentals' },
+                    { label: 'Dashboard', icon: '📋', route: ROUTES.DASHBOARD, desc: 'Your overview' },
+                  ].map((item) => (
                     <button
-                      onClick={() => setSearchType('flight')}
-                      className={`px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 ${
-                        searchType === 'flight'
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
+                      key={item.label}
+                      onClick={() => navigate(item.route)}
+                      className="bg-white/10 backdrop-blur-md hover:bg-white/20 border border-white/20 rounded-xl p-3 md:p-4 text-left transition-all hover:scale-105 transform"
                     >
-                      ✈️ Flights
+                      <div className="text-2xl mb-1">{item.icon}</div>
+                      <h3 className="text-sm md:text-base font-bold">{item.label}</h3>
+                      <p className="text-xs opacity-80">{item.desc}</p>
                     </button>
-                    <button
-                      onClick={() => setSearchType('hotel')}
-                      className={`px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 ${
-                        searchType === 'hotel'
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      🏨 Hotels
-                    </button>
-                  </div>
-
-                  <form onSubmit={handleSearch} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {searchType === 'flight' && (
-                        <Input
-                          label="From"
-                          value={origin}
-                          onChange={(e) => setOrigin(e.target.value)}
-                          placeholder="City or airport"
-                          leftIcon={<MapPinIcon className="h-5 w-5 text-gray-400" />}
-                          required
-                        />
-                      )}
-                      <Input
-                        label="To"
-                        value={destination}
-                        onChange={(e) => setDestination(e.target.value)}
-                        placeholder="City or destination"
-                        leftIcon={<MapPinIcon className="h-5 w-5 text-gray-400" />}
-                        required
-                      />
-                      <Input
-                        label={searchType === 'flight' ? 'Departure Date' : 'Check-in Date'}
-                        type="date"
-                        value={departureDate}
-                        onChange={(e) => setDepartureDate(e.target.value)}
-                        leftIcon={<CalendarIcon className="h-5 w-5 text-gray-400" />}
-                        required
-                      />
-                      <Input
-                        label={searchType === 'flight' ? 'Passengers' : 'Guests'}
-                        type="number"
-                        value={passengers}
-                        onChange={(e) => setPassengers(parseInt(e.target.value))}
-                        min="1"
-                        leftIcon={<UserGroupIcon className="h-5 w-5 text-gray-400" />}
-                        required
-                      />
-                    </div>
-
-                    <Button type="submit" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl" size="lg">
-                      <MagnifyingGlassIcon className="h-5 w-5 mr-2 inline" />
-                      Search {searchType === 'flight' ? 'Flights' : 'Hotels'}
-                    </Button>
-                  </form>
-                </Card>
+                  ))}
+                </div>
               </>
             ) : (
               /* Auth Gate — shown to anonymous visitors */

@@ -266,7 +266,7 @@ const ItineraryDetailPage = () => {
           )}
         </div>
 
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white truncate">
+          <h1 className="text-2xl md:text-3xl font-bold text-white truncate">
             {isNewItinerary ? 'Create New Trip' : formData.title || 'Edit Trip'}
           </h1>
         </div>

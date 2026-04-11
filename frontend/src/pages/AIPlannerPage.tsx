@@ -414,7 +414,7 @@ const AIPlannerPage = () => {
           <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-purple-300 rounded-full blur-3xl"></div>
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             AI Travel Planner
           </h1>
           <p className="text-blue-100 text-lg">

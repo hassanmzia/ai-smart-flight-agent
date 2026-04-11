@@ -212,7 +212,7 @@ const PricingPage = () => {
                   <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">{plan.description}</p>
 
                   <div className="mt-6 mb-8">
-                    <span className="text-5xl font-extrabold text-gray-900 dark:text-white">
+                    <span className="text-3xl font-bold text-gray-900 dark:text-white">
                       ${billingCycle === 'monthly' ? plan.price.monthly : plan.price.yearly}
                     </span>
                     {plan.price.monthly > 0 && (

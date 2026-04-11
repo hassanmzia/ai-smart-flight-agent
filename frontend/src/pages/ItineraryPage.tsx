@@ -109,7 +109,7 @@ const ItineraryPage = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
+              <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
                 My Trips
               </h1>
               <p className="text-orange-100 text-lg">

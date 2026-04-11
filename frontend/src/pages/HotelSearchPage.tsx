@@ -65,7 +65,7 @@ const HotelSearchPage = () => {
           <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-teal-300 rounded-full blur-3xl"></div>
         </div>
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             {pageTitle}
           </h1>
           <p className="text-emerald-100 text-lg">
