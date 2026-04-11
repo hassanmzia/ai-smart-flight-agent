@@ -97,8 +97,9 @@ class BookingItem(models.Model):
     item_type = models.CharField(max_length=20, choices=ITEM_TYPE_CHOICES)
 
     # Generic relation to the actual item (Flight, Hotel, etc.)
-    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
-    object_id = models.PositiveIntegerField()
+    # Nullable because booking items may reference external services without local DB records.
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
     content_object = GenericForeignKey('content_type', 'object_id')
 
     # Item details
