@@ -135,7 +135,7 @@ const ItineraryPage = () => {
               onClick={() => setStatusFilter(key)}
               className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-medium text-sm whitespace-nowrap transition-all duration-200 ${
                 statusFilter === key
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25'
+                  ? 'bg-gradient-to-r from-fuchsia-500 to-purple-500 text-white shadow-lg shadow-fuchsia-500/25'
                   : 'bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 shadow-sm border border-gray-200/60 dark:border-gray-700/50'
               }`}
             >
@@ -149,7 +149,7 @@ const ItineraryPage = () => {
         {itineraries.length === 0 ? (
           <Card variant="glass">
             <div className="text-center py-16">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30 mb-5">
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-fuchsia-100 to-purple-100 dark:from-fuchsia-900/30 dark:to-purple-900/30 mb-5">
                 <span className="text-4xl">🗺️</span>
               </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
@@ -162,7 +162,7 @@ const ItineraryPage = () => {
               </p>
               <button
                 onClick={() => navigate('/ai-planner')}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold shadow-lg shadow-orange-500/25 transition-all"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-fuchsia-500 to-purple-500 hover:from-fuchsia-600 hover:to-purple-600 text-white font-semibold shadow-lg shadow-fuchsia-500/25 transition-all"
               >
                 🤖 Plan with AI
               </button>
@@ -186,11 +186,19 @@ const ItineraryPage = () => {
                     <img
                       src={itinerary.cover_image}
                       alt={itinerary.title}
-                      className="w-full h-44 object-cover"
+                      className="w-full h-36 object-cover"
                     />
                   ) : (
-                    <div className="w-full h-44 bg-gradient-to-br from-orange-400 via-amber-400 to-yellow-400 dark:from-orange-600 dark:via-amber-600 dark:to-yellow-600 flex items-center justify-center">
-                      <MapPinIcon className="h-14 w-14 text-white/40" />
+                    <div className="w-full h-36 bg-gradient-to-br from-fuchsia-500 via-purple-500 to-violet-600 dark:from-fuchsia-700 dark:via-purple-700 dark:to-violet-800 flex flex-col items-center justify-center px-4 relative overflow-hidden">
+                      <div className="absolute inset-0 opacity-10">
+                        <div className="absolute -top-6 -right-6 w-24 h-24 bg-white rounded-full blur-2xl"></div>
+                        <div className="absolute bottom-0 left-0 w-16 h-16 bg-fuchsia-300 rounded-full blur-2xl"></div>
+                      </div>
+                      <MapPinIcon className="h-8 w-8 text-white/60 mb-1" />
+                      <span className="text-white font-semibold text-sm text-center line-clamp-1">{itinerary.destination}</span>
+                      <span className="text-white/70 text-xs mt-0.5">
+                        {formatDate(itinerary.start_date, 'MMM dd')} - {formatDate(itinerary.end_date, 'MMM dd')}
+                      </span>
                     </div>
                   )}
 
@@ -212,13 +220,13 @@ const ItineraryPage = () => {
                     </div>
 
                     {/* Title */}
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-1 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-1 group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-400 transition-colors">
                       {itinerary.title}
                     </h3>
 
                     {/* Destination */}
                     <div className="flex items-center text-gray-500 dark:text-gray-400 mb-2">
-                      <MapPinIcon className="h-4 w-4 mr-1.5 flex-shrink-0 text-orange-500" />
+                      <MapPinIcon className="h-4 w-4 mr-1.5 flex-shrink-0 text-fuchsia-500" />
                       <span className="text-sm truncate">{itinerary.destination}</span>
                     </div>
 
@@ -229,7 +237,7 @@ const ItineraryPage = () => {
                         {formatDate(itinerary.start_date, 'MMM dd')} -{' '}
                         {formatDate(itinerary.end_date, 'MMM dd, yyyy')}
                       </span>
-                      <span className="ml-2 text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded-full font-medium">
+                      <span className="ml-2 text-xs bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300 px-2 py-0.5 rounded-full font-medium">
                         {calculateDays(itinerary.start_date, itinerary.end_date)}d
                       </span>
                     </div>
