@@ -2521,8 +2521,17 @@ def create_subscription(request):
     plan = request.data.get('plan', 'pro')
     payment_method_id = request.data.get('payment_method_id')
 
-    if plan not in ('pro', 'business'):
+    if plan not in ('free', 'pro', 'business'):
         return Response({'error': 'Invalid plan'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Free plan — activate directly without payment
+    if plan == 'free':
+        from .subscription_middleware import get_user_subscription
+        sub = get_user_subscription(request.user)
+        sub.plan = 'free'
+        sub.status = 'active'
+        sub.save(update_fields=['plan', 'status'])
+        return Response({'success': True, 'plan': 'free', 'status': 'active'})
 
     try:
         import stripe

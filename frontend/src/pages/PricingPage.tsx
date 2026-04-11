@@ -24,26 +24,35 @@ const PricingPage = () => {
       navigate('/register');
       return;
     }
-    if (planName === 'Business') {
-      navigate('/contact');
-      return;
-    }
     if (planName.toLowerCase() === currentPlan) {
       toast.success('You are already on this plan!');
       return;
     }
+    // Free plan — activate directly without payment
+    if (planName.toLowerCase() === 'free') {
+      setCurrentPlan('free');
+      toast.success('You are on the Free plan!');
+      return;
+    }
+    // Paid plans require payment method — Stripe integration not yet configured
+    if (planName === 'Business') {
+      toast('Business plan requires a custom agreement. Contact us to get started.', { icon: '📧' });
+      navigate('/contact');
+      return;
+    }
+    // Pro plan — attempt subscription, show payment required if Stripe is not set up
     setLoading(true);
     try {
       const res = await api.post('/api/agents/subscription/create', {
         plan: planName.toLowerCase(),
         billing_cycle: billingCycle,
       });
-      if (res.data?.subscription_id || res.data?.plan) {
+      if (res.data?.success || res.data?.plan) {
         setCurrentPlan(planName.toLowerCase());
         toast.success(`Upgraded to ${planName}!`);
       }
     } catch {
-      toast.error('Subscription update failed. Please try again.');
+      toast.error('Payment method required. Credit/debit card and PayPal support coming soon.');
     } finally {
       setLoading(false);
     }
