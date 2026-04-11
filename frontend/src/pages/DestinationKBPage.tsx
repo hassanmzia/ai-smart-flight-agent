@@ -29,7 +29,7 @@ interface DestinationData {
   summary: string;
   history: string;
   culture: string;
-  heritage_sites: string[];
+  heritage_sites: Array<string | { name: string; description?: string; type?: string }>;
   festivals: Array<{ name: string; month: string; description: string }>;
   customs: string[];
   best_months: string[];
@@ -276,7 +276,9 @@ export default function DestinationKBPage() {
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-3">Heritage Sites</h3>
                   <div className="flex flex-wrap gap-2">
                     {data.heritage_sites.map((site, i) => (
-                      <span key={i} className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded-lg text-sm">{site}</span>
+                      <span key={i} className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded-lg text-sm">
+                        {typeof site === 'string' ? site : site.name}
+                      </span>
                     ))}
                   </div>
                 </div>

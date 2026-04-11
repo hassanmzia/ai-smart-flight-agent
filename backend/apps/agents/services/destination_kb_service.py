@@ -13,6 +13,65 @@ from django.db.models import F, Q
 logger = logging.getLogger(__name__)
 
 
+CITY_COUNTRY_MAP: Dict[str, str] = {
+    'dhaka': 'Bangladesh', 'chittagong': 'Bangladesh', 'sylhet': 'Bangladesh', "cox's bazar": 'Bangladesh',
+    'paris': 'France', 'nice': 'France', 'lyon': 'France', 'marseille': 'France',
+    'tokyo': 'Japan', 'osaka': 'Japan', 'kyoto': 'Japan',
+    'istanbul': 'Turkey', 'antalya': 'Turkey', 'cappadocia': 'Turkey',
+    'dubai': 'United Arab Emirates', 'abu dhabi': 'United Arab Emirates',
+    'new york': 'United States', 'los angeles': 'United States', 'miami': 'United States',
+    'chicago': 'United States', 'san francisco': 'United States', 'las vegas': 'United States',
+    'washington': 'United States', 'boston': 'United States', 'seattle': 'United States',
+    'london': 'United Kingdom', 'edinburgh': 'United Kingdom', 'manchester': 'United Kingdom',
+    'rome': 'Italy', 'florence': 'Italy', 'venice': 'Italy', 'milan': 'Italy',
+    'berlin': 'Germany', 'munich': 'Germany', 'hamburg': 'Germany',
+    'barcelona': 'Spain', 'madrid': 'Spain', 'seville': 'Spain',
+    'bangkok': 'Thailand', 'phuket': 'Thailand', 'chiang mai': 'Thailand',
+    'singapore': 'Singapore',
+    'hong kong': 'China', 'shanghai': 'China', 'beijing': 'China',
+    'seoul': 'South Korea', 'busan': 'South Korea',
+    'sydney': 'Australia', 'melbourne': 'Australia',
+    'cape town': 'South Africa', 'johannesburg': 'South Africa',
+    'cairo': 'Egypt', 'luxor': 'Egypt',
+    'mumbai': 'India', 'delhi': 'India', 'new delhi': 'India', 'jaipur': 'India',
+    'kolkata': 'India', 'goa': 'India', 'agra': 'India', 'bangalore': 'India',
+    'hyderabad': 'India', 'chennai': 'India', 'varanasi': 'India',
+    'amsterdam': 'Netherlands',
+    'lisbon': 'Portugal', 'porto': 'Portugal',
+    'prague': 'Czech Republic', 'vienna': 'Austria', 'zurich': 'Switzerland',
+    'athens': 'Greece', 'santorini': 'Greece',
+    'moscow': 'Russia', 'st petersburg': 'Russia',
+    'toronto': 'Canada', 'vancouver': 'Canada', 'montreal': 'Canada',
+    'mexico city': 'Mexico', 'cancun': 'Mexico',
+    'rio de janeiro': 'Brazil', 'sao paulo': 'Brazil',
+    'buenos aires': 'Argentina',
+    'lima': 'Peru', 'cusco': 'Peru', 'machu picchu': 'Peru',
+    'bogota': 'Colombia', 'cartagena': 'Colombia',
+    'marrakech': 'Morocco', 'casablanca': 'Morocco',
+    'nairobi': 'Kenya', 'mombasa': 'Kenya',
+    'bali': 'Indonesia', 'jakarta': 'Indonesia',
+    'kuala lumpur': 'Malaysia',
+    'hanoi': 'Vietnam', 'ho chi minh city': 'Vietnam',
+    'manila': 'Philippines',
+    'kathmandu': 'Nepal',
+    'colombo': 'Sri Lanka',
+    'lahore': 'Pakistan', 'islamabad': 'Pakistan', 'karachi': 'Pakistan',
+    'doha': 'Qatar', 'riyadh': 'Saudi Arabia', 'muscat': 'Oman',
+    'havana': 'Cuba', 'kingston': 'Jamaica',
+    'reykjavik': 'Iceland', 'dublin': 'Ireland', 'oslo': 'Norway',
+    'stockholm': 'Sweden', 'copenhagen': 'Denmark', 'helsinki': 'Finland',
+    'warsaw': 'Poland', 'budapest': 'Hungary', 'bucharest': 'Romania',
+    'tbilisi': 'Georgia', 'baku': 'Azerbaijan',
+}
+
+
+def _resolve_country(destination_name: str, provided_country: str = '') -> str:
+    """Resolve a country name from a city using the lookup map."""
+    if provided_country:
+        return provided_country
+    return CITY_COUNTRY_MAP.get(destination_name.strip().lower(), '')
+
+
 class DestinationKBService:
     """Manage destination knowledge base with AI generation and deterministic fallbacks."""
 
@@ -32,6 +91,8 @@ class DestinationKBService:
         from apps.agents.models import DestinationKnowledge
 
         normalized = destination_name.strip().title()
+        # Resolve country from map if not provided
+        country = _resolve_country(normalized, country)
 
         try:
             destination = DestinationKnowledge.objects.filter(
@@ -39,6 +100,9 @@ class DestinationKBService:
             ).first()
 
             if destination:
+                # Back-fill country if it was stored as 'Unknown' and we can now resolve it
+                if destination.country in ('Unknown', '') and country:
+                    DestinationKnowledge.objects.filter(pk=destination.pk).update(country=country)
                 # Increment views atomically
                 DestinationKnowledge.objects.filter(pk=destination.pk).update(
                     views_count=F('views_count') + 1,
@@ -51,9 +115,12 @@ class DestinationKBService:
             logger.info("Generating new destination knowledge for: %s", normalized)
             data = DestinationKBService._generate_destination_ai(normalized, country)
 
+            # Prefer AI-returned country, then our resolved country, then 'Unknown'
+            resolved_country = data.get('country') or country or 'Unknown'
+
             destination = DestinationKnowledge.objects.create(
                 destination=normalized,
-                country=data.get('country', country or 'Unknown'),
+                country=resolved_country,
                 continent=data.get('continent', ''),
                 summary=data.get('summary', ''),
                 history=data.get('history', ''),
@@ -79,7 +146,7 @@ class DestinationKBService:
             logger.error("Error in get_or_generate_destination for %s: %s", normalized, e)
             return {
                 'destination': normalized,
-                'country': country or 'Unknown',
+                'country': country or _resolve_country(normalized) or 'Unknown',
                 'error': str(e),
             }
 
@@ -142,8 +209,9 @@ class DestinationKBService:
     @staticmethod
     def _destination_fallback(destination_name: str, country: str) -> Dict[str, Any]:
         """Create reasonable default content based on the destination name."""
+        resolved = _resolve_country(destination_name, country)
         return {
-            'country': country or 'Unknown',
+            'country': resolved or 'Unknown',
             'continent': '',
             'summary': (
                 f"{destination_name} is a fascinating destination known for its unique blend "
