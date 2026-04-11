@@ -77,6 +77,38 @@ class FaithTravelService:
 
     @staticmethod
     def _prayer_times_ai(destination: str, date_str: str) -> Optional[Dict[str, str]]:
+        """Try Aladhan API first, then fall back to OpenAI."""
+        # --- Aladhan API (free, no key required) ---
+        try:
+            import requests as http_requests
+            # Use city-based endpoint
+            city = destination.split(',')[0].strip()
+            country = destination.split(',')[-1].strip() if ',' in destination else ''
+            url = 'http://api.aladhan.com/v1/timingsByCity'
+            params = {
+                'city': city,
+                'country': country or city,
+                'method': 2,  # ISNA
+                'date': date_str,
+            }
+            resp = http_requests.get(url, params=params, timeout=10)
+            if resp.status_code == 200:
+                api_data = resp.json()
+                if api_data.get('code') == 200 and api_data.get('data'):
+                    timings = api_data['data']['timings']
+                    return {
+                        'fajr': timings.get('Fajr', '').split(' ')[0],
+                        'sunrise': timings.get('Sunrise', '').split(' ')[0],
+                        'dhuhr': timings.get('Dhuhr', '').split(' ')[0],
+                        'asr': timings.get('Asr', '').split(' ')[0],
+                        'maghrib': timings.get('Maghrib', '').split(' ')[0],
+                        'isha': timings.get('Isha', '').split(' ')[0],
+                        'method': api_data['data'].get('meta', {}).get('method', {}).get('name', 'ISNA'),
+                    }
+        except Exception as e:
+            logger.warning("Aladhan API failed for %s: %s", destination, e)
+
+        # --- OpenAI fallback ---
         api_key = getattr(settings, 'OPENAI_API_KEY', os.getenv('OPENAI_API_KEY', ''))
         if not api_key or api_key in ('your_openai_api_key_here', ''):
             return None

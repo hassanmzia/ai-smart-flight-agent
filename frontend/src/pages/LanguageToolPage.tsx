@@ -30,8 +30,14 @@ const LANGUAGES = [
   { code: 'tr', name: 'Turkish', flag: '🇹🇷' },
 ];
 
+interface OfflinePack {
+  language: string;
+  code: string;
+  phrases: Array<{ category: string; original: string; translated: string; pronunciation: string }>;
+}
+
 export default function LanguageToolPage() {
-  const [activeTab, setActiveTab] = useState<'translate' | 'phrases'>('translate');
+  const [activeTab, setActiveTab] = useState<'translate' | 'phrases' | 'voice' | 'offline'>('translate');
 
   // Translation state
   const [text, setText] = useState('');
@@ -45,6 +51,18 @@ export default function LanguageToolPage() {
   const [loadingPhrases, setLoadingPhrases] = useState(false);
   const [phrasesLoaded, setPhrasesLoaded] = useState('');
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+  // Voice translation state
+  const [voiceText, setVoiceText] = useState('');
+  const [voiceSourceLang, setVoiceSourceLang] = useState('en');
+  const [voiceTargetLang, setVoiceTargetLang] = useState('es');
+  const [voiceLoading, setVoiceLoading] = useState(false);
+  const [voiceResult, setVoiceResult] = useState<{ translated_text: string; audio_url?: string } | null>(null);
+
+  // Offline pack state
+  const [offlineLang, setOfflineLang] = useState('es');
+  const [offlinePack, setOfflinePack] = useState<OfflinePack | null>(null);
+  const [offlineLoading, setOfflineLoading] = useState(false);
 
   const handleTranslate = async () => {
     if (!text.trim()) return;
@@ -85,6 +103,52 @@ export default function LanguageToolPage() {
     }
   };
 
+  const handleVoiceTranslate = async () => {
+    if (!voiceText.trim()) return;
+    setVoiceLoading(true);
+    setVoiceResult(null);
+    try {
+      const res = await api.post('/api/agents/voice-translate', {
+        text: voiceText.trim(),
+        source_lang: voiceSourceLang,
+        target_lang: voiceTargetLang,
+      });
+      setVoiceResult(res.data);
+    } catch {
+      setVoiceResult({ translated_text: '(Voice translation unavailable)' });
+    } finally {
+      setVoiceLoading(false);
+    }
+  };
+
+  const handleDownloadOffline = async (lang: string) => {
+    setOfflineLang(lang);
+    setOfflineLoading(true);
+    setOfflinePack(null);
+    try {
+      const res = await api.get(`/api/agents/offline-phrases?language=${lang}`);
+      const pack = res.data?.pack;
+      if (pack) {
+        setOfflinePack(pack);
+      }
+    } catch {
+      setOfflinePack(null);
+    } finally {
+      setOfflineLoading(false);
+    }
+  };
+
+  const saveOfflinePack = () => {
+    if (!offlinePack) return;
+    const blob = new Blob([JSON.stringify(offlinePack, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `phrases-${offlinePack.code}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const langName = (code: string) =>
     LANGUAGES.find((l) => l.code === code)?.name || code;
   const langFlag = (code: string) =>
@@ -108,18 +172,23 @@ export default function LanguageToolPage() {
         </motion.div>
 
         {/* Tabs */}
-        <div className="flex justify-center gap-4 mb-8">
-          {(['translate', 'phrases'] as const).map((tab) => (
+        <div className="flex justify-center gap-2 sm:gap-4 mb-8 flex-wrap">
+          {([
+            { key: 'translate' as const, label: 'Translator' },
+            { key: 'phrases' as const, label: 'Phrase Book' },
+            { key: 'voice' as const, label: 'Voice Translate' },
+            { key: 'offline' as const, label: 'Offline Packs' },
+          ]).map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-6 py-2.5 rounded-full font-medium transition-all ${
-                activeTab === tab
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-5 py-2.5 rounded-full font-medium transition-all text-sm ${
+                activeTab === tab.key
                   ? 'bg-purple-600 text-white shadow-lg shadow-purple-200 dark:shadow-purple-900/30'
                   : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
               }`}
             >
-              {tab === 'translate' ? 'Translator' : 'Phrase Book'}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -326,6 +395,155 @@ export default function LanguageToolPage() {
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+          {/* ──── Voice Translate Tab ──── */}
+          {activeTab === 'voice' && (
+            <motion.div
+              key="voice"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Voice-to-Voice Translation
+                </h2>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  Type or paste text, get a translated result with optional audio playback.
+                </p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">From</label>
+                    <select
+                      value={voiceSourceLang}
+                      onChange={(e) => setVoiceSourceLang(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-white"
+                    >
+                      <option value="en">English</option>
+                      {LANGUAGES.map((l) => (
+                        <option key={l.code} value={l.code}>{l.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To</label>
+                    <select
+                      value={voiceTargetLang}
+                      onChange={(e) => setVoiceTargetLang(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-white"
+                    >
+                      {LANGUAGES.map((l) => (
+                        <option key={l.code} value={l.code}>{l.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <textarea
+                  value={voiceText}
+                  onChange={(e) => setVoiceText(e.target.value)}
+                  placeholder="Enter text to translate with voice..."
+                  rows={3}
+                  className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+
+                <button
+                  onClick={handleVoiceTranslate}
+                  disabled={!voiceText.trim() || voiceLoading}
+                  className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold disabled:opacity-50 transition-colors"
+                >
+                  {voiceLoading ? 'Translating...' : 'Translate with Voice'}
+                </button>
+
+                {voiceResult && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-6 space-y-4"
+                  >
+                    <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                      {voiceResult.translated_text}
+                    </p>
+                    {voiceResult.audio_url && (
+                      <audio controls className="w-full mt-2">
+                        <source src={voiceResult.audio_url} type="audio/mpeg" />
+                        Your browser does not support audio playback.
+                      </audio>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ──── Offline Packs Tab ──── */}
+          {activeTab === 'offline' && (
+            <motion.div
+              key="offline"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Offline Phrase Packs
+                </h2>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  Download essential travel phrases for offline use. No internet needed once downloaded.
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {LANGUAGES.filter((l) => ['es', 'fr', 'ar', 'ja', 'hi', 'tr'].includes(l.code)).map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => handleDownloadOffline(l.code)}
+                      className={`flex flex-col items-center py-4 rounded-xl text-sm font-medium transition-all border-2 ${
+                        offlineLang === l.code && offlinePack
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600'
+                      }`}
+                    >
+                      <span className="text-2xl mb-1">{l.flag}</span>
+                      <span className="text-gray-900 dark:text-white">{l.name}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {offlineLoading && (
+                  <div className="text-center py-8">
+                    <div className="animate-spin h-8 w-8 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-3" />
+                    <p className="text-gray-500 dark:text-gray-400">Preparing phrase pack...</p>
+                  </div>
+                )}
+
+                {offlinePack && !offlineLoading && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-gray-700 dark:text-gray-300">
+                        <span className="font-semibold">{offlinePack.language}</span> — {offlinePack.phrases.length} phrases ready
+                      </p>
+                      <button
+                        onClick={saveOfflinePack}
+                        className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
+                      >
+                        Download JSON
+                      </button>
+                    </div>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-80 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                      {offlinePack.phrases.map((p, i) => (
+                        <div key={i} className="px-4 py-2 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-sm">
+                          <span className="text-xs text-purple-600 dark:text-purple-400 uppercase w-20 shrink-0">{p.category}</span>
+                          <span className="text-gray-500 dark:text-gray-400 sm:w-1/3">{p.original}</span>
+                          <span className="font-medium text-gray-900 dark:text-white sm:w-1/3">{p.translated}</span>
+                          <span className="italic text-gray-400 dark:text-gray-500 sm:w-1/4">{p.pronunciation}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
                 )}
               </div>
             </motion.div>

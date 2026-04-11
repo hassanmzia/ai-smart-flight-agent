@@ -48,6 +48,16 @@ const TILE_LAYERS: Record<string, { url: string; attribution: string; name: stri
   },
 };
 
+// Time-of-day atmosphere presets
+const TIME_OF_DAY_PRESETS: Record<string, { gradient: string; opacity: number; label: string }> = {
+  dawn: { gradient: 'linear-gradient(to bottom, rgba(255,140,66,0.25), rgba(255,200,120,0.1), transparent)', opacity: 0.3, label: 'Dawn' },
+  morning: { gradient: 'linear-gradient(to bottom, rgba(135,206,250,0.08), transparent)', opacity: 0.08, label: 'Morning' },
+  noon: { gradient: 'linear-gradient(to bottom, rgba(255,255,200,0.05), transparent)', opacity: 0.05, label: 'Noon' },
+  afternoon: { gradient: 'linear-gradient(to bottom, rgba(255,220,100,0.12), transparent)', opacity: 0.12, label: 'Afternoon' },
+  sunset: { gradient: 'linear-gradient(to bottom, rgba(255,100,50,0.3), rgba(255,160,80,0.15), transparent)', opacity: 0.3, label: 'Sunset' },
+  night: { gradient: 'linear-gradient(to bottom, rgba(10,10,40,0.4), rgba(20,20,60,0.25), transparent)', opacity: 0.4, label: 'Night' },
+};
+
 // ---------------------------------------------------------------------------
 // Marker icon
 // ---------------------------------------------------------------------------
@@ -124,6 +134,9 @@ export default function ImmersiveTripViewer({ itinerary, onGeocode, isGeocoding 
   const [tileLayer, setTileLayer] = useState<keyof typeof TILE_LAYERS>('streets');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [is3DMode, setIs3DMode] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState<keyof typeof TIME_OF_DAY_PRESETS>('morning');
+  const [show360Panel, setShow360Panel] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const playTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -362,6 +375,44 @@ export default function ImmersiveTripViewer({ itinerary, onGeocode, isGeocoding 
 
           {/* Right controls */}
           <div className="ml-auto flex items-center gap-2">
+            {/* 3D Mode Toggle */}
+            <button
+              onClick={() => setIs3DMode(!is3DMode)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                is3DMode
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+              }`}
+              title="Toggle 3D perspective"
+            >
+              3D
+            </button>
+
+            {/* Time of Day Selector */}
+            <select
+              value={timeOfDay}
+              onChange={e => setTimeOfDay(e.target.value as keyof typeof TIME_OF_DAY_PRESETS)}
+              className="text-xs rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1.5"
+              title="Time-of-day lighting"
+            >
+              {Object.entries(TIME_OF_DAY_PRESETS).map(([key, val]) => (
+                <option key={key} value={key}>{val.label}</option>
+              ))}
+            </select>
+
+            {/* 360° Street View Toggle */}
+            <button
+              onClick={() => setShow360Panel(!show360Panel)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                show360Panel
+                  ? 'bg-teal-600 text-white shadow-md'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+              }`}
+              title="Toggle 360° Street View panel"
+            >
+              360°
+            </button>
+
             {/* Map style selector */}
             <select
               value={tileLayer}
@@ -495,7 +546,30 @@ export default function ImmersiveTripViewer({ itinerary, onGeocode, isGeocoding 
         </AnimatePresence>
 
         {/* Map */}
-        <div className={`flex-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden ${isFullscreen ? 'h-full' : 'h-[520px] lg:h-[600px]'}`}>
+        <div
+          className={`flex-1 bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden ${isFullscreen ? 'h-full' : 'h-[520px] lg:h-[600px]'}`}
+          style={is3DMode ? {
+            perspective: '1200px',
+            perspectiveOrigin: '50% 50%',
+          } : undefined}
+        >
+          <div
+            className="h-full w-full relative"
+            style={is3DMode ? {
+              transform: 'rotateX(45deg) scale(1.15)',
+              transformOrigin: '50% 80%',
+              transition: 'transform 0.6s ease-in-out',
+            } : { transition: 'transform 0.6s ease-in-out' }}
+          >
+          {/* Time-of-day atmosphere overlay */}
+          <div
+            className="absolute inset-0 z-[400] pointer-events-none"
+            style={{
+              background: TIME_OF_DAY_PRESETS[timeOfDay].gradient,
+              opacity: TIME_OF_DAY_PRESETS[timeOfDay].opacity,
+              transition: 'all 0.8s ease',
+            }}
+          />
           <MapContainer
             center={[visibleItems[0]?.lat ?? 0, visibleItems[0]?.lng ?? 0]}
             zoom={12}
@@ -564,7 +638,57 @@ export default function ImmersiveTripViewer({ itinerary, onGeocode, isGeocoding 
               </Marker>
             ))}
           </MapContainer>
+          </div>
         </div>
+
+        {/* 360° Street View Panel */}
+        <AnimatePresence>
+          {show360Panel && activeItem && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 400, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex-shrink-0 overflow-hidden"
+            >
+              <div className="w-[400px] bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden h-full flex flex-col">
+                <div className="p-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-sm text-gray-900 dark:text-white">360° Street View</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{activeItem.item.title}</p>
+                  </div>
+                  <a
+                    href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${activeItem.lat},${activeItem.lng}&heading=0&pitch=0&fov=90`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800/40"
+                  >
+                    Open Full
+                  </a>
+                </div>
+                <div className="flex-1 min-h-[300px]">
+                  <iframe
+                    src={`https://www.google.com/maps/embed?pb=!4v0!6m8!1m7!1s!2m2!1d${activeItem.lat}!2d${activeItem.lng}!3f0!4f0!5f0.7820865974627469&output=svembed`}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0, minHeight: '300px' }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="360° Street View"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {show360Panel && !activeItem && (
+          <div className="w-[400px] flex-shrink-0 bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex items-center justify-center">
+            <p className="text-sm text-gray-500 dark:text-gray-400 text-center px-6">
+              Click a marker on the map to view its 360° Street View
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Active stop narrative overlay (during fly-through) */}

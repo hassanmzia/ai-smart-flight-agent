@@ -149,6 +149,14 @@ export const API_ENDPOINTS = {
     CONTENT_TRENDING: '/api/agents/content/trending',
     CONTENT_MINE: '/api/agents/content/mine',
     CONTENT_STATS: '/api/agents/content/stats',
+    // Voice & Offline Language
+    VOICE_TRANSLATE: '/api/agents/voice-translate',
+    OFFLINE_PHRASES: '/api/agents/offline-phrases',
+    // Collaborative Filtering
+    SIMILAR_USERS: '/api/agents/community/similar-users',
+    PEOPLE_LIKE_YOU: '/api/agents/community/people-like-you',
+    SOCIAL_PROOF: '/api/agents/community/social-proof',
+    ENJOYMENT_PREDICTION: '/api/agents/community/enjoyment-prediction',
     // Phase 7: Faith & Health Awareness
     FAITH_PRAYER_TIMES: '/api/agents/faith/prayer-times',
     FAITH_WORSHIP_PLACES: '/api/agents/faith/worship-places',

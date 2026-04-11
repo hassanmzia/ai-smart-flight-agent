@@ -4125,3 +4125,211 @@ def health_travel_summary(request):
     except Exception as e:
         logger.error(f"Health travel summary failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def voice_to_voice_translate(request):
+    """Translate text and optionally generate speech audio."""
+    try:
+        text = request.data.get('text')
+        source_lang = request.data.get('source_lang', 'en')
+        target_lang = request.data.get('target_lang', 'es')
+        if not text:
+            return Response({'error': 'text is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Use existing translate logic
+        import os, json
+        from django.conf import settings as django_settings
+        api_key = getattr(django_settings, 'OPENAI_API_KEY', os.getenv('OPENAI_API_KEY', ''))
+        translated = text  # fallback
+
+        if api_key and api_key not in ('your_openai_api_key_here', ''):
+            try:
+                from langchain_openai import ChatOpenAI
+                llm = ChatOpenAI(model='gpt-4o-mini', temperature=0.2, api_key=api_key, request_timeout=30)
+                response = llm.invoke(f"Translate the following from {source_lang} to {target_lang}. Return ONLY the translated text, nothing else:\n\n{text}")
+                translated = response.content.strip()
+            except Exception:
+                pass
+
+        # Try TTS
+        audio_url = None
+        if api_key and api_key not in ('your_openai_api_key_here', ''):
+            try:
+                import openai
+                client = openai.OpenAI(api_key=api_key)
+                speech = client.audio.speech.create(model='tts-1', voice='alloy', input=translated)
+                import base64
+                audio_b64 = base64.b64encode(speech.content).decode()
+                audio_url = f"data:audio/mp3;base64,{audio_b64}"
+            except Exception:
+                pass
+
+        return Response({
+            'success': True,
+            'original': text,
+            'translated': translated,
+            'source_lang': source_lang,
+            'target_lang': target_lang,
+            'audio_url': audio_url,
+        })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Voice-to-voice translate failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def offline_phrase_pack(request):
+    """Download a phrase pack for offline use."""
+    try:
+        language = request.query_params.get('language', 'es')
+
+        phrase_packs = {
+            'es': {'language': 'Spanish', 'code': 'es', 'phrases': [
+                {'category': 'greetings', 'original': 'Hello', 'translated': 'Hola', 'pronunciation': 'OH-lah'},
+                {'category': 'greetings', 'original': 'Thank you', 'translated': 'Gracias', 'pronunciation': 'GRAH-see-ahs'},
+                {'category': 'greetings', 'original': 'Please', 'translated': 'Por favor', 'pronunciation': 'por fah-VOR'},
+                {'category': 'greetings', 'original': 'Excuse me', 'translated': 'Disculpe', 'pronunciation': 'dees-KOOL-peh'},
+                {'category': 'greetings', 'original': 'Goodbye', 'translated': 'Adiós', 'pronunciation': 'ah-dee-OHS'},
+                {'category': 'dining', 'original': 'The bill, please', 'translated': 'La cuenta, por favor', 'pronunciation': 'lah KWEN-tah por fah-VOR'},
+                {'category': 'dining', 'original': 'Water', 'translated': 'Agua', 'pronunciation': 'AH-gwah'},
+                {'category': 'dining', 'original': 'I am vegetarian', 'translated': 'Soy vegetariano', 'pronunciation': 'soy veh-heh-tah-ree-AH-noh'},
+                {'category': 'directions', 'original': 'Where is...?', 'translated': '¿Dónde está...?', 'pronunciation': 'DON-deh ehs-TAH'},
+                {'category': 'directions', 'original': 'How far?', 'translated': '¿Qué tan lejos?', 'pronunciation': 'keh tahn LEH-hohs'},
+                {'category': 'emergency', 'original': 'Help!', 'translated': '¡Ayuda!', 'pronunciation': 'ah-YOO-dah'},
+                {'category': 'emergency', 'original': 'I need a doctor', 'translated': 'Necesito un médico', 'pronunciation': 'neh-seh-SEE-toh oon MEH-dee-koh'},
+                {'category': 'transport', 'original': 'How much does this cost?', 'translated': '¿Cuánto cuesta?', 'pronunciation': 'KWAHN-toh KWES-tah'},
+                {'category': 'transport', 'original': 'Stop here', 'translated': 'Pare aquí', 'pronunciation': 'PAH-reh ah-KEE'},
+            ]},
+            'fr': {'language': 'French', 'code': 'fr', 'phrases': [
+                {'category': 'greetings', 'original': 'Hello', 'translated': 'Bonjour', 'pronunciation': 'bohn-ZHOOR'},
+                {'category': 'greetings', 'original': 'Thank you', 'translated': 'Merci', 'pronunciation': 'mehr-SEE'},
+                {'category': 'greetings', 'original': 'Please', 'translated': "S'il vous plaît", 'pronunciation': 'seel voo PLEH'},
+                {'category': 'greetings', 'original': 'Excuse me', 'translated': 'Excusez-moi', 'pronunciation': 'ex-koo-ZAY mwah'},
+                {'category': 'greetings', 'original': 'Goodbye', 'translated': 'Au revoir', 'pronunciation': 'oh ruh-VWAHR'},
+                {'category': 'dining', 'original': 'The bill, please', 'translated': "L'addition, s'il vous plaît", 'pronunciation': 'lah-dee-SYOHN seel voo PLEH'},
+                {'category': 'dining', 'original': 'Water', 'translated': "De l'eau", 'pronunciation': 'duh LOH'},
+                {'category': 'directions', 'original': 'Where is...?', 'translated': 'Où est...?', 'pronunciation': 'oo EH'},
+                {'category': 'emergency', 'original': 'Help!', 'translated': 'Au secours!', 'pronunciation': 'oh suh-KOOR'},
+                {'category': 'emergency', 'original': 'I need a doctor', 'translated': "J'ai besoin d'un médecin", 'pronunciation': 'zhay buh-ZWAHN duhn meh-duh-SAHN'},
+                {'category': 'transport', 'original': 'How much does this cost?', 'translated': 'Combien ça coûte?', 'pronunciation': 'kohm-BYAHN sah KOOT'},
+            ]},
+            'ar': {'language': 'Arabic', 'code': 'ar', 'phrases': [
+                {'category': 'greetings', 'original': 'Hello', 'translated': 'مرحبا (Marhaba)', 'pronunciation': 'MAR-ha-ba'},
+                {'category': 'greetings', 'original': 'Thank you', 'translated': 'شكراً (Shukran)', 'pronunciation': 'SHOOK-ran'},
+                {'category': 'greetings', 'original': 'Please', 'translated': 'من فضلك (Min fadlak)', 'pronunciation': 'min FAD-lak'},
+                {'category': 'greetings', 'original': 'Peace be upon you', 'translated': 'السلام عليكم', 'pronunciation': 'as-sa-LAA-mu a-LAY-kum'},
+                {'category': 'dining', 'original': 'Is this halal?', 'translated': 'هل هذا حلال؟', 'pronunciation': 'hal HAA-tha ha-LAAL'},
+                {'category': 'dining', 'original': 'Water', 'translated': 'ماء (Ma)', 'pronunciation': 'MAA'},
+                {'category': 'emergency', 'original': 'Help!', 'translated': 'مساعدة! (Musaada!)', 'pronunciation': 'mu-SAA-a-da'},
+                {'category': 'directions', 'original': 'Where is the mosque?', 'translated': 'أين المسجد؟', 'pronunciation': 'AY-na al-MAS-jid'},
+            ]},
+            'ja': {'language': 'Japanese', 'code': 'ja', 'phrases': [
+                {'category': 'greetings', 'original': 'Hello', 'translated': 'こんにちは (Konnichiwa)', 'pronunciation': 'kohn-NEE-chee-wah'},
+                {'category': 'greetings', 'original': 'Thank you', 'translated': 'ありがとう (Arigatou)', 'pronunciation': 'ah-ree-GAH-toh'},
+                {'category': 'greetings', 'original': 'Excuse me', 'translated': 'すみません (Sumimasen)', 'pronunciation': 'soo-mee-mah-SEN'},
+                {'category': 'dining', 'original': 'The bill, please', 'translated': 'お会計お願いします', 'pronunciation': 'oh-KAI-keh oh-neh-GAI-shee-mahss'},
+                {'category': 'emergency', 'original': 'Help!', 'translated': '助けて! (Tasukete!)', 'pronunciation': 'tah-SOO-keh-teh'},
+                {'category': 'transport', 'original': 'How much?', 'translated': 'いくら? (Ikura?)', 'pronunciation': 'ee-KOO-rah'},
+            ]},
+            'hi': {'language': 'Hindi', 'code': 'hi', 'phrases': [
+                {'category': 'greetings', 'original': 'Hello', 'translated': 'नमस्ते (Namaste)', 'pronunciation': 'nah-mah-STAY'},
+                {'category': 'greetings', 'original': 'Thank you', 'translated': 'धन्यवाद (Dhanyavaad)', 'pronunciation': 'dhan-yah-VAAD'},
+                {'category': 'dining', 'original': 'I am vegetarian', 'translated': 'मैं शाकाहारी हूँ', 'pronunciation': 'main SHAH-kah-hah-ree hoon'},
+                {'category': 'emergency', 'original': 'Help!', 'translated': 'मदद! (Madad!)', 'pronunciation': 'MAH-dahd'},
+                {'category': 'directions', 'original': 'Where is...?', 'translated': '...कहाँ है? (...kahan hai?)', 'pronunciation': 'kah-HAAN hai'},
+            ]},
+            'tr': {'language': 'Turkish', 'code': 'tr', 'phrases': [
+                {'category': 'greetings', 'original': 'Hello', 'translated': 'Merhaba', 'pronunciation': 'mer-HA-ba'},
+                {'category': 'greetings', 'original': 'Thank you', 'translated': 'Teşekkür ederim', 'pronunciation': 'teh-shek-KOOR eh-deh-REEM'},
+                {'category': 'dining', 'original': 'Is this halal?', 'translated': 'Bu helal mi?', 'pronunciation': 'boo heh-LAAL mee'},
+                {'category': 'emergency', 'original': 'Help!', 'translated': 'İmdat!', 'pronunciation': 'eem-DAHT'},
+            ]},
+        }
+
+        pack = phrase_packs.get(language)
+        if not pack:
+            # Generate a minimal pack for unknown languages
+            pack = {'language': language, 'code': language, 'phrases': [
+                {'category': 'greetings', 'original': 'Hello', 'translated': f'[{language}] Hello', 'pronunciation': ''},
+                {'category': 'greetings', 'original': 'Thank you', 'translated': f'[{language}] Thank you', 'pronunciation': ''},
+                {'category': 'emergency', 'original': 'Help!', 'translated': f'[{language}] Help!', 'pronunciation': ''},
+            ]}
+
+        return Response({
+            'success': True,
+            'pack': pack,
+            'download_ready': True,
+            'total_phrases': len(pack['phrases']),
+        })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Offline phrase pack failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ──────────────────────────────────────────────────────────────
+# Collaborative Filtering (Phase 2.4 Gap Fix)
+# ──────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def similar_users(request):
+    """Find users with the most similar Travel DNA profiles."""
+    try:
+        from .services.collaborative_filter_service import CollaborativeFilterService
+        limit = int(request.query_params.get('limit', 5))
+        result = CollaborativeFilterService.get_similar_users(request.user, limit=limit)
+        return Response(result)
+    except Exception as e:
+        logger.error("Similar users failed: %s", e, exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def people_like_you(request):
+    """Get destination recommendations based on similar travelers."""
+    try:
+        from .services.collaborative_filter_service import CollaborativeFilterService
+        limit = int(request.query_params.get('limit', 10))
+        result = CollaborativeFilterService.get_people_like_you_recommendations(request.user, limit=limit)
+        return Response(result)
+    except Exception as e:
+        logger.error("People-like-you failed: %s", e, exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def social_proof(request):
+    """Get social proof stats for a destination."""
+    try:
+        from .services.collaborative_filter_service import CollaborativeFilterService
+        destination = request.query_params.get('destination', '')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = CollaborativeFilterService.get_social_proof(destination)
+        return Response(result)
+    except Exception as e:
+        logger.error("Social proof failed: %s", e, exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def enjoyment_prediction(request):
+    """Predict how much a user will enjoy a destination."""
+    try:
+        from .services.collaborative_filter_service import CollaborativeFilterService
+        destination = request.query_params.get('destination', '')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = CollaborativeFilterService.get_enjoyment_prediction(request.user, destination)
+        return Response(result)
+    except Exception as e:
+        logger.error("Enjoyment prediction failed: %s", e, exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

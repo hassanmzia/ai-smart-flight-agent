@@ -48,6 +48,13 @@ interface DestInfo {
   emergency_numbers: Record<string, string>;
 }
 
+interface SocialProofData {
+  total_visits: number;
+  average_rating: number;
+  loved_percentage: number;
+  common_profiles: Record<string, string>;
+}
+
 interface CommunityData {
   destination: string;
   info: DestInfo | null;
@@ -69,7 +76,9 @@ const CATEGORY_ICONS: Record<string, string> = {
 export default function CommunityInsights({ destination }: { destination: string }) {
   const [data, setData] = useState<CommunityData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<'info' | 'tips' | 'stories' | 'media'>('info');
+  const [tab, setTab] = useState<'info' | 'tips' | 'stories' | 'media' | 'social'>('info');
+  const [socialProof, setSocialProof] = useState<SocialProofData | null>(null);
+  const [socialLoading, setSocialLoading] = useState(false);
 
   useEffect(() => {
     if (!destination) return;
@@ -78,6 +87,15 @@ export default function CommunityInsights({ destination }: { destination: string
       .then((res) => setData(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    // Load social proof
+    setSocialLoading(true);
+    api.get(`/api/agents/community/social-proof?destination=${encodeURIComponent(destination)}`)
+      .then((res) => {
+        if (res.data?.success) setSocialProof(res.data);
+      })
+      .catch(() => {})
+      .finally(() => setSocialLoading(false));
   }, [destination]);
 
   const upvote = async (type: 'media' | 'stories' | 'tips', id: number) => {
@@ -122,7 +140,7 @@ export default function CommunityInsights({ destination }: { destination: string
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 dark:border-gray-700">
-        {(['info', 'tips', 'stories', 'media'] as const).map((t) => (
+        {(['info', 'tips', 'stories', 'media', 'social'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -132,7 +150,7 @@ export default function CommunityInsights({ destination }: { destination: string
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'info' ? 'About' : t === 'tips' ? `Tips (${data.counts.tips})` : t === 'stories' ? `Stories (${data.counts.stories})` : `Media (${data.counts.media})`}
+            {t === 'info' ? 'About' : t === 'tips' ? `Tips (${data.counts.tips})` : t === 'stories' ? `Stories (${data.counts.stories})` : t === 'media' ? `Media (${data.counts.media})` : 'Social Proof'}
           </button>
         ))}
       </div>
@@ -291,6 +309,52 @@ export default function CommunityInsights({ destination }: { destination: string
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Social Proof */}
+        {tab === 'social' && (
+          <div className="space-y-4">
+            {socialLoading ? (
+              <div className="text-center py-6">
+                <div className="animate-spin w-6 h-6 border-3 border-indigo-500 border-t-transparent rounded-full mx-auto" />
+              </div>
+            ) : socialProof ? (
+              <>
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-3">
+                    <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{socialProof.total_visits}</p>
+                    <p className="text-xs text-gray-500 mt-1">Total Visits</p>
+                  </div>
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-3">
+                    <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{socialProof.average_rating.toFixed(1)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Avg Rating</p>
+                  </div>
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3">
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{socialProof.loved_percentage}%</p>
+                    <p className="text-xs text-gray-500 mt-1">Loved It</p>
+                  </div>
+                </div>
+
+                {socialProof.common_profiles && Object.keys(socialProof.common_profiles).length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Typical Visitor Profile</h4>
+                    <div className="space-y-1.5">
+                      {Object.entries(socialProof.common_profiles).map(([key, value]) => (
+                        <div key={key} className="flex items-center justify-between text-sm px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+                          <span className="text-gray-500 capitalize">{key.replace(/_/g, ' ')}</span>
+                          <span className="font-medium text-gray-900 dark:text-white capitalize">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">
+                No social proof data available yet. Be the first to rate this destination!
+              </p>
             )}
           </div>
         )}

@@ -49,6 +49,8 @@ from .views import (
     # Language Tools
     translate_text,
     common_phrases,
+    voice_to_voice_translate,
+    offline_phrase_pack,
     # Memory & Learning
     record_trip_memory,
     trip_memories,
@@ -110,6 +112,11 @@ from .views import (
     trending_content,
     my_content,
     destination_content_stats,
+    # Collaborative Filtering
+    similar_users,
+    people_like_you,
+    social_proof,
+    enjoyment_prediction,
     # Phase 7: Faith & Health Awareness
     prayer_times,
     worship_places,
@@ -181,6 +188,8 @@ urlpatterns = [
     # Language Tools
     path('translate', translate_text, name='translate_text'),
     path('common-phrases', common_phrases, name='common_phrases'),
+    path('voice-translate', voice_to_voice_translate, name='voice_to_voice_translate'),
+    path('offline-phrases', offline_phrase_pack, name='offline_phrase_pack'),
     # Memory & Learning
     path('memories', trip_memories, name='trip_memories'),
     path('memories/record', record_trip_memory, name='record_trip_memory'),
@@ -242,6 +251,11 @@ urlpatterns = [
     path('content/trending', trending_content, name='trending_content'),
     path('content/mine', my_content, name='my_content'),
     path('content/stats', destination_content_stats, name='destination_content_stats'),
+    # Collaborative Filtering
+    path('community/similar-users', similar_users, name='similar_users'),
+    path('community/people-like-you', people_like_you, name='people_like_you'),
+    path('community/social-proof', social_proof, name='social_proof'),
+    path('community/enjoyment-prediction', enjoyment_prediction, name='enjoyment_prediction'),
     # Phase 7: Faith Travel
     path('faith/prayer-times', prayer_times, name='prayer_times'),
     path('faith/worship-places', worship_places, name='worship_places'),
