@@ -190,9 +190,9 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 lg:h-[4.5rem]">
           {/* Logo */}
-          <Link to={ROUTES.HOME} className="flex items-center gap-2 group flex-shrink-0 mr-3">
-            <span className="text-2xl">✈️</span>
-            <span className="hidden sm:inline text-sm font-bold bg-gradient-to-r from-primary-600 to-primary-800 dark:from-primary-400 dark:to-primary-600 bg-clip-text text-transparent group-hover:from-primary-700 group-hover:to-primary-900 dark:group-hover:from-primary-300 dark:group-hover:to-primary-500 transition-all whitespace-nowrap">
+          <Link to={ROUTES.HOME} className="flex items-center gap-2.5 group flex-shrink-0 mr-4">
+            <span className="text-3xl">✈️</span>
+            <span className="text-base sm:text-lg font-extrabold bg-gradient-to-r from-primary-600 to-primary-800 dark:from-primary-400 dark:to-primary-600 bg-clip-text text-transparent group-hover:from-primary-700 group-hover:to-primary-900 dark:group-hover:from-primary-300 dark:group-hover:to-primary-500 transition-all whitespace-nowrap">
               AI Travel Agent
             </span>
           </Link>
