@@ -27,6 +27,7 @@ const LANGUAGES = [
   { code: 'zh', name: 'Chinese', flag: '🇨🇳' },
   { code: 'ar', name: 'Arabic', flag: '🇸🇦' },
   { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
+  { code: 'bn', name: 'Bengali', flag: '🇧🇩' },
   { code: 'tr', name: 'Turkish', flag: '🇹🇷' },
 ];
 
@@ -497,7 +498,7 @@ export default function LanguageToolPage() {
                 </p>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {LANGUAGES.filter((l) => ['es', 'fr', 'ar', 'ja', 'hi', 'tr'].includes(l.code)).map((l) => (
+                  {LANGUAGES.filter((l) => ['es', 'fr', 'ar', 'ja', 'hi', 'bn', 'tr'].includes(l.code)).map((l) => (
                     <button
                       key={l.code}
                       onClick={() => handleDownloadOffline(l.code)}

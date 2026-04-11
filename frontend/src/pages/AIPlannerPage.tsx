@@ -16,7 +16,7 @@ import TravelChat from '@/components/TravelChat';
 import AirportAutocomplete from '@/components/common/AirportAutocomplete';
 
 type OrderMode = 'form' | 'chat' | 'voice';
-type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'cars' | 'dining' | 'intelligence';
+type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'intelligence';
 
 interface ParsedActivity {
   time: string | undefined;
@@ -116,6 +116,7 @@ const TAB_CONFIG: { key: ResultTab; label: string; icon: string }[] = [
   { key: 'itinerary', label: 'Itinerary', icon: '📅' },
   { key: 'flights', label: 'Flights', icon: '✈️' },
   { key: 'hotels', label: 'Hotels', icon: '🏨' },
+  { key: 'rentals', label: 'Rentals', icon: '🏡' },
   { key: 'cars', label: 'Cars', icon: '🚗' },
   { key: 'dining', label: 'Dining', icon: '🍽️' },
   { key: 'intelligence', label: 'Intelligence', icon: '🧠' },
@@ -144,6 +145,7 @@ const AIPlannerPage = () => {
   const [cuisine, setCuisine] = useState('');
   const [travelStyle, setTravelStyle] = useState('');
   const [interests, setInterests] = useState('');
+  const [accommodationPref, setAccommodationPref] = useState('');
   const [chatParams, setChatParams] = useState<any>({});
 
   // Compose display labels from city/country
@@ -168,6 +170,7 @@ const AIPlannerPage = () => {
         cuisine: cuisine || undefined,
         travel_style: travelStyle || undefined,
         interests: interests || undefined,
+        accommodation_preference: accommodationPref || undefined,
       }, { timeout: 300000 });
       const data = response.data;
       if (data.success) {
@@ -502,6 +505,15 @@ const AIPlannerPage = () => {
                     {['Budget','Comfort','Luxury','Adventure','Cultural','Family','Romantic','Business'].map(s => (
                       <option key={s} value={s.toLowerCase()}>{s}</option>
                     ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Accommodation (Optional)</label>
+                  <select value={accommodationPref} onChange={(e) => setAccommodationPref(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow">
+                    <option value="">Auto (Hotels + Rentals for 4+)</option>
+                    <option value="hotel">Hotels Only</option>
+                    <option value="rental">Vacation Rentals Only</option>
+                    <option value="both">Both Hotels & Rentals</option>
                   </select>
                 </div>
               </div>
@@ -1237,6 +1249,93 @@ const AIPlannerPage = () => {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ══════ TAB: RENTALS ══════ */}
+          {activeTab === 'rentals' && (
+            <div className="space-y-6">
+              {rec?.recommended_rental && (() => {
+                const r = rec.recommended_rental;
+                return (
+                  <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                    <div className="px-5 py-3 bg-gradient-to-r from-teal-50 to-cyan-100 dark:from-teal-900/30 dark:to-cyan-800/20 border-b border-teal-200 dark:border-teal-800 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-teal-900 dark:text-teal-200 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-teal-500 rounded-full"></span>
+                        Top Pick - Best Value Rental
+                      </h3>
+                      <div className="text-right">
+                        {(r.price || r.price_per_night) ? (
+                          <>
+                            <span className="text-2xl font-bold text-teal-700 dark:text-teal-300">${r.price || r.price_per_night}</span>
+                            <span className="text-sm text-teal-600 dark:text-teal-400 ml-1">/night</span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Price on request</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">{r.name || r.hotel_name}</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                        {[
+                          r.bedrooms && { label: 'Bedrooms', value: r.bedrooms },
+                          r.max_guests && { label: 'Max Guests', value: r.max_guests },
+                          r.cleaning_fee && { label: 'Cleaning Fee', value: `$${r.cleaning_fee}` },
+                          numNights > 0 && (r.price || r.price_per_night) && { label: 'Total Stay', value: `$${((r.price || r.price_per_night) * numNights + (r.cleaning_fee || 0)).toFixed(0)} (${numNights} nights)` },
+                        ].filter(Boolean).map((item: any, idx) => (
+                          <div key={idx} className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 uppercase tracking-wider">{item.label}</p>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{item.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      {r.amenities && r.amenities.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-4">
+                          {r.amenities.slice(0, 10).map((a: string, idx: number) => (
+                            <span key={idx} className="text-xs bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 px-2.5 py-1 rounded-full">{a}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Other rental results */}
+              {(() => {
+                const allRentals = result?.rentals?.rentals || result?.recommendation?.top_rentals || [];
+                return allRentals.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {allRentals.map((r: any, idx: number) => (
+                      <div key={idx} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start gap-3">
+                          {r.images?.[0] && (
+                            <img src={r.images[0]} alt={r.name} className="w-24 h-24 object-cover rounded-lg flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-white truncate">{r.name || r.hotel_name}</h4>
+                            {r.type && <p className="text-xs text-teal-600 dark:text-teal-400 mt-0.5">{r.type}</p>}
+                            <div className="flex items-center gap-3 mt-2 text-sm">
+                              {(r.price || r.price_per_night) && (
+                                <span className="font-bold text-teal-700 dark:text-teal-300">${r.price || r.price_per_night}/night</span>
+                              )}
+                              {r.guest_rating > 0 && (
+                                <span className="text-gray-500">{r.guest_rating} rating</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                    <p className="text-5xl mb-3">🏡</p>
+                    <p className="font-medium">No vacation rental results</p>
+                    <p className="text-sm mt-1">Try setting Accommodation to "Vacation Rentals Only" or "Both" with 4+ travelers</p>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
