@@ -68,7 +68,7 @@ const RegisterPage = () => {
         password,
         password_confirm: confirmPassword
       });
-      showSuccess('Registration successful!');
+      showSuccess('Account created! A verification email has been sent to your inbox.');
       navigate(ROUTES.DASHBOARD);
     } catch (error: any) {
       const errors = parseFieldErrors(error);

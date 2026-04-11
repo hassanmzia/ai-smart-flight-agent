@@ -1,9 +1,14 @@
+import os
+import uuid
+
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.contrib.auth import update_session_auth_hash
+from django.conf import settings
 
 from .models import User, UserProfile, TravelHistory
 from .serializers import (
@@ -143,6 +148,50 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                 serializer.save()
                 return Response(serializer.data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated],
+            parser_classes=[MultiPartParser, FormParser])
+    def upload_avatar(self, request):
+        """Upload a profile picture. Saves to media/avatars/ and returns the URL."""
+        avatar_file = request.FILES.get('avatar')
+        if not avatar_file:
+            return Response({'error': 'No avatar file provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if avatar_file.content_type not in allowed_types:
+            return Response({'error': 'Invalid file type. Use JPEG, PNG, GIF, or WebP.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate file size (max 5MB)
+        if avatar_file.size > 5 * 1024 * 1024:
+            return Response({'error': 'File too large. Maximum size is 5MB.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Save to media/avatars/
+        avatars_dir = os.path.join(settings.MEDIA_ROOT, 'avatars')
+        os.makedirs(avatars_dir, exist_ok=True)
+
+        ext = os.path.splitext(avatar_file.name)[1] or '.jpg'
+        filename = f"{request.user.id}_{uuid.uuid4().hex[:8]}{ext}"
+        filepath = os.path.join(avatars_dir, filename)
+
+        with open(filepath, 'wb+') as dest:
+            for chunk in avatar_file.chunks():
+                dest.write(chunk)
+
+        avatar_url = f"{settings.MEDIA_URL}avatars/{filename}"
+
+        # Update profile
+        try:
+            profile = request.user.profile
+        except UserProfile.DoesNotExist:
+            profile = UserProfile.objects.create(user=request.user)
+
+        profile.avatar = avatar_url
+        profile.save(update_fields=['avatar'])
+
+        return Response({'success': True, 'avatar_url': avatar_url}, status=status.HTTP_200_OK)
 
 
 class TravelHistoryViewSet(viewsets.ModelViewSet):

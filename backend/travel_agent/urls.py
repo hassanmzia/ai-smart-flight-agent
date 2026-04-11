@@ -61,10 +61,26 @@ def login(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-    """User registration endpoint with automatic login."""
+    """User registration endpoint with email verification."""
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+
+        # Send verification email (goes to console in dev)
+        from django.core import signing
+        token = signing.dumps({'user_id': user.id}, salt='email-verify')
+        try:
+            from django.core.mail import send_mail
+            verify_url = f"{request.build_absolute_uri('/')[:-1]}/verify-email/{token}"
+            send_mail(
+                subject='Verify Your Email - AI Smart Trip Planner',
+                message=f'Hi {user.first_name},\n\nPlease verify your email by clicking: {verify_url}\n\nThis link expires in 7 days.',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+        except Exception:
+            pass
 
         # Generate tokens for automatic login
         refresh = RefreshToken.for_user(user)
@@ -74,9 +90,60 @@ def register(request):
             'tokens': {
                 'accessToken': str(refresh.access_token),
                 'refreshToken': str(refresh),
-            }
+            },
+            'verification_sent': True,
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_email(request):
+    """Verify user email with signed token."""
+    token = request.data.get('token')
+    if not token:
+        return Response({'error': 'Token is required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        from django.core import signing
+        from apps.users.models import User
+        data = signing.loads(token, salt='email-verify', max_age=86400 * 7)
+        user = User.objects.get(id=data['user_id'])
+        user.is_verified = True
+        user.save(update_fields=['is_verified'])
+        return Response({'success': True, 'message': 'Email verified successfully!'})
+    except signing.BadSignature:
+        return Response({'error': 'Invalid or expired verification link'}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_verification(request):
+    """Resend verification email."""
+    email = request.data.get('email')
+    if not email:
+        return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        from apps.users.models import User
+        from django.core import signing
+        from django.core.mail import send_mail
+        user = User.objects.get(email__iexact=email)
+        if user.is_verified:
+            return Response({'message': 'Email is already verified'})
+        token = signing.dumps({'user_id': user.id}, salt='email-verify')
+        verify_url = f"{request.build_absolute_uri('/')[:-1]}/verify-email/{token}"
+        send_mail(
+            subject='Verify Your Email - AI Smart Trip Planner',
+            message=f'Hi {user.first_name},\n\nPlease verify your email by clicking: {verify_url}\n\nThis link expires in 7 days.',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=True,
+        )
+        return Response({'success': True, 'message': 'Verification email sent'})
+    except Exception:
+        # Don't reveal if email exists
+        return Response({'success': True, 'message': 'If the email exists, a verification link has been sent'})
 
 @api_view(['POST'])
 def logout(request):
@@ -141,6 +208,8 @@ urlpatterns = [
     # Authentication
     path('api/auth/login', login, name='login'),
     path('api/auth/register', register, name='register'),
+    path('api/auth/verify-email', verify_email, name='verify_email'),
+    path('api/auth/resend-verification', resend_verification, name='resend_verification'),
     path('api/auth/logout', logout, name='logout'),
     path('api/auth/refresh', refresh_token, name='refresh_token'),
     path('api/auth/me', current_user, name='current_user'),
