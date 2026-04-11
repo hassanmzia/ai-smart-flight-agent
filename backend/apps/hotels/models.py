@@ -45,6 +45,11 @@ class Hotel(models.Model):
             ('apartment', 'Apartment'),
             ('villa', 'Villa'),
             ('guesthouse', 'Guesthouse'),
+            ('vacation_rental', 'Vacation Rental'),
+            ('cabin', 'Cabin'),
+            ('cottage', 'Cottage'),
+            ('townhouse', 'Townhouse'),
+            ('farmhouse', 'Farmhouse'),
         ],
         default='hotel'
     )
@@ -52,6 +57,47 @@ class Hotel(models.Model):
     total_rooms = models.IntegerField(default=0)
     check_in_time = models.TimeField(default='15:00:00')
     check_out_time = models.TimeField(default='11:00:00')
+
+    # ── Vacation Rental Fields ──
+    is_entire_property = models.BooleanField(default=False)
+    bedrooms = models.IntegerField(null=True, blank=True)
+    bathrooms = models.DecimalField(max_digits=3, decimal_places=1, null=True, blank=True)
+    beds = models.IntegerField(null=True, blank=True)
+    max_guests = models.IntegerField(null=True, blank=True)
+    has_kitchen = models.BooleanField(default=False)
+    has_washer_dryer = models.BooleanField(default=False)
+    has_parking = models.BooleanField(default=False)
+    has_pool = models.BooleanField(default=False)
+    pet_friendly = models.BooleanField(default=False)
+
+    # Pricing model
+    pricing_model = models.CharField(
+        max_length=20,
+        choices=[('per_room', 'Per Room Per Night'), ('per_property', 'Per Property Per Night')],
+        default='per_room',
+    )
+    cleaning_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    service_fee_percent = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    minimum_stay_nights = models.IntegerField(default=1)
+
+    # Host info (vacation rentals)
+    host_name = models.CharField(max_length=200, blank=True)
+    host_response_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    is_superhost = models.BooleanField(default=False)
+
+    # House rules & policies
+    house_rules = models.JSONField(default=list, blank=True)
+    cancellation_policy = models.CharField(
+        max_length=20,
+        choices=[
+            ('flexible', 'Flexible'),
+            ('moderate', 'Moderate'),
+            ('strict', 'Strict'),
+            ('non_refundable', 'Non-Refundable'),
+        ],
+        default='moderate',
+        blank=True,
+    )
 
     # Description
     description = models.TextField(blank=True)
@@ -102,6 +148,14 @@ class Hotel(models.Model):
     def __str__(self):
         return f"{self.name} - {self.city}, {self.country}"
 
+    @property
+    def is_rental(self):
+        """Whether this property is a vacation rental vs traditional hotel."""
+        return self.property_type in (
+            'vacation_rental', 'cabin', 'cottage', 'townhouse',
+            'farmhouse', 'villa', 'apartment',
+        ) or self.is_entire_property
+
 
 class HotelAmenity(models.Model):
     """Hotel amenities and features."""
@@ -116,6 +170,10 @@ class HotelAmenity(models.Model):
         ('business', 'Business'),
         ('wellness', 'Wellness'),
         ('outdoor', 'Outdoor'),
+        ('kitchen', 'Kitchen'),
+        ('laundry', 'Laundry'),
+        ('parking', 'Parking & Access'),
+        ('safety', 'Safety & Security'),
     ]
 
     hotel = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='amenities')
@@ -188,6 +246,14 @@ class HotelSearch(models.Model):
         null=True,
         blank=True
     )
+
+    # Rental-specific search filters
+    include_rentals = models.BooleanField(default=True)
+    include_hotels = models.BooleanField(default=True)
+    min_bedrooms = models.IntegerField(null=True, blank=True)
+    min_bathrooms = models.IntegerField(null=True, blank=True)
+    entire_property_only = models.BooleanField(default=False)
+    pet_friendly_only = models.BooleanField(default=False)
 
     # Results
     results_count = models.IntegerField(default=0)

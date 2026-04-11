@@ -210,6 +210,27 @@ export interface Hotel {
   distanceFromCenter?: number; // in km
   utilityScore?: UtilityScore;
   reviews?: HotelReview[];
+  // Vacation rental fields
+  is_rental?: boolean;
+  is_entire_property?: boolean;
+  bedrooms?: number;
+  bathrooms?: number;
+  beds?: number;
+  max_guests?: number;
+  has_kitchen?: boolean;
+  has_washer_dryer?: boolean;
+  has_parking?: boolean;
+  has_pool?: boolean;
+  pet_friendly?: boolean;
+  pricing_model?: 'per_room' | 'per_property';
+  cleaning_fee?: number;
+  service_fee_percent?: number;
+  minimum_stay_nights?: number;
+  host_name?: string;
+  host_response_rate?: number;
+  is_superhost?: boolean;
+  house_rules?: string[];
+  cancellation_policy?: string;
 }
 
 export interface NearbyPlace {

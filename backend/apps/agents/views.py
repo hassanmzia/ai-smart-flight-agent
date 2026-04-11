@@ -2727,19 +2727,59 @@ def collaboration_cost_split(request, collaboration_id):
 
         per_person = total_cost / n if n > 0 else 0
 
-        # Itemized breakdown from itinerary days
+        # Itemized breakdown from itinerary days — rental-aware
         item_costs = []
+        category_totals = {}  # group by item_type
         if hasattr(itinerary, 'days'):
             for day in itinerary.days.all():
                 for item in day.items.all():
                     if item.estimated_cost:
-                        item_costs.append({
+                        cost = float(item.estimated_cost)
+                        item_info = {
                             'day': day.day_number,
                             'title': item.title,
                             'type': item.item_type,
-                            'total': float(item.estimated_cost),
-                            'per_person': float(item.estimated_cost) / n if n > 0 else 0,
-                        })
+                            'total': cost,
+                        }
+
+                        if item.item_type == 'rental':
+                            # Whole-property rental: split total equally
+                            item_info['split_type'] = 'equal_share'
+                            item_info['per_person'] = round(cost / n, 2) if n > 0 else 0
+                            item_info['note'] = 'Entire property cost split equally'
+                            # Include cleaning fee if stored in item_data
+                            cleaning = item.item_data.get('cleaning_fee') if hasattr(item, 'item_data') and item.item_data else None
+                            if cleaning:
+                                item_info['cleaning_fee'] = float(cleaning)
+                                item_info['cleaning_per_person'] = round(float(cleaning) / n, 2) if n > 0 else 0
+                        elif item.item_type == 'hotel':
+                            room_assignments = item.item_data.get('room_assignments', {}) if hasattr(item, 'item_data') and item.item_data else {}
+                            if room_assignments:
+                                item_info['split_type'] = 'per_room'
+                                item_info['room_assignments'] = room_assignments
+                            else:
+                                item_info['split_type'] = 'equal_share'
+                            item_info['per_person'] = round(cost / n, 2) if n > 0 else 0
+                        else:
+                            item_info['split_type'] = 'equal_share'
+                            item_info['per_person'] = round(cost / n, 2) if n > 0 else 0
+
+                        item_costs.append(item_info)
+
+                        # Accumulate by category
+                        cat = item.item_type
+                        if cat not in category_totals:
+                            category_totals[cat] = 0
+                        category_totals[cat] += cost
+
+        cost_by_category = [
+            {
+                'category': cat,
+                'total': round(total, 2),
+                'per_person': round(total / n, 2) if n > 0 else 0,
+            }
+            for cat, total in category_totals.items()
+        ]
 
         return Response({
             'success': True,
@@ -2752,6 +2792,7 @@ def collaboration_cost_split(request, collaboration_id):
                 for p in participants
             ],
             'itemized': item_costs,
+            'cost_by_category': cost_by_category,
         })
     except TripCollaboration.DoesNotExist:
         return Response({'error': 'Collaboration not found'}, status=status.HTTP_404_NOT_FOUND)

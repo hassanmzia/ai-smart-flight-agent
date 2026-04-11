@@ -42,6 +42,8 @@ export const ROUTES = {
   CONTENT_HUB: '/content-hub',
   FAITH_TRAVEL: '/faith-travel',
   HEALTH_TRAVEL: '/health-travel',
+  RENTAL_SEARCH: '/rentals/search',
+  RENTAL_RESULTS: '/rentals',
 } as const;
 
 // Local storage keys
@@ -172,6 +174,9 @@ export const API_ENDPOINTS = {
     HEALTH_INSURANCE: '/api/agents/health/insurance',
     HEALTH_FATIGUE: '/api/agents/health/fatigue-itinerary',
     HEALTH_SUMMARY: '/api/agents/health/summary',
+    // Vacation Rentals
+    RENTAL_SEARCH: '/api/hotels/rentals/search',
+    RENTAL_FEATURED: '/api/hotels/rentals/featured',
   },
   COMMUNITY: {
     CURATED_GUIDES_GENERATE: '/api/community/curated-guides/generate/',

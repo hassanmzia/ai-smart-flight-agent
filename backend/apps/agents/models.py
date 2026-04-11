@@ -747,6 +747,7 @@ class CollaborationVote(models.Model):
     ITEM_TYPE_CHOICES = [
         ('flight', 'Flight'),
         ('hotel', 'Hotel'),
+        ('rental', 'Vacation Rental'),
         ('restaurant', 'Restaurant'),
         ('attraction', 'Attraction'),
     ]
@@ -893,6 +894,7 @@ class PriceWatch(models.Model):
     WATCH_TYPE_CHOICES = [
         ('flight', 'Flight'),
         ('hotel', 'Hotel'),
+        ('rental', 'Vacation Rental'),
     ]
 
     user = models.ForeignKey(
