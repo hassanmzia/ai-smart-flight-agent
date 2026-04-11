@@ -68,14 +68,17 @@ export default function TripStoryView({ itineraryId, itineraryTitle, destination
       const res = await api.post(
         `/api/itineraries/itineraries/${itineraryId}/generate-story/`,
         {},
-        { timeout: 60000 },
+        { timeout: 90000 },
       );
       if (res.data?.story) {
         setStory(res.data.story);
         setExpandedDay(0);
       }
     } catch (err: any) {
-      setError(err?.message || 'Failed to generate story. Please try again.');
+      const msg = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')
+        ? 'Story generation timed out. The AI is taking too long — please try again.'
+        : err?.message || 'Failed to generate story. Please try again.';
+      setError(msg);
     } finally {
       setIsLoading(false);
     }

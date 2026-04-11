@@ -496,7 +496,7 @@ class StoryGeneratorService:
                 model='gpt-4o-mini',
                 temperature=0.7,
                 api_key=api_key,
-                request_timeout=45,
+                request_timeout=25,
             )
 
             highlights_text = ', '.join(highlights) if highlights else 'local sights and culture'

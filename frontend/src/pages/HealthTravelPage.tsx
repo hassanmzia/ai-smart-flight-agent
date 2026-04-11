@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import axios from 'axios';
 import toast from 'react-hot-toast';
-import { API_BASE_URL, API_ENDPOINTS } from '../utils/constants';
+import api from '@/services/api';
+import { API_ENDPOINTS } from '../utils/constants';
 
 interface MedicalFacility {
   id: number;
@@ -118,16 +118,12 @@ export default function HealthTravelPage() {
   const [fatiguePlan, setFatiguePlan] = useState<FatigueDay[]>([]);
   const [fatigueSettings, setFatigueSettings] = useState({ max_walking_km: 10, pace: 'moderate', days: 3 });
 
-  const token = localStorage.getItem('auth_token');
-  const headers = { Authorization: `Bearer ${token}` };
-
   const fetchFacilities = async () => {
     if (!destination) { toast.error('Please enter a destination'); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.HEALTH_MEDICAL}`, {
+      const res = await api.get(API_ENDPOINTS.AGENT.HEALTH_MEDICAL, {
         params: { destination, type: facilityType || undefined, emergency: emergencyOnly || undefined },
-        headers,
       });
       const d = res.data;
       const items = d?.facilities || d?.items || d?.results || (Array.isArray(d) ? d : []);
@@ -140,8 +136,8 @@ export default function HealthTravelPage() {
     if (!destination) { toast.error('Please enter a destination'); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.HEALTH_ACCESSIBILITY}`, {
-        params: { destination }, headers,
+      const res = await api.get(API_ENDPOINTS.AGENT.HEALTH_ACCESSIBILITY, {
+        params: { destination },
       });
       const d = res.data;
       const items = d?.ratings || d?.items || d?.results || (Array.isArray(d) ? d : []);
@@ -156,9 +152,9 @@ export default function HealthTravelPage() {
     }
     setLoading(true);
     try {
-      await axios.post(`${API_BASE_URL}${API_ENDPOINTS.AGENT.HEALTH_ACCESSIBILITY_RATE}`, {
+      await api.post(API_ENDPOINTS.AGENT.HEALTH_ACCESSIBILITY_RATE, {
         ...ratingForm, destination,
-      }, { headers });
+      });
       toast.success('Accessibility rating submitted!');
       fetchAccessibility();
     } catch { toast.error('Failed to submit rating'); }
@@ -168,7 +164,7 @@ export default function HealthTravelPage() {
   const fetchReminders = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.HEALTH_MEDICATION}`, { headers });
+      const res = await api.get(API_ENDPOINTS.AGENT.HEALTH_MEDICATION);
       const d = res.data;
       const items = d?.reminders || d?.items || d?.results || (Array.isArray(d) ? d : []);
       setReminders(Array.isArray(items) ? items : []);
@@ -180,9 +176,9 @@ export default function HealthTravelPage() {
     if (!newMed.medication_name) { toast.error('Medication name is required'); return; }
     setLoading(true);
     try {
-      await axios.post(`${API_BASE_URL}${API_ENDPOINTS.AGENT.HEALTH_MEDICATION}`, {
+      await api.post(API_ENDPOINTS.AGENT.HEALTH_MEDICATION, {
         action: 'add', ...newMed,
-      }, { headers });
+      });
       toast.success('Medication reminder added!');
       setNewMed({ medication_name: '', dosage: '', home_time: '08:00', home_timezone: 'America/New_York', frequency: 'daily', notes: '' });
       fetchReminders();
@@ -193,8 +189,8 @@ export default function HealthTravelPage() {
   const adjustMedications = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.HEALTH_MED_ADJUST}`, {
-        params: { timezone: destTimezone }, headers,
+      const res = await api.get(API_ENDPOINTS.AGENT.HEALTH_MED_ADJUST, {
+        params: { timezone: destTimezone },
       });
       const d = res.data;
       const items = d?.adjusted_medications || d?.items || (Array.isArray(d) ? d : []);
@@ -207,8 +203,8 @@ export default function HealthTravelPage() {
     if (!country) { toast.error('Please enter a country'); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.HEALTH_INSURANCE}`, {
-        params: { country }, headers,
+      const res = await api.get(API_ENDPOINTS.AGENT.HEALTH_INSURANCE, {
+        params: { country },
       });
       const d = res.data;
       if (d?.success !== false) {
@@ -222,14 +218,13 @@ export default function HealthTravelPage() {
     if (!destination) { toast.error('Please enter a destination'); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.HEALTH_FATIGUE}`, {
+      const res = await api.get(API_ENDPOINTS.AGENT.HEALTH_FATIGUE, {
         params: {
           destination,
           max_walking_km: fatigueSettings.max_walking_km,
           pace: fatigueSettings.pace,
           days: fatigueSettings.days,
         },
-        headers,
       });
       const d = res.data;
       const items = d?.plan || d?.days || d?.items || (Array.isArray(d) ? d : []);
