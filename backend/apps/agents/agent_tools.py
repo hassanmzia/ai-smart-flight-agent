@@ -109,7 +109,7 @@ class FlightSearchTool:
             logger.info(f"Found {best_count} best flights, {other_count} other flights")
 
             # Parse and format results
-            formatted_results = FlightSearchTool._format_flight_results(results)
+            formatted_results = FlightSearchTool._format_flight_results(results, passengers=passengers)
 
             logger.info(f"Flight search completed: {origin} -> {destination} on {date}")
             return formatted_results
@@ -124,7 +124,7 @@ class FlightSearchTool:
             }
 
     @staticmethod
-    def _format_flight_results(raw_results: Dict) -> Dict[str, Any]:
+    def _format_flight_results(raw_results: Dict, passengers: int = 1) -> Dict[str, Any]:
         """Format raw SerpAPI results into structured flight data"""
         try:
             flights = []
@@ -132,14 +132,14 @@ class FlightSearchTool:
             # Extract best flights
             if 'best_flights' in raw_results:
                 for flight_data in raw_results.get('best_flights', []):
-                    parsed = FlightSearchTool._parse_flight(flight_data)
+                    parsed = FlightSearchTool._parse_flight(flight_data, passengers=passengers)
                     if parsed:  # Only add if parse was successful
                         flights.append(parsed)
 
             # Extract other flights
             if 'other_flights' in raw_results:
                 for flight_data in raw_results.get('other_flights', [])[:10]:  # Limit to 10
-                    parsed = FlightSearchTool._parse_flight(flight_data)
+                    parsed = FlightSearchTool._parse_flight(flight_data, passengers=passengers)
                     if parsed:  # Only add if parse was successful
                         flights.append(parsed)
 
@@ -160,8 +160,13 @@ class FlightSearchTool:
             return {"success": False, "error": str(e), "flights": []}
 
     @staticmethod
-    def _parse_flight(flight_data: Dict) -> Optional[Dict[str, Any]]:
-        """Parse individual flight data"""
+    def _parse_flight(flight_data: Dict, passengers: int = 1) -> Optional[Dict[str, Any]]:
+        """Parse individual flight data.
+
+        SerpAPI Google Flights returns the TOTAL price for all passengers
+        when adults > 1.  We normalise to per-person so the rest of the
+        system (frontend display, budget calculation) is consistent.
+        """
         try:
             if not flight_data:
                 return None
@@ -173,10 +178,15 @@ class FlightSearchTool:
             flight = flights[0]
 
             # Extract price - this is critical
-            price = flight_data.get('price', 0)
-            if not price:
+            # SerpAPI returns total price for all passengers when adults > 1
+            raw_price = flight_data.get('price', 0)
+            if not raw_price:
                 logger.warning(f"Flight missing price: {flight_data.get('airline', 'Unknown')}")
                 return None
+
+            # Normalise to per-person price
+            num_pax = max(1, int(passengers))
+            price_per_person = round(raw_price / num_pax) if num_pax > 1 else raw_price
 
             return {
                 "airline": flight.get('airline', 'Unknown'),
@@ -195,7 +205,8 @@ class FlightSearchTool:
                 "travel_class": flight.get('travel_class', 'Economy'),
                 "legroom": flight.get('legroom', 'Standard'),
                 "extensions": flight.get('extensions', []),
-                "price": price,
+                "price": price_per_person,
+                "total_price": raw_price,
                 "currency": "USD",
                 "carbon_emissions": flight_data.get('carbon_emissions', {}),
                 "booking_token": flight_data.get('booking_token', ''),
