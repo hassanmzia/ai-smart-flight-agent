@@ -692,6 +692,44 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
         )
     restaurant_summary = '\n'.join(restaurant_lines) if restaurant_lines else 'No restaurant data from search agent.'
 
+    # --- Vacation rental details (rich) ---
+    rental_summary = 'No vacation rental found by search agent.'
+    if rec.get('recommended_rental'):
+        vr = rec['recommended_rental']
+        vr_name = vr.get('name') or vr.get('hotel_name', 'Unknown Rental')
+        vr_price = vr.get('price') or vr.get('price_per_night', 'N/A')
+        vr_type = vr.get('type', 'Vacation Rental')
+        vr_bedrooms = vr.get('bedrooms', 'N/A')
+        vr_bathrooms = vr.get('bathrooms', 'N/A')
+        vr_max_guests = vr.get('max_guests', 'N/A')
+        vr_address = vr.get('address', '')
+        vr_amenities = vr.get('amenities', [])
+        vr_rating = vr.get('star_rating') or vr.get('guest_rating', 'N/A')
+        rental_summary = (
+            f"BOOKED VACATION RENTAL (Airbnb/VRBO):\n"
+            f"  Property Name: {vr_name}\n"
+            f"  Type: {vr_type}\n"
+            f"  Bedrooms: {vr_bedrooms}\n"
+            f"  Bathrooms: {vr_bathrooms}\n"
+            f"  Max Guests: {vr_max_guests}\n"
+            f"  Price: ${vr_price}/night\n"
+            f"  Rating: {vr_rating}\n"
+            f"  Location: {vr_address}\n"
+            f"  Key amenities: {', '.join(vr_amenities[:8]) if vr_amenities else 'N/A'}"
+        )
+    elif rec.get('top_rentals'):
+        # Even if no single "recommended", list the top option
+        vr = rec['top_rentals'][0]
+        vr_name = vr.get('name') or vr.get('hotel_name', 'Unknown Rental')
+        vr_price = vr.get('price') or vr.get('price_per_night', 'N/A')
+        vr_type = vr.get('type', 'Vacation Rental')
+        rental_summary = (
+            f"AVAILABLE VACATION RENTAL:\n"
+            f"  Property Name: {vr_name}\n"
+            f"  Type: {vr_type}\n"
+            f"  Price: ${vr_price}/night"
+        )
+
     # --- Car rental details (rich) ---
     car_summary = 'No car rentals found by search agent.'
     if rec.get('recommended_car'):
@@ -743,6 +781,20 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
         connecting_flight_cost = 50 * num_passengers  # ~$50/person each way × 2 legs (there + back)
         connecting_flight_cost *= 2  # round trip
     hotel_price_estimated = False
+    rental_price_per_night = 0
+    rental_total = 0
+    using_rental_as_accommodation = False
+
+    # Check if a vacation rental is available (preferred for groups of 4+)
+    try:
+        rr = rec.get('recommended_rental') or (rec.get('top_rentals', [None])[0] if rec.get('top_rentals') else None) or {}
+        rental_price_per_night = float(rr.get('price') or rr.get('price_per_night', 0) or 0)
+        if rental_price_per_night > 0:
+            rental_total = rental_price_per_night * num_nights
+            using_rental_as_accommodation = True
+    except (ValueError, TypeError, AttributeError):
+        rental_total = 0
+
     try:
         rh = rec.get('recommended_hotel') or {}
         hotel_price_per_night = float(rh.get('price') or rh.get('price_per_night', 0) or 0)
@@ -769,13 +821,19 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
     except (ValueError, TypeError, AttributeError):
         hotel_total = 0
         num_rooms = 1
+
+    # Use rental cost as accommodation cost when rental is available (better value for groups)
+    if using_rental_as_accommodation:
+        accommodation_total = rental_total
+    else:
+        accommodation_total = hotel_total
     try:
         rc = rec.get('recommended_car') or {}
         car_total = float(rc.get('total_price', 0) or 0)
     except (ValueError, TypeError, AttributeError):
         car_total = 0
 
-    known_costs_total = flight_price + hotel_total + car_total + connecting_flight_cost
+    known_costs_total = flight_price + accommodation_total + car_total + connecting_flight_cost
     budget_display = f"${budget}" if budget else "flexible (no limit set)"
     budget_remaining_instruction = ""
     if budget:
@@ -789,10 +847,19 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
     hotel_price_note = " (estimated — exact pricing unavailable)" if hotel_price_estimated else ""
     hotel_rooms_note = f" × {num_rooms} rooms" if num_rooms > 1 else ""
     connecting_note = f"\nConnecting domestic flights (hub route, round trip, {num_passengers} passengers): ~${connecting_flight_cost:.0f}" if connecting_flight_cost > 0 else ""
+
+    # Build accommodation line (rental or hotel)
+    if using_rental_as_accommodation:
+        accom_line = f"Vacation rental: ${rental_price_per_night:.0f}/night × {num_nights} nights = ${rental_total:.0f} (entire property — no per-room cost)"
+        if hotel_total > 0:
+            accom_line += f"\n(Hotel alternative: ${hotel_price_per_night:.0f}/night{hotel_rooms_note} = ${hotel_total:.0f}{hotel_price_note})"
+    else:
+        accom_line = f"Hotel cost: ${hotel_price_per_night:.0f}/night × {num_nights} nights{hotel_rooms_note} = ${hotel_total:.0f}{hotel_price_note}"
+
     budget_summary = (
         f"NUMBER OF TRAVELERS: {num_passengers}\n"
         f"International flights: ${flight_price_pp:.0f}/person × {num_passengers} passengers = ${flight_price:.0f}\n"
-        f"Hotel cost: ${hotel_price_per_night:.0f}/night × {num_nights} nights{hotel_rooms_note} = ${hotel_total:.0f}{hotel_price_note}\n"
+        f"{accom_line}\n"
         f"Car rental: ${car_total:.0f}\n"
         f"{connecting_note}\n"
         f"Customer budget: {budget_display}\n"
@@ -813,13 +880,21 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
     food_intel = json.dumps(intel.get('food_scene', {}), indent=2) if intel.get('food_scene') else 'Not available'
     packing_intel = json.dumps(intel.get('packing_essentials', []), indent=2) if intel.get('packing_essentials') else 'Not available'
 
-    # --- Determine hotel name and checkout time for prompt ---
+    # --- Determine hotel/rental name and checkout time for prompt ---
     hotel_name_for_prompt = ''
+    rental_name_for_prompt = ''
     hotel_checkout = '11:00 AM'
     if rec.get('recommended_hotel'):
         h = rec['recommended_hotel']
         hotel_name_for_prompt = h.get('name') or h.get('hotel_name', 'the hotel')
         hotel_checkout = h.get('check_out_time', '11:00 AM') or '11:00 AM'
+    if rec.get('recommended_rental'):
+        vr = rec['recommended_rental']
+        rental_name_for_prompt = vr.get('name') or vr.get('hotel_name', 'the vacation rental')
+    elif rec.get('top_rentals'):
+        rental_name_for_prompt = rec['top_rentals'][0].get('name') or rec['top_rentals'][0].get('hotel_name', '')
+    # For groups with a rental, prefer the rental as the accommodation in the itinerary
+    accommodation_name_for_prompt = rental_name_for_prompt or hotel_name_for_prompt or 'the accommodation'
 
     prompt = f"""You are an expert Travel Planner AI creating a polished, ready-to-follow travel itinerary for a public travel website.
 Write in a warm, professional, and conversational tone — like a knowledgeable travel advisor writing for a real person.
@@ -832,6 +907,9 @@ Your output will be displayed directly to travelers, so make it clear, detailed,
 
 ### Hotel Details
 {hotel_summary}
+
+### Vacation Rental Details
+{rental_summary}
 
 ### Recommended Restaurants (use these EXACT names)
 {restaurant_summary}
@@ -885,7 +963,7 @@ If the above attractions data is limited, use your knowledge to add the top 8-10
 
 1. **FLIGHT TIMES DRIVE THE SCHEDULE**: Day 1 starts with the actual departure time from the flight data. Plan afternoon activities ONLY after the flight lands and the traveler reaches the hotel. On the departure day, plan activities BEFORE the flight and ensure enough time to get to the airport.
 
-2. **USE REAL NAMES**: Always use the exact hotel name "{hotel_name_for_prompt}" and the exact restaurant names from search results. Never say "a local restaurant" — name specific places.
+2. **USE REAL NAMES**: Always use the exact accommodation name "{accommodation_name_for_prompt}" and the exact restaurant names from search results. Never say "a local restaurant" — name specific places.{f' For this group of {num_passengers} travelers, a vacation rental ("{rental_name_for_prompt}") has been booked — reference this property by name when mentioning check-in, check-out, and the home base. Mention it is a vacation rental/Airbnb-style property with kitchen, living space, etc.' if rental_name_for_prompt else ''}
 
 3. **REALISTIC TIME FLOW**: Every activity must have a specific time (e.g., "9:30 AM"). Times should flow logically — account for travel between locations (15-45 min), meal duration (45-90 min), and activity duration. Don't schedule 5 attractions in 3 hours.
 
@@ -1015,28 +1093,41 @@ def _generate_fallback_itinerary(*, result, origin, destination, departure_date,
     # Extract top recommendations
     rec_flight = rec.get('recommended_flight', {}) or {}
     rec_hotel = rec.get('recommended_hotel', {}) or {}
+    rec_rental = rec.get('recommended_rental', {}) or {}
     rec_restaurant = rec.get('recommended_restaurant', {}) or {}
     rec_car = rec.get('recommended_car', {}) or {}
 
     flight_price = rec_flight.get('price', 0)
-    hotel_name = rec_hotel.get('name', 'your hotel')
-    hotel_price = rec_hotel.get('price', 0)
+    hotel_name = rec_hotel.get('name') or rec_hotel.get('hotel_name', 'your hotel')
+    hotel_price = rec_hotel.get('price') or rec_hotel.get('price_per_night', 0)
+
+    # Prefer rental for groups
+    rental_name = rec_rental.get('name') or rec_rental.get('hotel_name', '')
+    rental_price = rec_rental.get('price') or rec_rental.get('price_per_night', 0)
+    has_rental = bool(rental_name and float(rental_price or 0) > 0)
+
+    accom_name = rental_name if has_rental else hotel_name
+    accom_price = float(rental_price) if has_rental else float(hotel_price)
+    accom_type = 'Vacation Rental' if has_rental else 'Hotel'
 
     lines = []
     lines.append(f"## Trip Overview")
     lines.append(f"Your trip from {origin} to {destination} spans {num_days} days and {num_days - 1} night{'s' if num_days > 2 else ''}.")
-    if hotel_name and hotel_name != 'your hotel':
-        lines.append(f"You'll be staying at **{hotel_name}**.")
+    if accom_name and accom_name not in ('your hotel', ''):
+        if has_rental:
+            lines.append(f"You'll be staying at **{accom_name}** — a vacation rental perfect for your group of {passengers}.")
+        else:
+            lines.append(f"You'll be staying at **{accom_name}**.")
     lines.append("")
 
     # Budget summary
     total = rec.get('total_estimated_cost', 0) or 0
-    hotel_total = float(hotel_price) * max(1, num_days - 1)
+    accom_total = accom_price * max(1, num_days - 1)
     lines.append(f"## Budget Summary")
     lines.append(f"| Category | Cost |")
     lines.append(f"|----------|------|")
     lines.append(f"| Flights | ${float(flight_price):.0f} |")
-    lines.append(f"| Hotel ({num_days - 1} nights @ ${float(hotel_price):.0f}) | ${hotel_total:.0f} |")
+    lines.append(f"| {accom_type} ({num_days - 1} nights @ ${accom_price:.0f}) | ${accom_total:.0f} |")
     lines.append(f"| **Total** | **${float(total):.0f}** |")
     lines.append("")
 

@@ -221,10 +221,11 @@ class HotelSearchTool:
         min_price: Optional[int] = None,
         max_price: Optional[int] = None,
         star_rating: Optional[int] = None,
-        sort_by: str = "13"  # 13 = highest rated
+        sort_by: str = "13",  # 13 = highest rated
+        vacation_rentals: bool = False,
     ) -> Dict[str, Any]:
         """
-        Search for hotels in a location
+        Search for hotels or vacation rentals in a location.
 
         Args:
             location: City or location name
@@ -236,9 +237,11 @@ class HotelSearchTool:
             max_price: Maximum price filter
             star_rating: Filter by star rating (1-5)
             sort_by: Sort option (13=highest rated, 3=price low to high)
+            vacation_rentals: If True, search for vacation rental properties
+                (Airbnb, VRBO, etc.) instead of traditional hotels.
 
         Returns:
-            Dict containing hotel results
+            Dict containing hotel/rental results
         """
         try:
             params = {
@@ -254,6 +257,9 @@ class HotelSearchTool:
                 "hl": "en",
                 "sort_by": sort_by
             }
+
+            if vacation_rentals:
+                params["vacation_rentals"] = True
 
             if min_price:
                 params["min_price"] = min_price
@@ -350,8 +356,9 @@ class HotelSearchTool:
                 # If link is an object, try to extract URL from common properties
                 link = link.get('url') or link.get('href') or link.get('link') or ''
 
-            return {
+            parsed = {
                 "hotel_name": hotel_data.get('name', 'Unknown'),
+                "name": hotel_data.get('name', 'Unknown'),
                 "star_rating": hotel_data.get('overall_rating', 0),
                 "guest_rating": hotel_data.get('reviews', 0),
                 "price_per_night": price_per_night,  # Now a clean integer
@@ -366,6 +373,21 @@ class HotelSearchTool:
                 "check_in_time": hotel_data.get('check_in_time', ''),
                 "check_out_time": hotel_data.get('check_out_time', ''),
             }
+
+            # Vacation rental-specific fields (returned by SerpAPI vacation_rentals mode)
+            if hotel_data.get('type'):
+                parsed['type'] = hotel_data['type']  # e.g. "Entire home", "Private room"
+            if hotel_data.get('bedrooms'):
+                parsed['bedrooms'] = hotel_data['bedrooms']
+            if hotel_data.get('bathrooms'):
+                parsed['bathrooms'] = hotel_data['bathrooms']
+            if hotel_data.get('max_guests'):
+                parsed['max_guests'] = hotel_data['max_guests']
+            # SerpAPI may include these under 'rate_per_night' > 'before_taxes_fees' or separately
+            if hotel_data.get('cleaning_fee'):
+                parsed['cleaning_fee'] = hotel_data['cleaning_fee']
+
+            return parsed
         except Exception as e:
             logger.error(f"Error parsing hotel: {str(e)}", exc_info=True)
             return {}
