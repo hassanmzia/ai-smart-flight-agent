@@ -143,7 +143,7 @@ const DashboardPage = () => {
                     <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                       {stat.label}
                     </p>
-                    <p className="text-3xl font-extrabold text-gray-900 dark:text-white">
+                    <p className="text-xl font-bold text-gray-900 dark:text-white">
                       {stat.value}
                     </p>
                   </div>
