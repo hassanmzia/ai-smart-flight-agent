@@ -1492,3 +1492,269 @@ class ContentItem(models.Model):
 
     def __str__(self):
         return f"{self.content_type}: {self.title} ({self.destination})"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Phase 7: Faith & Health Awareness
+# ──────────────────────────────────────────────────────────────────────
+
+class PrayerTimeCache(models.Model):
+    """Cached prayer times for a destination on a given date."""
+
+    destination = models.CharField(max_length=200, db_index=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    date = models.DateField()
+    fajr = models.CharField(max_length=10)
+    sunrise = models.CharField(max_length=10)
+    dhuhr = models.CharField(max_length=10)
+    asr = models.CharField(max_length=10)
+    maghrib = models.CharField(max_length=10)
+    isha = models.CharField(max_length=10)
+    method = models.CharField(max_length=50, default='ISNA', help_text='Calculation method')
+    timezone_name = models.CharField(max_length=60, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'prayer_time_cache'
+        unique_together = ['destination', 'date', 'method']
+        indexes = [
+            models.Index(fields=['destination', 'date'], name='prayer_dest_date_idx'),
+        ]
+
+    def __str__(self):
+        return f"Prayer times for {self.destination} on {self.date}"
+
+
+class WorshipPlace(models.Model):
+    """Places of worship near a destination."""
+
+    WORSHIP_TYPE_CHOICES = [
+        ('mosque', 'Mosque'),
+        ('church', 'Church'),
+        ('synagogue', 'Synagogue'),
+        ('temple', 'Temple'),
+        ('gurdwara', 'Gurdwara'),
+        ('monastery', 'Monastery'),
+        ('shrine', 'Shrine'),
+        ('other', 'Other'),
+    ]
+
+    destination = models.CharField(max_length=200, db_index=True)
+    name = models.CharField(max_length=300)
+    worship_type = models.CharField(max_length=20, choices=WORSHIP_TYPE_CHOICES)
+    faith = models.CharField(max_length=20, choices=[
+        ('islam', 'Islam'), ('christianity', 'Christianity'),
+        ('judaism', 'Judaism'), ('hinduism', 'Hinduism'),
+        ('buddhism', 'Buddhism'), ('sikhism', 'Sikhism'),
+        ('other', 'Other'),
+    ])
+    address = models.TextField(blank=True, default='')
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    distance_km = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    description = models.TextField(blank=True, default='')
+    services = models.JSONField(default=list, blank=True, help_text='Available services e.g. ["friday_prayer","sunday_mass"]')
+    amenities = models.JSONField(default=list, blank=True, help_text='e.g. ["wudu_facility","parking","wheelchair_access"]')
+    operating_hours = models.JSONField(default=dict, blank=True)
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
+    halal_food_nearby = models.BooleanField(default=False)
+    kosher_food_nearby = models.BooleanField(default=False)
+    views_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'worship_places'
+        indexes = [
+            models.Index(fields=['destination', 'faith'], name='worship_dest_faith_idx'),
+            models.Index(fields=['worship_type'], name='worship_type_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.worship_type}) - {self.destination}"
+
+
+class SpiritualSite(models.Model):
+    """Spiritual and religious heritage sites / pilgrimage destinations."""
+
+    CATEGORY_CHOICES = [
+        ('pilgrimage', 'Pilgrimage Site'),
+        ('heritage', 'Religious Heritage'),
+        ('meditation', 'Meditation / Retreat'),
+        ('festival_venue', 'Festival Venue'),
+        ('sacred_natural', 'Sacred Natural Site'),
+    ]
+
+    destination = models.CharField(max_length=200, db_index=True)
+    name = models.CharField(max_length=300)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    faiths = models.JSONField(default=list, help_text='Relevant faiths e.g. ["hinduism","buddhism"]')
+    description = models.TextField()
+    significance = models.TextField(blank=True, default='')
+    visitor_tips = models.TextField(blank=True, default='')
+    dress_code = models.CharField(max_length=300, blank=True, default='')
+    best_time_to_visit = models.CharField(max_length=200, blank=True, default='')
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    image_url = models.URLField(blank=True, default='')
+    views_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'spiritual_sites'
+        indexes = [
+            models.Index(fields=['destination', 'category'], name='spiritual_dest_cat_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.category}) - {self.destination}"
+
+
+class MedicalFacility(models.Model):
+    """Medical facilities near travel destinations."""
+
+    FACILITY_TYPE_CHOICES = [
+        ('hospital', 'Hospital'),
+        ('clinic', 'Clinic'),
+        ('pharmacy', 'Pharmacy'),
+        ('emergency', 'Emergency Room'),
+        ('dental', 'Dental Clinic'),
+        ('specialist', 'Specialist'),
+    ]
+
+    destination = models.CharField(max_length=200, db_index=True)
+    name = models.CharField(max_length=300)
+    facility_type = models.CharField(max_length=20, choices=FACILITY_TYPE_CHOICES)
+    address = models.TextField(blank=True, default='')
+    phone = models.CharField(max_length=50, blank=True, default='')
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    distance_km = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    emergency_24h = models.BooleanField(default=False)
+    english_speaking = models.BooleanField(default=False)
+    accepts_travel_insurance = models.BooleanField(default=False)
+    specialties = models.JSONField(default=list, blank=True)
+    operating_hours = models.JSONField(default=dict, blank=True)
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
+    wheelchair_accessible = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'medical_facilities'
+        verbose_name_plural = 'Medical facilities'
+        indexes = [
+            models.Index(fields=['destination', 'facility_type'], name='medical_dest_type_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.facility_type}) - {self.destination}"
+
+
+class AccessibilityRating(models.Model):
+    """Accessibility ratings for venues and destinations."""
+
+    VENUE_TYPE_CHOICES = [
+        ('hotel', 'Hotel'),
+        ('restaurant', 'Restaurant'),
+        ('attraction', 'Tourist Attraction'),
+        ('transport', 'Transport Hub'),
+        ('worship', 'Place of Worship'),
+        ('medical', 'Medical Facility'),
+        ('shopping', 'Shopping'),
+    ]
+
+    MOBILITY_RATING_CHOICES = [
+        (1, 'Not Accessible'),
+        (2, 'Limited Access'),
+        (3, 'Partially Accessible'),
+        (4, 'Mostly Accessible'),
+        (5, 'Fully Accessible'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='accessibility_ratings',
+    )
+    destination = models.CharField(max_length=200, db_index=True)
+    venue_name = models.CharField(max_length=300)
+    venue_type = models.CharField(max_length=20, choices=VENUE_TYPE_CHOICES)
+    mobility_rating = models.IntegerField(choices=MOBILITY_RATING_CHOICES)
+    wheelchair_accessible = models.BooleanField(default=False)
+    elevator_available = models.BooleanField(default=False)
+    accessible_restroom = models.BooleanField(default=False)
+    braille_signage = models.BooleanField(default=False)
+    hearing_loop = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'accessibility_ratings'
+        unique_together = ['user', 'destination', 'venue_name']
+        indexes = [
+            models.Index(fields=['destination', 'venue_type'], name='access_dest_venue_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.venue_name} - {self.mobility_rating}/5 ({self.destination})"
+
+
+class MedicationReminder(models.Model):
+    """User medication reminders with timezone awareness."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='medication_reminders',
+    )
+    medication_name = models.CharField(max_length=200)
+    dosage = models.CharField(max_length=100, blank=True, default='')
+    home_time = models.TimeField(help_text='Time to take medication in home timezone')
+    home_timezone = models.CharField(max_length=60)
+    frequency = models.CharField(max_length=50, default='daily', help_text='e.g. daily, twice_daily, weekly')
+    notes = models.TextField(blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'medication_reminders'
+        indexes = [
+            models.Index(fields=['user', 'is_active'], name='med_user_active_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.medication_name} - {self.home_time} ({self.user})"
+
+
+class HealthInsuranceInfo(models.Model):
+    """Travel health insurance recommendations per country."""
+
+    country = models.CharField(max_length=100, unique=True)
+    risk_level = models.CharField(max_length=20, choices=[
+        ('low', 'Low'), ('moderate', 'Moderate'), ('high', 'High'),
+    ], default='moderate')
+    recommended_coverage = models.JSONField(
+        default=list, blank=True,
+        help_text='e.g. ["emergency_evacuation","hospitalization","dental"]',
+    )
+    avg_hospital_cost_per_day_usd = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    public_healthcare_available = models.BooleanField(default=False)
+    reciprocal_agreements = models.JSONField(
+        default=list, blank=True,
+        help_text='Countries with reciprocal health agreements',
+    )
+    emergency_number = models.CharField(max_length=20, default='112')
+    notes = models.TextField(blank=True, default='')
+    vaccination_requirements = models.JSONField(default=list, blank=True)
+    malaria_risk = models.BooleanField(default=False)
+    altitude_risk = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'health_insurance_info'
+        verbose_name_plural = 'Health insurance info'
+
+    def __str__(self):
+        return f"Health Insurance Info: {self.country} ({self.risk_level})"

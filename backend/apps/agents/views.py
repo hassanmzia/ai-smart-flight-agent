@@ -3852,3 +3852,276 @@ def destination_content_stats(request):
     except Exception as e:
         logger.error(f"Content stats failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Phase 7: Faith & Health Awareness
+# ──────────────────────────────────────────────────────────────────────
+
+# --- Faith Travel ---
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def prayer_times(request):
+    """Get prayer times for a destination."""
+    try:
+        from .services.faith_service import FaithTravelService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        date_str = request.query_params.get('date')
+        result = FaithTravelService.get_prayer_times(destination=destination, date_str=date_str)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Prayer times failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def worship_places(request):
+    """Find nearby worship places."""
+    try:
+        from .services.faith_service import FaithTravelService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = FaithTravelService.find_worship_places(
+            destination=destination,
+            faith=request.query_params.get('faith'),
+            worship_type=request.query_params.get('type'),
+            limit=int(request.query_params.get('limit', 10)),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Worship places failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def spiritual_sites(request):
+    """Get spiritual and religious heritage sites."""
+    try:
+        from .services.faith_service import FaithTravelService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = FaithTravelService.get_spiritual_sites(
+            destination=destination,
+            category=request.query_params.get('category'),
+            faith=request.query_params.get('faith'),
+            limit=int(request.query_params.get('limit', 10)),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Spiritual sites failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def dietary_restaurants(request):
+    """Find halal/kosher/vegetarian restaurants."""
+    try:
+        from .services.faith_service import FaithTravelService
+        destination = request.query_params.get('destination')
+        dietary_type = request.query_params.get('type', 'halal')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = FaithTravelService.get_dietary_restaurants(
+            destination=destination,
+            dietary_type=dietary_type,
+            limit=int(request.query_params.get('limit', 10)),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Dietary restaurants failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def ramadan_schedule(request):
+    """Get Ramadan-aware daily schedule."""
+    try:
+        from .services.faith_service import FaithTravelService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = FaithTravelService.get_ramadan_schedule(
+            destination=destination,
+            date_str=request.query_params.get('date'),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Ramadan schedule failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def faith_travel_summary(request):
+    """Comprehensive faith travel summary for a destination."""
+    try:
+        from .services.faith_service import FaithTravelService
+        destination = request.query_params.get('destination')
+        faith = request.query_params.get('faith')
+        if not destination or not faith:
+            return Response({'error': 'destination and faith parameters are required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = FaithTravelService.get_faith_travel_summary(destination=destination, faith=faith)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Faith travel summary failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# --- Health Travel ---
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medical_facilities(request):
+    """Find nearby medical facilities."""
+    try:
+        from .services.health_travel_service import HealthTravelService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = HealthTravelService.find_medical_facilities(
+            destination=destination,
+            facility_type=request.query_params.get('type'),
+            emergency_only=request.query_params.get('emergency') == 'true',
+            limit=int(request.query_params.get('limit', 10)),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Medical facilities failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def accessibility_info(request):
+    """Get accessibility info for a destination."""
+    try:
+        from .services.health_travel_service import HealthTravelService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = HealthTravelService.get_accessibility_info(
+            destination=destination,
+            venue_type=request.query_params.get('venue_type'),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Accessibility info failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_accessibility_rating(request):
+    """Submit an accessibility rating for a venue."""
+    try:
+        from .services.health_travel_service import HealthTravelService
+        result = HealthTravelService.submit_accessibility_rating(user=request.user, data=request.data)
+        return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        logger.error(f"Submit accessibility rating failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST', 'GET'])
+@permission_classes([IsAuthenticated])
+def medication_reminders(request):
+    """Manage medication reminders (CRUD)."""
+    try:
+        from .services.health_travel_service import HealthTravelService
+        if request.method == 'GET':
+            result = HealthTravelService.manage_medication_reminders(user=request.user, action='list')
+        else:
+            action = request.data.get('action', 'add')
+            result = HealthTravelService.manage_medication_reminders(
+                user=request.user, action=action, data=request.data,
+            )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Medication reminders failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def medication_timezone_adjust(request):
+    """Adjust medication schedule for a destination timezone."""
+    try:
+        from .services.health_travel_service import HealthTravelService
+        destination_tz = request.query_params.get('timezone')
+        if not destination_tz:
+            return Response({'error': 'timezone parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = HealthTravelService.adjust_medications_for_trip(
+            user=request.user, destination_timezone=destination_tz,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Medication timezone adjust failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def health_insurance_info(request):
+    """Get health insurance recommendations for a country."""
+    try:
+        from .services.health_travel_service import HealthTravelService
+        country = request.query_params.get('country')
+        if not country:
+            return Response({'error': 'country parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = HealthTravelService.get_health_insurance_info(country=country)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Health insurance info failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def fatigue_itinerary(request):
+    """Generate a fatigue-aware itinerary plan."""
+    try:
+        from .services.health_travel_service import HealthTravelService
+        destination = request.query_params.get('destination')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = HealthTravelService.get_fatigue_aware_itinerary(
+            destination=destination,
+            user_conditions=request.query_params.getlist('conditions'),
+            max_walking_km=float(request.query_params.get('max_walking_km', 10)),
+            pace=request.query_params.get('pace', 'moderate'),
+            trip_days=int(request.query_params.get('days', 3)),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Fatigue itinerary failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def health_travel_summary(request):
+    """Comprehensive health travel summary."""
+    try:
+        from .services.health_travel_service import HealthTravelService
+        destination = request.query_params.get('destination')
+        country = request.query_params.get('country')
+        if not destination:
+            return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = HealthTravelService.get_health_travel_summary(
+            user=request.user,
+            destination=destination,
+            country=country or destination,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Health travel summary failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
