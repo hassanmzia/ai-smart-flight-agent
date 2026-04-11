@@ -2,13 +2,35 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { searchHotels } from '@/services/hotelService';
 import HotelCard from '@/components/hotel/HotelCard';
+import RentalCard from '@/components/rental/RentalCard';
 import Loading from '@/components/common/Loading';
 import { QUERY_KEYS } from '@/utils/constants';
 import type { HotelSearchParams } from '@/types';
 
+const RENTAL_PROPERTY_TYPES = [
+  'vacation rental',
+  'apartment',
+  'house',
+  'villa',
+  'cabin',
+  'cottage',
+  'condo',
+  'townhouse',
+  'bungalow',
+  'chalet',
+];
+
+const isRentalItem = (item: any): boolean => {
+  if (item.is_rental) return true;
+  if (item.property_type && RENTAL_PROPERTY_TYPES.includes(item.property_type.toLowerCase())) {
+    return true;
+  }
+  return false;
+};
+
 const HotelResultsPage = () => {
   const location = useLocation();
-  const searchParams = location.state as HotelSearchParams;
+  const searchParams = location.state as HotelSearchParams & { type?: string };
 
   const { data, isLoading, error } = useQuery({
     queryKey: [...QUERY_KEYS.HOTELS, searchParams],
@@ -29,7 +51,7 @@ const HotelResultsPage = () => {
   if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Loading size="lg" text="Searching for hotels..." />
+        <Loading size="lg" text="Searching for accommodations..." />
       </div>
     );
   }
@@ -38,11 +60,18 @@ const HotelResultsPage = () => {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <p className="text-center text-red-600 dark:text-red-400">
-          Error loading hotels. Please try again.
+          Error loading results. Please try again.
         </p>
       </div>
     );
   }
+
+  const resultLabel =
+    searchParams.type === 'rental'
+      ? 'vacation rentals'
+      : searchParams.type === 'hotel'
+        ? 'hotels'
+        : 'accommodations';
 
   return (
     <div className="min-h-screen">
@@ -53,10 +82,10 @@ const HotelResultsPage = () => {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
           <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">
-            🏨 Hotel Results
+            Results
           </h1>
           <p className="text-emerald-100 text-lg">
-            {searchParams.destination} • {data?.total || 0} hotels found
+            {searchParams.destination} {data?.total != null ? `\u2022 ${data.total} ${resultLabel} found` : ''}
           </p>
         </div>
       </div>
@@ -64,10 +93,16 @@ const HotelResultsPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12">
       <div className="space-y-4">
         {data?.items && data.items.length > 0 ? (
-          data.items.map((hotel) => <HotelCard key={hotel.id} hotel={hotel} />)
+          data.items.map((item: any) =>
+            isRentalItem(item) ? (
+              <RentalCard key={item.id} rental={item} />
+            ) : (
+              <HotelCard key={item.id} hotel={item} />
+            )
+          )
         ) : (
           <p className="text-center text-gray-600 dark:text-gray-400 py-12">
-            No hotels found for your search criteria.
+            No {resultLabel} found for your search criteria.
           </p>
         )}
       </div>

@@ -30,6 +30,7 @@ const CommutePage = lazy(() => import('./pages/CommutePage'));
 const BookingPage = lazy(() => import('./pages/BookingPage'));
 const FlightBookingPage = lazy(() => import('./pages/FlightBookingPage'));
 const HotelBookingPage = lazy(() => import('./pages/HotelBookingPage'));
+const RentalBookingPage = lazy(() => import('./pages/RentalBookingPage'));
 const PaymentPage = lazy(() => import('./pages/PaymentPage'));
 const ItineraryPage = lazy(() => import('./pages/ItineraryPage'));
 const ItineraryDetailPage = lazy(() => import('./pages/ItineraryDetailPage'));
@@ -112,6 +113,8 @@ function App() {
                 <Route path={ROUTES.CHAT} element={<RequireAuth><ChatPage /></RequireAuth>} />
                 <Route path={ROUTES.FLIGHT_RESULTS} element={<RequireAuth><FlightResultsPage /></RequireAuth>} />
                 <Route path={ROUTES.HOTEL_RESULTS} element={<RequireAuth><HotelResultsPage /></RequireAuth>} />
+                <Route path={ROUTES.RENTAL_SEARCH} element={<RequireAuth><HotelSearchPage /></RequireAuth>} />
+                <Route path={ROUTES.RENTAL_RESULTS} element={<RequireAuth><HotelResultsPage /></RequireAuth>} />
                 <Route path="/cars" element={<RequireAuth><CarRentalSearchPage /></RequireAuth>} />
                 <Route path="/restaurants" element={<RequireAuth><RestaurantSearchPage /></RequireAuth>} />
                 <Route path="/attractions" element={<RequireAuth><TouristAttractionSearchPage /></RequireAuth>} />
@@ -122,6 +125,7 @@ function App() {
                 <Route path="/commute" element={<RequireAuth><CommutePage /></RequireAuth>} />
                 <Route path="/booking/flight" element={<RequireAuth><FlightBookingPage /></RequireAuth>} />
                 <Route path="/booking/hotel" element={<RequireAuth><HotelBookingPage /></RequireAuth>} />
+                <Route path="/booking/rental" element={<RequireAuth><RentalBookingPage /></RequireAuth>} />
                 <Route path={ROUTES.BOOKING} element={<RequireAuth><BookingPage /></RequireAuth>} />
                 <Route path="/booking/:type/:id" element={<RequireAuth><BookingPage /></RequireAuth>} />
                 <Route path={ROUTES.PAYMENT} element={<RequireAuth><PaymentPage /></RequireAuth>} />

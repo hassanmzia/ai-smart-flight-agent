@@ -38,6 +38,31 @@ class HotelViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
 
+        # Filter by accommodation type: 'hotel', 'rental', or 'all' (default)
+        RENTAL_TYPES = ('vacation_rental', 'cabin', 'cottage', 'townhouse', 'farmhouse', 'villa', 'apartment')
+        HOTEL_TYPES = ('hotel', 'resort', 'motel', 'hostel', 'guesthouse')
+        accom_type = self.request.query_params.get('accommodation_type')
+        if accom_type == 'rental':
+            queryset = queryset.filter(Q(property_type__in=RENTAL_TYPES) | Q(is_entire_property=True))
+        elif accom_type == 'hotel':
+            queryset = queryset.filter(property_type__in=HOTEL_TYPES, is_entire_property=False)
+
+        # Rental-specific filters
+        min_bedrooms = self.request.query_params.get('min_bedrooms')
+        if min_bedrooms:
+            queryset = queryset.filter(bedrooms__gte=int(min_bedrooms))
+        min_guests = self.request.query_params.get('min_guests')
+        if min_guests:
+            queryset = queryset.filter(max_guests__gte=int(min_guests))
+        if self.request.query_params.get('entire_property') == 'true':
+            queryset = queryset.filter(is_entire_property=True)
+        if self.request.query_params.get('pet_friendly') == 'true':
+            queryset = queryset.filter(pet_friendly=True)
+        if self.request.query_params.get('has_kitchen') == 'true':
+            queryset = queryset.filter(has_kitchen=True)
+        if self.request.query_params.get('has_pool') == 'true':
+            queryset = queryset.filter(has_pool=True)
+
         # Filter by guest rating
         min_rating = self.request.query_params.get('min_guest_rating')
         if min_rating:
@@ -301,6 +326,22 @@ def search_hotels(request):
                             city = destination.strip()
                             country = 'Unknown'
 
+                        # Detect if property is a vacation rental
+                        raw_type = (hotel_data.get('type', '') or '').lower()
+                        rental_keywords = ('vacation rental', 'cabin', 'cottage', 'villa',
+                                           'apartment', 'townhouse', 'farmhouse', 'entire')
+                        is_rental_prop = any(kw in raw_type for kw in rental_keywords)
+                        # Also check amenities for rental signals
+                        amenities_lower = ' '.join(a.lower() for a in amenities if isinstance(a, str))
+                        if 'kitchen' in amenities_lower or 'washer' in amenities_lower:
+                            is_rental_prop = True
+
+                        prop_type = raw_type if raw_type in (
+                            'hotel', 'resort', 'motel', 'hostel', 'apartment', 'villa',
+                            'guesthouse', 'vacation_rental', 'cabin', 'cottage',
+                            'townhouse', 'farmhouse',
+                        ) else ('vacation_rental' if is_rental_prop else 'hotel')
+
                         # Build hotel object with maximum details
                         hotel = {
                             'id': f"serp_{idx}",
@@ -314,7 +355,7 @@ def search_hotels(request):
                             'guest_rating': float(overall_rating) if overall_rating else 0.0,
                             'location_rating': float(location_rating) if location_rating else 0.0,
                             'review_count': hotel_data.get('reviews', 0),
-                            'property_type': hotel_data.get('type', 'hotel'),
+                            'property_type': prop_type,
                             'primary_image': primary_image,
                             'price_range_min': price,
                             'price_range_max': price * 1.5,
@@ -334,7 +375,24 @@ def search_hotels(request):
                             'hotel_class': hotel_data.get('hotel_class', ''),
                             'gps_coordinates': hotel_data.get('gps_coordinates', {}),
                             'link': hotel_data.get('link', ''),
-                            'property_token': hotel_data.get('property_token', '')
+                            'property_token': hotel_data.get('property_token', ''),
+                            # Vacation rental fields
+                            'is_rental': is_rental_prop,
+                            'is_entire_property': is_rental_prop,
+                            'bedrooms': hotel_data.get('bedrooms'),
+                            'bathrooms': hotel_data.get('bathrooms'),
+                            'beds': hotel_data.get('beds'),
+                            'max_guests': int(guests) if is_rental_prop else None,
+                            'has_kitchen': 'kitchen' in amenities_lower,
+                            'has_pool': 'pool' in amenities_lower,
+                            'has_parking': 'parking' in amenities_lower,
+                            'pet_friendly': 'pet' in amenities_lower,
+                            'pricing_model': 'per_property' if is_rental_prop else 'per_room',
+                            'cleaning_fee': None,
+                            'is_superhost': False,
+                            'host_name': '',
+                            'house_rules': [],
+                            'cancellation_policy': 'moderate',
                         }
                         hotels.append(hotel)
                     except Exception as e:
@@ -398,3 +456,54 @@ def search_hotels(request):
         'message': 'Hotel search requires SERP API key configuration.',
         'error': 'API key not configured'
     }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def search_rentals(request):
+    """
+    Search vacation rentals. Wraps search_hotels but pre-filters for rental property types
+    and adds rental-specific data enrichment.
+    """
+    # Proxy to search_hotels — the SERP API results already contain rental data
+    response = search_hotels(request)
+
+    # Post-filter to keep only rental-type results
+    if response.status_code == 200 and response.data.get('items'):
+        rentals = [
+            item for item in response.data['items']
+            if item.get('is_rental') or item.get('property_type') in (
+                'vacation_rental', 'cabin', 'cottage', 'townhouse',
+                'farmhouse', 'villa', 'apartment',
+            )
+        ]
+        response.data['items'] = rentals
+        response.data['results'] = rentals
+        response.data['count'] = len(rentals)
+        response.data['total'] = len(rentals)
+        if not rentals:
+            response.data['message'] = (
+                f"No vacation rentals found in "
+                f"{request.query_params.get('destination', 'this area')}. "
+                f"Try expanding your search or check nearby areas."
+            )
+
+    return response
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def featured_rentals(request):
+    """Get featured vacation rentals from the database."""
+    RENTAL_TYPES = ('vacation_rental', 'cabin', 'cottage', 'townhouse', 'farmhouse', 'villa', 'apartment')
+    queryset = Hotel.objects.filter(
+        is_active=True,
+    ).filter(
+        Q(property_type__in=RENTAL_TYPES) | Q(is_entire_property=True)
+    ).order_by('-guest_rating', '-is_featured')[:12]
+
+    serializer = HotelListSerializer(queryset, many=True)
+    return Response({
+        'count': queryset.count(),
+        'items': serializer.data,
+    })

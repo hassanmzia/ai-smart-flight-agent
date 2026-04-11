@@ -17,12 +17,16 @@ class HotelAmenitySerializer(serializers.ModelSerializer):
 
 
 class HotelSerializer(serializers.ModelSerializer):
-    """Serializer for Hotel model."""
+    """Serializer for Hotel model — includes vacation rental fields."""
 
     amenities = HotelAmenitySerializer(many=True, read_only=True)
     star_rating_display = serializers.CharField(source='get_star_rating_display', read_only=True)
     property_type_display = serializers.CharField(source='get_property_type_display', read_only=True)
     distance_km = serializers.SerializerMethodField()
+    is_rental = serializers.BooleanField(read_only=True)
+    cancellation_policy_display = serializers.CharField(
+        source='get_cancellation_policy_display', read_only=True
+    )
 
     class Meta:
         model = Hotel
@@ -34,19 +38,24 @@ class HotelSerializer(serializers.ModelSerializer):
             'description', 'short_description', 'phone', 'email', 'website',
             'primary_image', 'images', 'price_range_min', 'price_range_max',
             'currency', 'is_active', 'is_featured', 'amenities', 'distance_km',
-            'created_at', 'updated_at'
+            # Vacation rental fields
+            'is_rental', 'is_entire_property', 'bedrooms', 'bathrooms', 'beds',
+            'max_guests', 'has_kitchen', 'has_washer_dryer', 'has_parking',
+            'has_pool', 'pet_friendly', 'pricing_model', 'cleaning_fee',
+            'service_fee_percent', 'minimum_stay_nights', 'host_name',
+            'host_response_rate', 'is_superhost', 'house_rules',
+            'cancellation_policy', 'cancellation_policy_display',
+            'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'review_count', 'created_at', 'updated_at']
 
     def get_distance_km(self, obj):
         """Calculate distance from search location if provided in context."""
-        # This would calculate distance from coordinates in search query
-        # Placeholder for actual implementation
         return None
 
 
 class HotelListSerializer(serializers.ModelSerializer):
-    """Lightweight serializer for Hotel list views."""
+    """Lightweight serializer for Hotel list views — includes rental summary."""
 
     star_rating_display = serializers.CharField(source='get_star_rating_display', read_only=True)
     amenity_count = serializers.SerializerMethodField()
@@ -58,13 +67,29 @@ class HotelListSerializer(serializers.ModelSerializer):
     amenities = serializers.SerializerMethodField()
     distanceFromCenter = serializers.SerializerMethodField()
 
+    # Rental summary fields
+    is_rental = serializers.BooleanField(read_only=True)
+    is_entire_property = serializers.BooleanField(read_only=True)
+    bedrooms = serializers.IntegerField(read_only=True)
+    max_guests = serializers.IntegerField(read_only=True)
+    pricing_model = serializers.CharField(read_only=True)
+    cleaning_fee = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    is_superhost = serializers.BooleanField(read_only=True)
+    pet_friendly = serializers.BooleanField(read_only=True)
+    has_kitchen = serializers.BooleanField(read_only=True)
+    has_pool = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = Hotel
         fields = [
             'id', 'name', 'city', 'country', 'address', 'star_rating', 'star_rating_display',
             'guest_rating', 'review_count', 'property_type', 'primary_image',
             'price_range_min', 'price_range_max', 'currency', 'amenity_count',
-            'stars', 'rating', 'pricePerNight', 'images', 'amenities', 'distanceFromCenter'
+            'stars', 'rating', 'pricePerNight', 'images', 'amenities', 'distanceFromCenter',
+            # Rental fields
+            'is_rental', 'is_entire_property', 'bedrooms', 'max_guests',
+            'pricing_model', 'cleaning_fee', 'is_superhost', 'pet_friendly',
+            'has_kitchen', 'has_pool',
         ]
 
     def get_amenity_count(self, obj):
@@ -108,7 +133,10 @@ class HotelSearchCreateSerializer(serializers.ModelSerializer):
             'city', 'country', 'check_in_date', 'check_out_date',
             'rooms', 'adults', 'children', 'min_star_rating',
             'min_guest_rating', 'property_types', 'amenities',
-            'max_price_per_night'
+            'max_price_per_night',
+            # Rental-specific filters
+            'include_rentals', 'include_hotels', 'min_bedrooms',
+            'min_bathrooms', 'entire_property_only', 'pet_friendly_only',
         ]
 
     def validate(self, data):

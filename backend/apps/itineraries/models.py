@@ -118,6 +118,7 @@ class ItineraryItem(models.Model):
     ITEM_TYPE_CHOICES = [
         ('flight', 'Flight'),
         ('hotel', 'Hotel'),
+        ('rental', 'Vacation Rental'),
         ('restaurant', 'Restaurant'),
         ('attraction', 'Attraction'),
         ('activity', 'Activity'),

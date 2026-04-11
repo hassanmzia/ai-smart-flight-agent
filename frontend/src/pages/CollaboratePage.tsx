@@ -15,7 +15,7 @@ interface Collaborator {
 
 interface VoteItem {
   id: string;
-  type: 'flight' | 'hotel' | 'restaurant' | 'attraction';
+  type: 'flight' | 'hotel' | 'rental' | 'restaurant' | 'attraction';
   name: string;
   details: string;
   price?: string;
@@ -42,11 +42,15 @@ const CollaboratePage = () => {
       price: '$280/night', votes: { up: 3, down: 1 }, userVote: 'up', addedBy: 'You'
     },
     {
-      id: '2', type: 'hotel', name: 'Park Hotel Tokyo', details: '4-star, Shiodome',
+      id: '2', type: 'rental', name: 'Shibuya Family Villa', details: '4 bed, 3 bath, entire home, sleeps 10',
+      price: '$420/night (whole property)', votes: { up: 5, down: 0 }, userVote: 'up', addedBy: 'Sarah'
+    },
+    {
+      id: '3', type: 'hotel', name: 'Park Hotel Tokyo', details: '4-star, Shiodome',
       price: '$180/night', votes: { up: 2, down: 0 }, userVote: null, addedBy: 'Sarah'
     },
     {
-      id: '3', type: 'restaurant', name: 'Sushi Saito', details: '3 Michelin stars, Roppongi',
+      id: '4', type: 'restaurant', name: 'Sushi Saito', details: '3 Michelin stars, Roppongi',
       price: '$300/person', votes: { up: 4, down: 0 }, userVote: 'up', addedBy: 'Mike'
     },
   ]);
@@ -63,7 +67,7 @@ const CollaboratePage = () => {
     viewer: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300',
   };
 
-  const typeIcons = { flight: '✈️', hotel: '🏨', restaurant: '🍽️', attraction: '🎭' };
+  const typeIcons: Record<string, string> = { flight: '✈️', hotel: '🏨', rental: '🏡', restaurant: '🍽️', attraction: '🎭' };
 
   return (
     <div className="min-h-screen">
@@ -152,6 +156,32 @@ const CollaboratePage = () => {
                     <Button onClick={() => setInviteEmail('')}>
                       Send Invite
                     </Button>
+                  </div>
+
+                  {/* Accommodation Comparison */}
+                  <div className="mb-6">
+                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Accommodation Cost Comparison</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">🏨</span>
+                          <span className="font-semibold text-gray-900 dark:text-white text-sm">Hotel Option</span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">3 rooms x $180/night x 7 nights</p>
+                        <p className="text-lg font-bold text-blue-700 dark:text-blue-300">$3,780 total</p>
+                        <p className="text-xs text-gray-500 mt-1">~$945 per family (4 families)</p>
+                      </div>
+                      <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-400 dark:border-green-600 rounded-xl p-4 relative">
+                        <span className="absolute -top-2.5 right-3 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-medium">Best Value</span>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">🏡</span>
+                          <span className="font-semibold text-gray-900 dark:text-white text-sm">Vacation Rental</span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">$420/night x 7 nights + $150 cleaning</p>
+                        <p className="text-lg font-bold text-green-700 dark:text-green-300">$3,090 total</p>
+                        <p className="text-xs text-gray-500 mt-1">~$773 per family (4 families) &mdash; save $690!</p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Voting Section */}
