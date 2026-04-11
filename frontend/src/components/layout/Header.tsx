@@ -16,6 +16,146 @@ import { ROUTES } from '@/utils/constants';
 import { getTheme, toggleTheme } from '@/utils/helpers';
 import Button from '@/components/common/Button';
 
+/* ------------------------------------------------------------------ */
+/*  Shared helpers                                                     */
+/* ------------------------------------------------------------------ */
+
+const dropdownTransition = {
+  enter: 'transition ease-out duration-100',
+  enterFrom: 'transform opacity-0 scale-95',
+  enterTo: 'transform opacity-100 scale-100',
+  leave: 'transition ease-in duration-75',
+  leaveFrom: 'transform opacity-100 scale-100',
+  leaveTo: 'transform opacity-0 scale-95',
+};
+
+const btnCls =
+  'text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2.5 py-2 rounded-lg text-[13px] font-medium flex items-center gap-1 transition-all';
+
+const dropCls =
+  'absolute left-0 mt-2 w-56 origin-top-left rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700 z-50';
+
+const itemCls = (active: boolean) =>
+  `${active ? 'bg-gray-50 dark:bg-gray-700' : ''} flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`;
+
+/* ------------------------------------------------------------------ */
+/*  Dropdown component                                                 */
+/* ------------------------------------------------------------------ */
+
+interface DropdownItem {
+  to: string;
+  icon: string;
+  label: string;
+}
+
+const NavDropdown = ({ label, items }: { label: string; items: DropdownItem[] }) => (
+  <Menu as="div" className="relative">
+    <Menu.Button className={btnCls}>
+      {label}
+      <ChevronDownIcon className="h-3.5 w-3.5" />
+    </Menu.Button>
+    <Transition as={Fragment} {...dropdownTransition}>
+      <Menu.Items className={dropCls}>
+        <div className="p-1">
+          {items.map((item) => (
+            <Menu.Item key={item.to}>
+              {({ active }) => (
+                <Link to={item.to} className={itemCls(active)}>
+                  <span>{item.icon}</span> {item.label}
+                </Link>
+              )}
+            </Menu.Item>
+          ))}
+        </div>
+      </Menu.Items>
+    </Transition>
+  </Menu>
+);
+
+/* ------------------------------------------------------------------ */
+/*  Menu definitions                                                   */
+/* ------------------------------------------------------------------ */
+
+const planItems: DropdownItem[] = [
+  { to: ROUTES.AI_PLANNER, icon: '🤖', label: 'AI Planner' },
+  { to: ROUTES.CHAT, icon: '💬', label: 'AI Chat' },
+  { to: ROUTES.AGENT_HUB, icon: '🧠', label: 'Agent Hub' },
+  { to: ROUTES.PREDICTIONS, icon: '📊', label: 'Predictions' },
+  { to: ROUTES.PRICING, icon: '💎', label: 'Pricing & Plans' },
+];
+
+const searchItems: DropdownItem[] = [
+  { to: ROUTES.FLIGHT_SEARCH, icon: '✈️', label: 'Flights' },
+  { to: ROUTES.HOTEL_SEARCH, icon: '🏨', label: 'Hotels' },
+  { to: ROUTES.RENTAL_SEARCH, icon: '🏡', label: 'Vacation Rentals' },
+  { to: '/cars', icon: '🚙', label: 'Car Rentals' },
+];
+
+const exploreItems: DropdownItem[] = [
+  { to: '/attractions', icon: '🗺️', label: 'Attractions' },
+  { to: '/restaurants', icon: '🍽️', label: 'Restaurants' },
+  { to: '/shopping', icon: '🛍️', label: 'Shopping' },
+  { to: '/events', icon: '🎉', label: 'Events' },
+  { to: ROUTES.PARTNERSHIPS, icon: '🏷️', label: 'Deals & Coupons' },
+];
+
+const travelInfoItems: DropdownItem[] = [
+  { to: '/weather', icon: '🌤️', label: 'Weather' },
+  { to: '/commute', icon: '🚗', label: 'Traffic & Commute' },
+  { to: ROUTES.SAFETY_DASHBOARD, icon: '🛡️', label: 'Safety Intelligence' },
+  { to: ROUTES.AI_RATINGS, icon: '⭐', label: 'AI Ratings' },
+  { to: ROUTES.TRAVEL_PROFILE, icon: '🧬', label: 'Travel DNA' },
+  { to: ROUTES.LANGUAGE_TOOL, icon: '🌐', label: 'Language Tool' },
+  { to: ROUTES.DESTINATION_GUIDE, icon: '📍', label: 'Destination Guide' },
+  { to: ROUTES.TRIP_MEMORY, icon: '🧠', label: 'Trip Memory' },
+  { to: ROUTES.DESTINATION_KB, icon: '📚', label: 'Destination KB' },
+  { to: ROUTES.FAITH_TRAVEL, icon: '🕌', label: 'Faith Travel' },
+  { to: ROUTES.HEALTH_TRAVEL, icon: '🏥', label: 'Health Travel' },
+];
+
+const communityItems: DropdownItem[] = [
+  { to: ROUTES.COMMUNITY, icon: '🌐', label: 'Community' },
+  { to: ROUTES.TRAVEL_STORIES, icon: '📖', label: 'Travel Stories' },
+  { to: ROUTES.TRIP_GALLERY, icon: '🗺️', label: 'Trip Gallery' },
+  { to: ROUTES.CONTENT_HUB, icon: '📸', label: 'Content Hub' },
+  { to: ROUTES.COLLABORATE, icon: '👥', label: 'Collaborate' },
+  { to: ROUTES.TRIP_MAP, icon: '🌍', label: 'My Travel Map' },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Mobile menu section                                                */
+/* ------------------------------------------------------------------ */
+
+const MobileSection = ({
+  title,
+  items,
+  onClose,
+}: {
+  title: string;
+  items: DropdownItem[];
+  onClose: () => void;
+}) => (
+  <>
+    <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+      {title}
+    </div>
+    {items.map((item) => (
+      <Link
+        key={item.to}
+        to={item.to}
+        onClick={onClose}
+        className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+      >
+        {item.icon} {item.label}
+      </Link>
+    ))}
+  </>
+);
+
+/* ------------------------------------------------------------------ */
+/*  Header Component                                                   */
+/* ------------------------------------------------------------------ */
+
 const Header = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
@@ -33,469 +173,49 @@ const Header = () => {
     navigate(ROUTES.LOGIN);
   };
 
+  const closeMobile = () => setMobileMenuOpen(false);
+
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to={ROUTES.HOME} className="flex items-center gap-2 group">
+          <Link to={ROUTES.HOME} className="flex items-center gap-2 group flex-shrink-0">
             <span className="text-base">✈️</span>
             <span className="text-sm font-bold bg-gradient-to-r from-primary-600 to-primary-800 dark:from-primary-400 dark:to-primary-600 bg-clip-text text-transparent group-hover:from-primary-700 group-hover:to-primary-900 dark:group-hover:from-primary-300 dark:group-hover:to-primary-500 transition-all">
               AI Travel Agent
             </span>
           </Link>
 
-          {/* Navigation */}
-          <nav className="hidden lg:flex items-center space-x-2">
-            {/* AI Planner - First */}
-            <Link
-              to={ROUTES.AI_PLANNER}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
-            >
-              <span>🤖</span> AI Planner
-            </Link>
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center space-x-1">
+            <NavDropdown label="Plan" items={planItems} />
+            <NavDropdown label="Search" items={searchItems} />
+            <NavDropdown label="Explore" items={exploreItems} />
+            <NavDropdown label="Travel Info" items={travelInfoItems} />
+            <NavDropdown label="Community" items={communityItems} />
 
-            {/* AI Chat */}
-            <Link
-              to={ROUTES.CHAT}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
-            >
-              <span>💬</span> AI Chat
-            </Link>
-
-            {/* Agent Hub */}
-            <Link
-              to={ROUTES.AGENT_HUB}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
-            >
-              <span>🧠</span> Agent Hub
-            </Link>
-
-            {/* Search Dropdown */}
-            <Menu as="div" className="relative">
-              <Menu.Button className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all">
-                Search
-                <ChevronDownIcon className="h-4 w-4" />
-              </Menu.Button>
-
-              <Transition
-                as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="transform opacity-0 scale-95"
-                enterTo="transform opacity-100 scale-100"
-                leave="transition ease-in duration-75"
-                leaveFrom="transform opacity-100 scale-100"
-                leaveTo="transform opacity-0 scale-95"
-              >
-                <Menu.Items className="absolute left-0 mt-2 w-56 origin-top-left rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700">
-                  <div className="p-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.FLIGHT_SEARCH}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>✈️</span> Flights
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.HOTEL_SEARCH}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🏨</span> Hotels
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.RENTAL_SEARCH}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🏡</span> Vacation Rentals
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to="/cars"
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🚙</span> Car Rentals
-                        </Link>
-                      )}
-                    </Menu.Item>
-                  </div>
-                </Menu.Items>
-              </Transition>
-            </Menu>
-
-            {/* Explore Dropdown */}
-            <Menu as="div" className="relative">
-              <Menu.Button className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all">
-                Explore
-                <ChevronDownIcon className="h-4 w-4" />
-              </Menu.Button>
-
-              <Transition
-                as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="transform opacity-0 scale-95"
-                enterTo="transform opacity-100 scale-100"
-                leave="transition ease-in duration-75"
-                leaveFrom="transform opacity-100 scale-100"
-                leaveTo="transform opacity-0 scale-95"
-              >
-                <Menu.Items className="absolute left-0 mt-2 w-56 origin-top-left rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700">
-                  <div className="p-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to="/attractions"
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🗺️</span> Attractions
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to="/restaurants"
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🍽️</span> Restaurants
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to="/shopping"
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🛍️</span> Shopping
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to="/events"
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🎉</span> Events
-                        </Link>
-                      )}
-                    </Menu.Item>
-                  </div>
-                </Menu.Items>
-              </Transition>
-            </Menu>
-
-            {/* Travel Info Dropdown */}
-            <Menu as="div" className="relative">
-              <Menu.Button className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all">
-                Travel Info
-                <ChevronDownIcon className="h-4 w-4" />
-              </Menu.Button>
-
-              <Transition
-                as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="transform opacity-0 scale-95"
-                enterTo="transform opacity-100 scale-100"
-                leave="transition ease-in duration-75"
-                leaveFrom="transform opacity-100 scale-100"
-                leaveTo="transform opacity-0 scale-95"
-              >
-                <Menu.Items className="absolute left-0 mt-2 w-56 origin-top-left rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700">
-                  <div className="p-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to="/weather"
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🌤️</span> Weather
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to="/commute"
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🚗</span> Traffic & Commute
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.SAFETY_DASHBOARD}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🛡️</span> Safety Intelligence
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.AI_RATINGS}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>⭐</span> AI Ratings
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.TRAVEL_PROFILE}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🧬</span> Travel DNA
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.LANGUAGE_TOOL}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🌐</span> Language Tool
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.DESTINATION_GUIDE}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>📍</span> Destination Guide
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.TRIP_MEMORY}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🧠</span> Trip Memory
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.DESTINATION_KB}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>📚</span> Destination KB
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.FAITH_TRAVEL}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🕌</span> Faith Travel
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.HEALTH_TRAVEL}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🏥</span> Health Travel
-                        </Link>
-                      )}
-                    </Menu.Item>
-                  </div>
-                </Menu.Items>
-              </Transition>
-            </Menu>
-
-            {/* Deals & KB */}
-            <Link
-              to={ROUTES.PARTNERSHIPS}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
-            >
-              <span>🏷️</span> Deals
-            </Link>
-            <Link
-              to={ROUTES.PRICING}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-            >
-              Pricing
-            </Link>
-            <Link
-              to={ROUTES.COLLABORATE}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
-            >
-              <span>👥</span> Collaborate
-            </Link>
-            <Link
-              to={ROUTES.PREDICTIONS}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
-            >
-              <span>📊</span> Predictions
-            </Link>
-            <Link
-              to={ROUTES.TRIP_MAP}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all"
-            >
-              <span>🌍</span> My Travel
-            </Link>
-            {/* Social Dropdown */}
-            <Menu as="div" className="relative">
-              <Menu.Button className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all">
-                Social
-                <ChevronDownIcon className="h-4 w-4" />
-              </Menu.Button>
-
-              <Transition
-                as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="transform opacity-0 scale-95"
-                enterTo="transform opacity-100 scale-100"
-                leave="transition ease-in duration-75"
-                leaveFrom="transform opacity-100 scale-100"
-                leaveTo="transform opacity-0 scale-95"
-              >
-                <Menu.Items className="absolute left-0 mt-2 w-56 origin-top-left rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700">
-                  <div className="p-1">
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.COMMUNITY}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🌐</span> Community
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.TRAVEL_STORIES}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>📖</span> Travel Stories
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.TRIP_GALLERY}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>🗺️</span> Trip Gallery
-                        </Link>
-                      )}
-                    </Menu.Item>
-                    <Menu.Item>
-                      {({ active }) => (
-                        <Link
-                          to={ROUTES.CONTENT_HUB}
-                          className={`${
-                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
-                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
-                        >
-                          <span>📸</span> Content Hub
-                        </Link>
-                      )}
-                    </Menu.Item>
-                  </div>
-                </Menu.Items>
-              </Transition>
-            </Menu>
-            <Link
-              to={ROUTES.ITINERARY}
-              className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-            >
+            <Link to={ROUTES.ITINERARY} className={btnCls}>
               My Trips
             </Link>
             {isAuthenticated && (
-              <Link
-                to={ROUTES.DASHBOARD}
-                className="text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-              >
+              <Link to={ROUTES.DASHBOARD} className={btnCls}>
                 Dashboard
               </Link>
             )}
           </nav>
 
           {/* Right side actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 flex-shrink-0">
             {/* Theme toggle */}
             <button
               onClick={handleThemeToggle}
               className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             >
               {theme === 'dark' ? (
-                <SunIcon className="h-6 w-6" />
+                <SunIcon className="h-5 w-5" />
               ) : (
-                <MoonIcon className="h-6 w-6" />
+                <MoonIcon className="h-5 w-5" />
               )}
             </button>
 
@@ -506,9 +226,9 @@ const Header = () => {
                   onClick={() => navigate('/notifications')}
                   className="relative p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 >
-                  <BellIcon className="h-6 w-6" />
+                  <BellIcon className="h-5 w-5" />
                   {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 block h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                    <span className="absolute top-0 right-0 block h-4 w-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -526,16 +246,8 @@ const Header = () => {
                     )}
                   </Menu.Button>
 
-                  <Transition
-                    as={Fragment}
-                    enter="transition ease-out duration-100"
-                    enterFrom="transform opacity-0 scale-95"
-                    enterTo="transform opacity-100 scale-100"
-                    leave="transition ease-in duration-75"
-                    leaveFrom="transform opacity-100 scale-100"
-                    leaveTo="transform opacity-0 scale-95"
-                  >
-                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <Transition as={Fragment} {...dropdownTransition}>
+                    <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                         <p className="text-sm font-medium text-gray-900 dark:text-white">
                           {user?.name}
@@ -629,61 +341,17 @@ const Header = () => {
 
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 py-4 space-y-1.5 max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain safe-bottom">
-            <Link
-              to={ROUTES.AI_PLANNER}
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-            >
-              🤖 AI Planner
-            </Link>
-            <Link
-              to={ROUTES.CHAT}
-              onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-            >
-              💬 AI Chat
-            </Link>
-
-            <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Search</div>
-            <Link to={ROUTES.FLIGHT_SEARCH} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">✈️ Flights</Link>
-            <Link to={ROUTES.HOTEL_SEARCH} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🏨 Hotels</Link>
-            <Link to={ROUTES.RENTAL_SEARCH} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🏡 Vacation Rentals</Link>
-            <Link to="/cars" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🚙 Car Rentals</Link>
-
-            <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Explore</div>
-            <Link to="/attractions" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🗺️ Attractions</Link>
-            <Link to="/restaurants" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🍽️ Restaurants</Link>
-            <Link to="/shopping" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🛍️ Shopping</Link>
-            <Link to="/events" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🎉 Events</Link>
-
-            <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Travel Info</div>
-            <Link to="/weather" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🌤️ Weather</Link>
-            <Link to="/commute" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🚗 Traffic & Commute</Link>
-            <Link to={ROUTES.SAFETY_DASHBOARD} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🛡️ Safety Intelligence</Link>
-            <Link to={ROUTES.AI_RATINGS} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">⭐ AI Ratings</Link>
-            <Link to={ROUTES.TRAVEL_PROFILE} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🧬 Travel DNA</Link>
-            <Link to={ROUTES.LANGUAGE_TOOL} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🌐 Language Tool</Link>
-            <Link to={ROUTES.DESTINATION_GUIDE} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📍 Destination Guide</Link>
-            <Link to={ROUTES.TRIP_MEMORY} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🧠 Trip Memory</Link>
-            <Link to={ROUTES.DESTINATION_KB} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📚 Destination KB</Link>
-            <Link to={ROUTES.FAITH_TRAVEL} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🕌 Faith Travel</Link>
-            <Link to={ROUTES.HEALTH_TRAVEL} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🏥 Health Travel</Link>
+          <div className="lg:hidden border-t border-gray-200 dark:border-gray-700 py-4 space-y-1 max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain safe-bottom">
+            <MobileSection title="Plan" items={planItems} onClose={closeMobile} />
+            <MobileSection title="Search" items={searchItems} onClose={closeMobile} />
+            <MobileSection title="Explore" items={exploreItems} onClose={closeMobile} />
+            <MobileSection title="Travel Info" items={travelInfoItems} onClose={closeMobile} />
+            <MobileSection title="Community" items={communityItems} onClose={closeMobile} />
 
             <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
-              <Link to={ROUTES.AGENT_HUB} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🧠 Agent Hub</Link>
-              <Link to={ROUTES.PARTNERSHIPS} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🏷️ Deals & Coupons</Link>
-              <Link to={ROUTES.COLLABORATE} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">👥 Collaborate</Link>
-              <Link to={ROUTES.PRICING} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">Pricing</Link>
-              <Link to={ROUTES.PREDICTIONS} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📊 Predictions</Link>
-              <Link to={ROUTES.TRIP_MAP} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🌍 My Travel</Link>
-              <Link to={ROUTES.COMMUNITY} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🌐 Community</Link>
-              <Link to={ROUTES.TRAVEL_STORIES} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📖 Travel Stories</Link>
-              <Link to={ROUTES.TRIP_GALLERY} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🗺️ Trip Gallery</Link>
-              <Link to={ROUTES.CONTENT_HUB} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📸 Content Hub</Link>
-              <Link to={ROUTES.ITINERARY} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">My Trips</Link>
+              <Link to={ROUTES.ITINERARY} onClick={closeMobile} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">My Trips</Link>
               {isAuthenticated && (
-                <Link to={ROUTES.DASHBOARD} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">Dashboard</Link>
+                <Link to={ROUTES.DASHBOARD} onClick={closeMobile} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">Dashboard</Link>
               )}
             </div>
           </div>
