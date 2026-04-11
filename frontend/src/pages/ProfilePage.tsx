@@ -150,8 +150,7 @@ const ProfilePage = () => {
     setUploadingAvatar(true);
 
     try {
-      const result = await profileService.uploadAvatar(file);
-      await profileService.updateProfile({ avatar: result.avatar_url });
+      await profileService.uploadAvatar(file);
       await refreshUser();
       toast.success('Profile picture updated successfully!');
     } catch (error: any) {

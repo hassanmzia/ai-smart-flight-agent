@@ -156,7 +156,7 @@ class UserProfile(models.Model):
     push_notifications = models.BooleanField(default=True)
 
     # Profile
-    avatar = models.URLField(blank=True)
+    avatar = models.CharField(max_length=500, blank=True)
     bio = models.TextField(blank=True, max_length=500)
 
     created_at = models.DateTimeField(auto_now_add=True)
