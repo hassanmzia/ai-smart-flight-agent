@@ -40,7 +40,7 @@ const PricingPage = () => {
       navigate('/contact');
       return;
     }
-    // Pro plan — attempt subscription, show payment required if Stripe is not set up
+    // Pro plan — attempt subscription
     setLoading(true);
     try {
       const res = await api.post('/api/agents/subscription/create', {
@@ -49,10 +49,10 @@ const PricingPage = () => {
       });
       if (res.data?.success || res.data?.plan) {
         setCurrentPlan(planName.toLowerCase());
-        toast.success(`Upgraded to ${planName}!`);
+        toast.success(`Upgraded to ${planName}! Enjoy your new features.`);
       }
     } catch {
-      toast.error('Payment method required. Credit/debit card and PayPal support coming soon.');
+      toast.error('Subscription update failed. Please try again.');
     } finally {
       setLoading(false);
     }

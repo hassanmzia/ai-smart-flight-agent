@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { API_BASE_URL } from '@/utils/constants';
+import api from './api';
 
 export interface UserProfile {
   id: number;
@@ -80,53 +79,28 @@ export interface ChangePasswordData {
 }
 
 class ProfileService {
-  private getAuthHeaders() {
-    const token = localStorage.getItem('auth_token');
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    };
-  }
-
   async getCurrentUser(): Promise<User> {
-    const response = await axios.get(`${API_BASE_URL}/api/users/me/`, this.getAuthHeaders());
+    const response = await api.get('/api/users/me/');
     return response.data;
   }
 
   async updateUser(data: UpdateUserData): Promise<User> {
-    const response = await axios.patch(
-      `${API_BASE_URL}/api/users/me/`,
-      data,
-      this.getAuthHeaders()
-    );
+    const response = await api.patch('/api/users/me/', data);
     return response.data;
   }
 
   async getCurrentUserProfile(): Promise<UserProfile> {
-    const response = await axios.get(
-      `${API_BASE_URL}/api/profiles/me/`,
-      this.getAuthHeaders()
-    );
+    const response = await api.get('/api/users/profiles/me/');
     return response.data;
   }
 
   async updateProfile(data: UpdateProfileData): Promise<UserProfile> {
-    const response = await axios.patch(
-      `${API_BASE_URL}/api/profiles/me/`,
-      data,
-      this.getAuthHeaders()
-    );
+    const response = await api.patch('/api/users/profiles/me/', data);
     return response.data;
   }
 
   async changePassword(data: ChangePasswordData): Promise<{ message: string }> {
-    const response = await axios.post(
-      `${API_BASE_URL}/api/users/change_password/`,
-      data,
-      this.getAuthHeaders()
-    );
+    const response = await api.post('/api/users/change_password/', data);
     return response.data;
   }
 
@@ -134,17 +108,11 @@ class ProfileService {
     const formData = new FormData();
     formData.append('avatar', file);
 
-    const token = localStorage.getItem('auth_token');
-    const response = await axios.post(
-      `${API_BASE_URL}/api/profiles/upload_avatar/`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
+    const response = await api.post('/api/users/profiles/upload_avatar/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   }
 }
