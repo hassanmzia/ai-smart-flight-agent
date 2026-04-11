@@ -327,6 +327,30 @@ const Header = () => {
                         </Link>
                       )}
                     </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to={ROUTES.FAITH_TRAVEL}
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🕌</span> Faith Travel
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
+                          to={ROUTES.HEALTH_TRAVEL}
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🏥</span> Health Travel
+                        </Link>
+                      )}
+                    </Menu.Item>
                   </div>
                 </Menu.Items>
               </Transition>
@@ -630,6 +654,8 @@ const Header = () => {
             <Link to={ROUTES.DESTINATION_GUIDE} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📍 Destination Guide</Link>
             <Link to={ROUTES.TRIP_MEMORY} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🧠 Trip Memory</Link>
             <Link to={ROUTES.DESTINATION_KB} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">📚 Destination KB</Link>
+            <Link to={ROUTES.FAITH_TRAVEL} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🕌 Faith Travel</Link>
+            <Link to={ROUTES.HEALTH_TRAVEL} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🏥 Health Travel</Link>
 
             <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
               <Link to={ROUTES.AGENT_HUB} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🧠 Agent Hub</Link>

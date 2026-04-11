@@ -40,6 +40,8 @@ export const ROUTES = {
   TRAVEL_STORIES: '/travel-stories',
   TRIP_GALLERY: '/trip-gallery',
   CONTENT_HUB: '/content-hub',
+  FAITH_TRAVEL: '/faith-travel',
+  HEALTH_TRAVEL: '/health-travel',
 } as const;
 
 // Local storage keys
@@ -147,6 +149,21 @@ export const API_ENDPOINTS = {
     CONTENT_TRENDING: '/api/agents/content/trending',
     CONTENT_MINE: '/api/agents/content/mine',
     CONTENT_STATS: '/api/agents/content/stats',
+    // Phase 7: Faith & Health Awareness
+    FAITH_PRAYER_TIMES: '/api/agents/faith/prayer-times',
+    FAITH_WORSHIP_PLACES: '/api/agents/faith/worship-places',
+    FAITH_SPIRITUAL_SITES: '/api/agents/faith/spiritual-sites',
+    FAITH_DIETARY: '/api/agents/faith/dietary-restaurants',
+    FAITH_RAMADAN: '/api/agents/faith/ramadan-schedule',
+    FAITH_SUMMARY: '/api/agents/faith/summary',
+    HEALTH_MEDICAL: '/api/agents/health/medical-facilities',
+    HEALTH_ACCESSIBILITY: '/api/agents/health/accessibility',
+    HEALTH_ACCESSIBILITY_RATE: '/api/agents/health/accessibility/rate',
+    HEALTH_MEDICATION: '/api/agents/health/medication-reminders',
+    HEALTH_MED_ADJUST: '/api/agents/health/medication-adjust',
+    HEALTH_INSURANCE: '/api/agents/health/insurance',
+    HEALTH_FATIGUE: '/api/agents/health/fatigue-itinerary',
+    HEALTH_SUMMARY: '/api/agents/health/summary',
   },
   COMMUNITY: {
     CURATED_GUIDES_GENERATE: '/api/community/curated-guides/generate/',

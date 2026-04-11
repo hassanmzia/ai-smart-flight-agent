@@ -110,6 +110,21 @@ from .views import (
     trending_content,
     my_content,
     destination_content_stats,
+    # Phase 7: Faith & Health Awareness
+    prayer_times,
+    worship_places,
+    spiritual_sites,
+    dietary_restaurants,
+    ramadan_schedule,
+    faith_travel_summary,
+    medical_facilities,
+    accessibility_info,
+    submit_accessibility_rating,
+    medication_reminders,
+    medication_timezone_adjust,
+    health_insurance_info,
+    fatigue_itinerary,
+    health_travel_summary,
 )
 
 app_name = 'agents'
@@ -227,4 +242,20 @@ urlpatterns = [
     path('content/trending', trending_content, name='trending_content'),
     path('content/mine', my_content, name='my_content'),
     path('content/stats', destination_content_stats, name='destination_content_stats'),
+    # Phase 7: Faith Travel
+    path('faith/prayer-times', prayer_times, name='prayer_times'),
+    path('faith/worship-places', worship_places, name='worship_places'),
+    path('faith/spiritual-sites', spiritual_sites, name='spiritual_sites'),
+    path('faith/dietary-restaurants', dietary_restaurants, name='dietary_restaurants'),
+    path('faith/ramadan-schedule', ramadan_schedule, name='ramadan_schedule'),
+    path('faith/summary', faith_travel_summary, name='faith_travel_summary'),
+    # Phase 7: Health Travel
+    path('health/medical-facilities', medical_facilities, name='medical_facilities'),
+    path('health/accessibility', accessibility_info, name='accessibility_info'),
+    path('health/accessibility/rate', submit_accessibility_rating, name='submit_accessibility_rating'),
+    path('health/medication-reminders', medication_reminders, name='medication_reminders'),
+    path('health/medication-adjust', medication_timezone_adjust, name='medication_timezone_adjust'),
+    path('health/insurance', health_insurance_info, name='health_insurance_info'),
+    path('health/fatigue-itinerary', fatigue_itinerary, name='fatigue_itinerary'),
+    path('health/summary', health_travel_summary, name='health_travel_summary'),
 ]

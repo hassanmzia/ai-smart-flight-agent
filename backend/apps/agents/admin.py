@@ -13,6 +13,10 @@ from .models import (
     # Phase 6: Social & Viral Growth
     TravelStoryGenerated, StoryLike, StoryComment,
     TripTemplate, TemplateClone, ContentItem,
+    # Phase 7: Faith & Health Awareness
+    PrayerTimeCache, WorshipPlace, SpiritualSite,
+    MedicalFacility, AccessibilityRating, MedicationReminder,
+    HealthInsuranceInfo,
 )
 
 
@@ -526,3 +530,68 @@ class ContentItemAdmin(admin.ModelAdmin):
     search_fields = ['title', 'destination', 'user__email']
     readonly_fields = ['upvotes', 'downvotes', 'views_count', 'ai_moderation_score',
                        'created_at', 'updated_at']
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Phase 7: Faith & Health Awareness
+# ──────────────────────────────────────────────────────────────────────
+
+@admin.register(PrayerTimeCache)
+class PrayerTimeCacheAdmin(admin.ModelAdmin):
+    list_display = ['destination', 'date', 'fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'method']
+    list_filter = ['method', 'date']
+    search_fields = ['destination']
+    readonly_fields = ['created_at']
+
+
+@admin.register(WorshipPlace)
+class WorshipPlaceAdmin(admin.ModelAdmin):
+    list_display = ['name', 'destination', 'worship_type', 'faith', 'rating',
+                    'halal_food_nearby', 'kosher_food_nearby', 'views_count']
+    list_filter = ['worship_type', 'faith', 'created_at']
+    search_fields = ['name', 'destination', 'address']
+    readonly_fields = ['views_count', 'created_at', 'updated_at']
+
+
+@admin.register(SpiritualSite)
+class SpiritualSiteAdmin(admin.ModelAdmin):
+    list_display = ['name', 'destination', 'category', 'best_time_to_visit', 'views_count']
+    list_filter = ['category', 'created_at']
+    search_fields = ['name', 'destination']
+    readonly_fields = ['views_count', 'created_at']
+
+
+@admin.register(MedicalFacility)
+class MedicalFacilityAdmin(admin.ModelAdmin):
+    list_display = ['name', 'destination', 'facility_type', 'emergency_24h',
+                    'english_speaking', 'accepts_travel_insurance', 'wheelchair_accessible', 'rating']
+    list_filter = ['facility_type', 'emergency_24h', 'english_speaking', 'wheelchair_accessible']
+    search_fields = ['name', 'destination', 'address']
+    readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(AccessibilityRating)
+class AccessibilityRatingAdmin(admin.ModelAdmin):
+    list_display = ['venue_name', 'destination', 'venue_type', 'mobility_rating',
+                    'wheelchair_accessible', 'elevator_available', 'user', 'created_at']
+    list_filter = ['venue_type', 'mobility_rating', 'wheelchair_accessible']
+    search_fields = ['venue_name', 'destination', 'user__email']
+    readonly_fields = ['created_at']
+
+
+@admin.register(MedicationReminder)
+class MedicationReminderAdmin(admin.ModelAdmin):
+    list_display = ['medication_name', 'user', 'dosage', 'home_time', 'home_timezone',
+                    'frequency', 'is_active']
+    list_filter = ['frequency', 'is_active', 'created_at']
+    search_fields = ['medication_name', 'user__email']
+    readonly_fields = ['created_at', 'updated_at']
+
+
+@admin.register(HealthInsuranceInfo)
+class HealthInsuranceInfoAdmin(admin.ModelAdmin):
+    list_display = ['country', 'risk_level', 'avg_hospital_cost_per_day_usd',
+                    'public_healthcare_available', 'malaria_risk', 'altitude_risk', 'emergency_number']
+    list_filter = ['risk_level', 'public_healthcare_available', 'malaria_risk', 'altitude_risk']
+    search_fields = ['country']
+    readonly_fields = ['created_at', 'updated_at']
