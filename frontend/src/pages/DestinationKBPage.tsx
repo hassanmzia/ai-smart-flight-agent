@@ -55,7 +55,7 @@ interface SearchResult {
 const SEVERITY_COLORS: Record<string, string> = {
   info: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   advisory: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  important: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  important: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
@@ -146,12 +146,12 @@ export default function DestinationKBPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-amber-600 via-orange-600 to-red-600 dark:from-amber-800 dark:via-orange-800 dark:to-red-800">
+      <div className="bg-gradient-to-br from-fuchsia-500 via-purple-600 to-violet-700 dark:from-fuchsia-800 dark:via-purple-800 dark:to-violet-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             Destination Knowledge Base
           </h1>
-          <p className="text-orange-100 text-lg mb-6">History, culture, festivals, etiquette & local insights</p>
+          <p className="text-fuchsia-100 text-lg mb-6">History, culture, festivals, etiquette & local insights</p>
 
           {/* Search */}
           <div className="max-w-xl mx-auto flex gap-3">
@@ -161,11 +161,11 @@ export default function DestinationKBPage() {
               onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { searchQuery.trim() && loadDestination(searchQuery.trim()); } }}
               placeholder="Search any destination..."
-              className="flex-1 px-5 py-3 rounded-xl text-gray-900 bg-white shadow-lg text-sm focus:ring-2 focus:ring-orange-300"
+              className="flex-1 px-5 py-3 rounded-xl text-gray-900 bg-white shadow-lg text-sm focus:ring-2 focus:ring-purple-300"
             />
             <button
               onClick={() => searchQuery.trim() && loadDestination(searchQuery.trim())}
-              className="px-6 py-3 bg-white text-orange-700 rounded-xl font-semibold text-sm shadow-lg hover:bg-orange-50 transition-all"
+              className="px-6 py-3 bg-white text-purple-700 rounded-xl font-semibold text-sm shadow-lg hover:bg-purple-50 transition-all"
             >
               Explore
             </button>
@@ -213,7 +213,7 @@ export default function DestinationKBPage() {
             </h2>
             <div className="flex flex-wrap gap-3 mt-3">
               {data.continent && (
-                <span className="px-3 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-full text-xs font-medium">{data.continent}</span>
+                <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-xs font-medium">{data.continent}</span>
               )}
               {data.currency && (
                 <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">Currency: {data.currency}</span>
@@ -276,7 +276,7 @@ export default function DestinationKBPage() {
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-3">Heritage Sites</h3>
                   <div className="flex flex-wrap gap-2">
                     {data.heritage_sites.map((site, i) => (
-                      <span key={i} className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 rounded-lg text-sm">
+                      <span key={i} className="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-lg text-sm">
                         {typeof site === 'string' ? site : site.name}
                       </span>
                     ))}
@@ -360,7 +360,7 @@ export default function DestinationKBPage() {
                   <ul className="space-y-2">
                     {data.customs.map((custom, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <span className="text-orange-500 mt-0.5">&#9679;</span> {custom}
+                        <span className="text-purple-500 mt-0.5">&#9679;</span> {custom}
                       </li>
                     ))}
                   </ul>
@@ -380,7 +380,7 @@ export default function DestinationKBPage() {
                         <span className="text-3xl">🎉</span>
                         <div>
                           <h3 className="font-bold text-gray-900 dark:text-white">{festival.name}</h3>
-                          <span className="text-xs text-orange-600 dark:text-orange-400 font-medium">{festival.month}</span>
+                          <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">{festival.month}</span>
                         </div>
                       </div>
                       <p className="text-sm text-gray-700 dark:text-gray-300">{festival.description}</p>

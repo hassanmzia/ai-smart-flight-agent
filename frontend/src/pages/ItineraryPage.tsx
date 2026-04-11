@@ -101,10 +101,10 @@ const ItineraryPage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 dark:from-orange-800 dark:via-amber-800 dark:to-yellow-800">
+      <div className="relative overflow-hidden bg-gradient-to-br from-fuchsia-500 via-purple-600 to-violet-700 dark:from-fuchsia-800 dark:via-purple-800 dark:to-violet-900">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -top-10 -right-20 w-64 h-64 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-yellow-300 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-fuchsia-300 rounded-full blur-3xl"></div>
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -112,7 +112,7 @@ const ItineraryPage = () => {
               <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
                 My Trips
               </h1>
-              <p className="text-orange-100 text-lg">
+              <p className="text-fuchsia-100 text-lg">
                 {itineraries.length} trip{itineraries.length !== 1 ? 's' : ''} planned
               </p>
             </div>
