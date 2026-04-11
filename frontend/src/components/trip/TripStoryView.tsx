@@ -65,7 +65,11 @@ export default function TripStoryView({ itineraryId, itineraryTitle, destination
     setIsLoading(true);
     setError(null);
     try {
-      const res = await api.post(`/api/itineraries/itineraries/${itineraryId}/generate-story/`);
+      const res = await api.post(
+        `/api/itineraries/itineraries/${itineraryId}/generate-story/`,
+        {},
+        { timeout: 60000 },
+      );
       if (res.data?.story) {
         setStory(res.data.story);
         setExpandedDay(0);
