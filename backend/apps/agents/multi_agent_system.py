@@ -332,7 +332,7 @@ class RentalAgent:
         self.tool = HotelSearchTool()
 
     def execute(self, state: TravelAgentState) -> TravelAgentState:
-        """Execute rental search — reuses hotel search and filters for rental properties."""
+        """Execute rental search using SerpAPI vacation_rentals mode for real Airbnb/VRBO results."""
         try:
             destination = state.get('destination', 'Berlin')
             country = state.get('destination_country', '')
@@ -342,36 +342,28 @@ class RentalAgent:
             city_name = resolve_airport_to_city(destination)
             location_query = f"{city_name}, {country}" if country else city_name
 
-            # Search via SerpAPI — same engine but we'll post-filter for rental types
+            # Search via SerpAPI with vacation_rentals=True to get Airbnb/VRBO properties
             try:
                 raw_results = self.tool.search_hotels(
                     location=location_query,
                     check_in_date=state.get('departure_date', _dt.now().strftime('%Y-%m-%d')),
                     check_out_date=state.get('return_date', '2025-10-12'),
                     adults=passengers,
+                    vacation_rentals=True,
                 )
             except Exception as search_err:
                 logger.warning(f"Rental search API call failed: {search_err}")
                 raw_results = {"hotels": []}
 
-            # Filter results for rental-type properties
-            rental_keywords = ('villa', 'apartment', 'cabin', 'cottage', 'home', 'house',
-                               'townhouse', 'condo', 'chalet', 'farmhouse', 'rental', 'entire')
-            amenity_keywords = ('kitchen', 'washer', 'laundry', 'dishwasher')
-
+            # All results from vacation_rentals mode are rentals — tag them
             rentals = []
-            for hotel in raw_results.get('hotels', []):
-                name_lower = (hotel.get('name', '') + ' ' + hotel.get('type', '')).lower()
-                hotel_amenities = ' '.join(hotel.get('amenities', [])).lower() if hotel.get('amenities') else ''
-
-                is_rental = (
-                    any(kw in name_lower for kw in rental_keywords) or
-                    any(kw in hotel_amenities for kw in amenity_keywords)
-                )
-                if is_rental:
-                    hotel['property_type'] = 'vacation_rental'
-                    hotel['is_rental'] = True
-                    rentals.append(hotel)
+            for prop in raw_results.get('hotels', []):
+                prop['property_type'] = 'vacation_rental'
+                prop['is_rental'] = True
+                # Ensure the 'name' field is set for frontend compatibility
+                if not prop.get('name') and prop.get('hotel_name'):
+                    prop['name'] = prop['hotel_name']
+                rentals.append(prop)
 
             rental_results = {
                 "rentals": rentals,
