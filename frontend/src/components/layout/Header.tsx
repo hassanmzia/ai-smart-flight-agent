@@ -116,6 +116,18 @@ const Header = () => {
                     <Menu.Item>
                       {({ active }) => (
                         <Link
+                          to={ROUTES.RENTAL_SEARCH}
+                          className={`${
+                            active ? 'bg-gray-50 dark:bg-gray-700' : ''
+                          } flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`}
+                        >
+                          <span>🏡</span> Vacation Rentals
+                        </Link>
+                      )}
+                    </Menu.Item>
+                    <Menu.Item>
+                      {({ active }) => (
+                        <Link
                           to="/cars"
                           className={`${
                             active ? 'bg-gray-50 dark:bg-gray-700' : ''
@@ -636,6 +648,7 @@ const Header = () => {
             <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Search</div>
             <Link to={ROUTES.FLIGHT_SEARCH} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">✈️ Flights</Link>
             <Link to={ROUTES.HOTEL_SEARCH} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🏨 Hotels</Link>
+            <Link to={ROUTES.RENTAL_SEARCH} onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🏡 Vacation Rentals</Link>
             <Link to="/cars" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50">🚙 Car Rentals</Link>
 
             <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Explore</div>
