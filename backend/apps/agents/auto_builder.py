@@ -31,6 +31,7 @@ class SmartItineraryBuilder:
         travelers: int = 1,
         trip_style: str = 'balanced',
         preferences: dict = None,
+        accommodation_preference: str = '',
     ) -> Dict[str, Any]:
         """
         Build a complete itinerary from minimal input.
@@ -56,6 +57,7 @@ class SmartItineraryBuilder:
             budget=budget,
             travelers=travelers,
             preferences=preferences,
+            accommodation_preference=accommodation_preference,
         )
 
         # Phase 2: Use LLM to build optimized day-by-day plan
@@ -91,6 +93,14 @@ class SmartItineraryBuilder:
             futures['hotels'] = executor.submit(
                 self._search_hotels, kwargs
             )
+
+            # Rental search — for groups of 4+ or when explicitly requested
+            travelers = kwargs.get('travelers', 1)
+            accom_pref = kwargs.get('accommodation_preference', '')
+            if travelers >= 4 or accom_pref in ('rental', 'both', 'all'):
+                futures['rentals'] = executor.submit(
+                    self._search_rentals, kwargs
+                )
 
             # Restaurant search
             futures['restaurants'] = executor.submit(
@@ -149,6 +159,35 @@ class SmartItineraryBuilder:
             )
         except Exception as e:
             logger.warning(f"Hotel search failed: {e}")
+            return None
+
+    def _search_rentals(self, kwargs):
+        """Search for vacation rentals — reuses hotel search and filters for rental-type properties."""
+        try:
+            from .agent_tools import HotelSearchTool
+            raw = HotelSearchTool.search_hotels(
+                location=kwargs['destination'],
+                check_in_date=kwargs['start_date'],
+                check_out_date=kwargs['end_date'],
+                adults=kwargs.get('travelers', 1),
+            )
+
+            rental_keywords = ('villa', 'apartment', 'cabin', 'cottage', 'home', 'house',
+                               'townhouse', 'condo', 'chalet', 'farmhouse', 'rental', 'entire')
+            amenity_keywords = ('kitchen', 'washer', 'laundry', 'dishwasher')
+
+            rentals = []
+            for prop in (raw or {}).get('properties', raw.get('hotels', [])) if isinstance(raw, dict) else []:
+                name_lower = (prop.get('name', '') + ' ' + prop.get('type', '')).lower()
+                prop_amenities = ' '.join(prop.get('amenities', [])).lower() if prop.get('amenities') else ''
+                if (any(kw in name_lower for kw in rental_keywords) or
+                        any(kw in prop_amenities for kw in amenity_keywords)):
+                    prop['is_rental'] = True
+                    rentals.append(prop)
+
+            return {'rentals': rentals, 'total_found': len(rentals)}
+        except Exception as e:
+            logger.warning(f"Rental search failed: {e}")
             return None
 
     def _search_restaurants(self, kwargs):
@@ -243,6 +282,12 @@ Return as concise bullet points."""
                 top_hotels = hotels['properties'][:5]
                 context_parts.append(f"Top hotels: {json.dumps(top_hotels, default=str)[:1000]}")
 
+        if gathered.get('rentals'):
+            rentals = gathered['rentals']
+            if isinstance(rentals, dict) and rentals.get('rentals'):
+                top_rentals = rentals['rentals'][:5]
+                context_parts.append(f"Top vacation rentals (villas/apartments): {json.dumps(top_rentals, default=str)[:1000]}")
+
         if gathered.get('restaurants'):
             context_parts.append(f"Restaurant data: {json.dumps(gathered['restaurants'], default=str)[:500]}")
 
@@ -287,6 +332,7 @@ Return a JSON object with this structure (no markdown, raw JSON only):
   },
   "recommended_flight": {"summary": "flight details", "price": number},
   "recommended_hotel": {"name": "hotel name", "price_per_night": number, "rating": number},
+  "recommended_rental": {"name": "property name", "price_per_night": number, "bedrooms": number, "max_guests": number, "cleaning_fee": number} or null,
   "days": [
     {
       "day_number": 1,
@@ -327,7 +373,8 @@ Create an optimized day-by-day plan following these rules:
 3. MEALS: Include breakfast, lunch, and dinner spots near the day's activities.
 4. PACING: Alternate high-energy and relaxed activities. No more than 3 major attractions per day.
 5. LOGISTICS: First day should include arrival/check-in with lighter activities. Last day should include checkout/departure with morning-only plans.
-6. TRANSPORT: Add a transport item between distant locations with estimated travel time."""
+6. TRANSPORT: Add a transport item between distant locations with estimated travel time.
+7. ACCOMMODATION: If vacation rental data is available and there are 4+ travelers, compare hotel vs rental total cost and recommend the better value. Include "recommended_rental" in the JSON if a rental is a good fit (shared kitchen saves on meals, whole-property pricing split across travelers). Set it to null if hotels are clearly better."""
 
             response = model.invoke([
                 SystemMessage(content=system),
@@ -343,6 +390,7 @@ Create an optimized day-by-day plan following these rules:
             result['gathered_data_summary'] = {
                 'flights_found': bool(gathered.get('flights')),
                 'hotels_found': bool(gathered.get('hotels')),
+                'rentals_found': bool(gathered.get('rentals')),
                 'restaurants_found': bool(gathered.get('restaurants')),
                 'weather_available': bool(gathered.get('weather')),
                 'attractions_found': bool(gathered.get('attractions')),

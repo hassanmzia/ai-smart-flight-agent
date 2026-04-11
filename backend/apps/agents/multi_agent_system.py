@@ -49,6 +49,7 @@ class TravelAgentState(TypedDict):
     cuisine: Optional[str]
     flight_results: Optional[Dict]
     hotel_results: Optional[Dict]
+    rental_results: Optional[Dict]
     car_rental_results: Optional[Dict]
     restaurant_results: Optional[Dict]
     goal_evaluation: Optional[Dict]
@@ -57,6 +58,7 @@ class TravelAgentState(TypedDict):
     restaurant_evaluation: Optional[Dict]
     final_recommendation: Optional[Dict]
     current_agent: str
+    accommodation_preference: Optional[str]
     error: Optional[str]
 
 
@@ -236,6 +238,10 @@ Extract the following from the user query or context:
 
 Use the search_hotels tool to find accommodation options.
 Focus on hotels near the destination airport or city center.
+
+When the group has 4+ travelers or multiple families, also consider vacation
+rentals (villas, apartments, entire homes) as they may be more cost-effective
+and offer shared living spaces like kitchens.
 """
 
     def execute(self, state: TravelAgentState) -> TravelAgentState:
@@ -312,6 +318,82 @@ Focus on hotels near the destination airport or city center.
     def _get_hotel_search_location(self, destination: str) -> str:
         """Convert airport code to city name for hotel search"""
         return resolve_airport_to_city(destination)
+
+
+class RentalAgent:
+    """
+    Vacation rental search agent - searches for rental properties (villas, apartments, cabins)
+    using the same SerpAPI Google Hotels engine with rental-type filtering.
+    Activated when group size >= 4 or user explicitly requests rentals.
+    """
+
+    def __init__(self, model: ChatOpenAI):
+        self.model = model
+        self.tool = HotelSearchTool()
+
+    def execute(self, state: TravelAgentState) -> TravelAgentState:
+        """Execute rental search — reuses hotel search and filters for rental properties."""
+        try:
+            destination = state.get('destination', 'Berlin')
+            country = state.get('destination_country', '')
+            passengers = state.get('passengers', 1)
+            logger.info(f"RentalAgent executing for destination: {destination}, passengers: {passengers}")
+
+            city_name = resolve_airport_to_city(destination)
+            location_query = f"{city_name}, {country}" if country else city_name
+
+            # Search via SerpAPI — same engine but we'll post-filter for rental types
+            try:
+                raw_results = self.tool.search_hotels(
+                    location=location_query,
+                    check_in_date=state.get('departure_date', _dt.now().strftime('%Y-%m-%d')),
+                    check_out_date=state.get('return_date', '2025-10-12'),
+                    adults=passengers,
+                )
+            except Exception as search_err:
+                logger.warning(f"Rental search API call failed: {search_err}")
+                raw_results = {"hotels": []}
+
+            # Filter results for rental-type properties
+            rental_keywords = ('villa', 'apartment', 'cabin', 'cottage', 'home', 'house',
+                               'townhouse', 'condo', 'chalet', 'farmhouse', 'rental', 'entire')
+            amenity_keywords = ('kitchen', 'washer', 'laundry', 'dishwasher')
+
+            rentals = []
+            for hotel in raw_results.get('hotels', []):
+                name_lower = (hotel.get('name', '') + ' ' + hotel.get('type', '')).lower()
+                hotel_amenities = ' '.join(hotel.get('amenities', [])).lower() if hotel.get('amenities') else ''
+
+                is_rental = (
+                    any(kw in name_lower for kw in rental_keywords) or
+                    any(kw in hotel_amenities for kw in amenity_keywords)
+                )
+                if is_rental:
+                    hotel['property_type'] = 'vacation_rental'
+                    hotel['is_rental'] = True
+                    rentals.append(hotel)
+
+            rental_results = {
+                "rentals": rentals,
+                "total_found": len(rentals),
+                "location": location_query,
+            }
+
+            state['rental_results'] = rental_results
+            state['current_agent'] = 'goal_evaluator'
+
+            msg = f"Found {len(rentals)} vacation rental options in {city_name}"
+            state['messages'].append(AIMessage(content=msg))
+            logger.info(msg)
+
+            return state
+
+        except Exception as e:
+            logger.error(f"RentalAgent error: {str(e)}", exc_info=True)
+            state['rental_results'] = {"rentals": [], "error": str(e)}
+            state['current_agent'] = 'goal_evaluator'
+            state['messages'].append(AIMessage(content=f"Rental search failed: {str(e)}"))
+            return state
 
 
 class CarRentalAgent:
@@ -727,6 +809,9 @@ Your responsibilities:
             hotel_results = state.get('hotel_results')
             hotels = hotel_results.get('hotels', []) if hotel_results and isinstance(hotel_results, dict) else []
 
+            rental_results = state.get('rental_results')
+            rentals = rental_results.get('rentals', []) if rental_results and isinstance(rental_results, dict) else []
+
             car_rental_results = state.get('car_rental_results')
             cars = car_rental_results.get('cars', []) if car_rental_results and isinstance(car_rental_results, dict) else []
 
@@ -789,10 +874,14 @@ Your responsibilities:
             if not recommended_restaurant and ranked_restaurants:
                 recommended_restaurant = ranked_restaurants[0]
 
+            # Pick best rental option (cheapest or first available)
+            recommended_rental = rentals[0] if rentals else None
+
             final_recommendation = {
                 "summary": {
                     "flights_found": len(flights),
                     "hotels_found": len(hotels),
+                    "rentals_found": len(rentals),
                     "cars_found": len(cars),
                     "restaurants_found": len(restaurants),
                     "budget": state.get('budget', 'Not specified')
@@ -800,6 +889,8 @@ Your responsibilities:
                 "recommended_flight": recommended_flight,
                 "alternative_flight": alternative_flight,
                 "recommended_hotel": recommended_hotel,
+                "recommended_rental": recommended_rental,
+                "top_rentals": rentals[:5],
                 "recommended_car": recommended_car,
                 "recommended_restaurant": recommended_restaurant,
                 "top_5_hotels": ranked_hotels[:5],
@@ -902,6 +993,7 @@ class MultiAgentTravelSystem:
         # Initialize agents
         self.flight_agent = FlightAgent(self.model)
         self.hotel_agent = HotelAgent(self.model)
+        self.rental_agent = RentalAgent(self.model)
         self.car_rental_agent = CarRentalAgent(self.model)
         self.restaurant_agent = RestaurantAgent(self.model)
         self.goal_agent = GoalBasedAgent(self.model)
@@ -914,7 +1006,7 @@ class MultiAgentTravelSystem:
         self.graph = self._build_graph()
 
     def _parallel_search(self, state: TravelAgentState) -> TravelAgentState:
-        """Run flight, hotel, car rental, and restaurant searches in parallel"""
+        """Run flight, hotel, rental, car rental, and restaurant searches in parallel"""
         logger.info("Starting parallel search across all agents")
 
         agents = {
@@ -923,6 +1015,13 @@ class MultiAgentTravelSystem:
             "car_rental": self.car_rental_agent,
             "restaurant": self.restaurant_agent,
         }
+
+        # Include rental search for groups of 4+ or when explicitly requested
+        passengers = state.get('passengers', 1)
+        accom_pref = state.get('accommodation_preference', '')
+        if passengers >= 4 or accom_pref in ('rental', 'both', 'all'):
+            agents["rental"] = self.rental_agent
+            logger.info(f"Including rental search (passengers={passengers}, pref={accom_pref})")
 
         results = {}
 
@@ -951,13 +1050,15 @@ class MultiAgentTravelSystem:
             state['flight_results'] = results["flight"].get('flight_results')
         if "hotel" in results:
             state['hotel_results'] = results["hotel"].get('hotel_results')
+        if "rental" in results:
+            state['rental_results'] = results["rental"].get('rental_results')
         if "car_rental" in results:
             state['car_rental_results'] = results["car_rental"].get('car_rental_results')
         if "restaurant" in results:
             state['restaurant_results'] = results["restaurant"].get('restaurant_results')
 
         # Collect messages from all agents
-        for name in ["flight", "hotel", "car_rental", "restaurant"]:
+        for name in ["flight", "hotel", "rental", "car_rental", "restaurant"]:
             if name in results:
                 for msg in results[name].get('messages', []):
                     if msg not in state['messages']:
@@ -1019,6 +1120,7 @@ class MultiAgentTravelSystem:
                 "cuisine": kwargs.get('cuisine'),
                 "flight_results": None,
                 "hotel_results": None,
+                "rental_results": None,
                 "car_rental_results": None,
                 "restaurant_results": None,
                 "goal_evaluation": None,
@@ -1027,6 +1129,7 @@ class MultiAgentTravelSystem:
                 "restaurant_evaluation": None,
                 "final_recommendation": None,
                 "current_agent": "flight",
+                "accommodation_preference": kwargs.get('accommodation_preference', ''),
                 "error": None
             }
 
@@ -1041,6 +1144,7 @@ class MultiAgentTravelSystem:
                 "parameters": kwargs,
                 "flights": final_state.get('flight_results'),
                 "hotels": final_state.get('hotel_results'),
+                "rentals": final_state.get('rental_results'),
                 "car_rentals": final_state.get('car_rental_results'),
                 "restaurants": final_state.get('restaurant_results'),
                 "goal_evaluation": final_state.get('goal_evaluation'),

@@ -1129,6 +1129,7 @@ def plan_travel(request):
         cuisine = request.data.get('cuisine')
         travel_style = request.data.get('travel_style')
         interests = request.data.get('interests')
+        accommodation_preference = request.data.get('accommodation_preference', '')  # 'hotel', 'rental', 'both', or ''
 
         # Resolve origin: prefer city/country, fall back to legacy airport code
         origin_city = request.data.get('origin_city', '')
@@ -1173,7 +1174,8 @@ def plan_travel(request):
             return_date=return_date,
             passengers=passengers,
             budget=budget,
-            cuisine=cuisine
+            cuisine=cuisine,
+            accommodation_preference=accommodation_preference,
         )
 
         # Gather data from ALL enhanced agents (weather, safety, visa, packing, local expert)
@@ -1760,6 +1762,7 @@ def auto_build_itinerary(request):
             travelers=request.data.get('travelers', 1),
             trip_style=request.data.get('trip_style', 'balanced'),
             preferences=request.data.get('preferences', {}),
+            accommodation_preference=request.data.get('accommodation_preference', ''),
         )
         return Response({'success': True, 'itinerary': result})
     except Exception as e:
