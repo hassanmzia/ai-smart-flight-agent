@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import toast from 'react-hot-toast';
-import { API_BASE_URL, API_ENDPOINTS } from '../utils/constants';
+import api from '@/services/api';
+import { API_ENDPOINTS } from '../utils/constants';
 
 interface PrayerTimes {
   fajr: string;
@@ -104,15 +104,12 @@ export default function FaithTravelPage() {
   // Ramadan state
   const [ramadanSchedule, setRamadanSchedule] = useState<RamadanSchedule | null>(null);
 
-  const token = localStorage.getItem('auth_token');
-  const headers = { Authorization: `Bearer ${token}` };
-
   const fetchPrayerTimes = async () => {
     if (!destination) { toast.error('Please enter a destination'); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.FAITH_PRAYER_TIMES}`, {
-        params: { destination, date: prayerDate }, headers,
+      const res = await api.get(API_ENDPOINTS.AGENT.FAITH_PRAYER_TIMES, {
+        params: { destination, date: prayerDate },
       });
       const d = res.data;
       if (d?.success !== false) {
@@ -126,8 +123,8 @@ export default function FaithTravelPage() {
     if (!destination) { toast.error('Please enter a destination'); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.FAITH_WORSHIP_PLACES}`, {
-        params: { destination, faith: selectedFaith, type: worshipFilter || undefined }, headers,
+      const res = await api.get(API_ENDPOINTS.AGENT.FAITH_WORSHIP_PLACES, {
+        params: { destination, faith: selectedFaith, type: worshipFilter || undefined },
       });
       const d = res.data;
       const items = d?.places || d?.items || d?.results || (Array.isArray(d) ? d : []);
@@ -140,8 +137,8 @@ export default function FaithTravelPage() {
     if (!destination) { toast.error('Please enter a destination'); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.FAITH_SPIRITUAL_SITES}`, {
-        params: { destination, faith: selectedFaith, category: siteCategory || undefined }, headers,
+      const res = await api.get(API_ENDPOINTS.AGENT.FAITH_SPIRITUAL_SITES, {
+        params: { destination, faith: selectedFaith, category: siteCategory || undefined },
       });
       const d = res.data;
       const items = d?.sites || d?.items || d?.results || (Array.isArray(d) ? d : []);
@@ -154,8 +151,8 @@ export default function FaithTravelPage() {
     if (!destination) { toast.error('Please enter a destination'); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.FAITH_DIETARY}`, {
-        params: { destination, type: dietaryType }, headers,
+      const res = await api.get(API_ENDPOINTS.AGENT.FAITH_DIETARY, {
+        params: { destination, type: dietaryType },
       });
       const d = res.data;
       const items = d?.restaurants || d?.items || d?.results || (Array.isArray(d) ? d : []);
@@ -168,8 +165,8 @@ export default function FaithTravelPage() {
     if (!destination) { toast.error('Please enter a destination'); return; }
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}${API_ENDPOINTS.AGENT.FAITH_RAMADAN}`, {
-        params: { destination, date: prayerDate }, headers,
+      const res = await api.get(API_ENDPOINTS.AGENT.FAITH_RAMADAN, {
+        params: { destination, date: prayerDate },
       });
       const d = res.data;
       if (d?.success !== false) {
