@@ -87,10 +87,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col overflow-x-hidden">
           <Header />
 
-          <main className="flex-1">
+          <main className="flex-1 max-w-full">
             <Suspense fallback={<Loading fullScreen size="lg" text="Loading..." />}>
               <Routes>
                 {/* Public routes */}
