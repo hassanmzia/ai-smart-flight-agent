@@ -92,7 +92,7 @@ export default function TravelStoriesPage() {
         trip_days: form.trip_days,
         format: form.format,
         highlights: form.highlights.split(',').map(h => h.trim()).filter(Boolean),
-      });
+      }, { timeout: 90000 });
       if (res.data?.success) {
         toast.success('Story generated!');
         setTab('my-stories');
