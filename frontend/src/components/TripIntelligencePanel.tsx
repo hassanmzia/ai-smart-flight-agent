@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { ROUTES } from '@/utils/constants';
 
 interface Props {
@@ -33,74 +32,6 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
   if (endDate) params.set('end_date', endDate);
   if (travelers) params.set('travelers', String(travelers));
   const q = `?${params.toString()}`;
-
-  // ── PRE-TRIP: planning, approval, and pre-departure
-  const preTripCards: FeatureCard[] = [
-    {
-      to: `${ROUTES.PREDICTIONS}${q}&tab=experience`,
-      icon: '✨',
-      title: 'Trip Experience Preview',
-      desc: 'Feel the destination before you go — weather, food, culture, a day in your trip.',
-      gradient: 'from-indigo-500 via-purple-500 to-pink-500',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.PREDICTIONS}${q}&tab=crowds`,
-      icon: '👥',
-      title: 'Crowd Forecast',
-      desc: 'Monthly crowd calendar — know when to go and when to wait.',
-      gradient: 'from-amber-500 to-orange-500',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.PREDICTIONS}${q}&tab=prices`,
-      icon: '💰',
-      title: 'Price Forecast',
-      desc: 'See if prices will rise, fall, or stay stable for your dates.',
-      gradient: 'from-emerald-500 to-green-600',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.SAFETY_DASHBOARD}${q}`,
-      icon: '🛡️',
-      title: 'Safety Intelligence',
-      desc: 'Travel advisories, safe areas, and emergency contacts.',
-      gradient: 'from-blue-500 to-cyan-600',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.LANGUAGE_TOOL}${q}`,
-      icon: '💬',
-      title: 'Local Phrases',
-      desc: 'Essential phrases and pronunciations for locals.',
-      gradient: 'from-fuchsia-500 to-pink-500',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.DESTINATION_GUIDE}${q}`,
-      icon: '📍',
-      title: 'Destination Guide',
-      desc: 'Cultural context, must-sees, and insider tips.',
-      gradient: 'from-teal-500 to-emerald-600',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.DESTINATION_KB}${q}`,
-      icon: '📚',
-      title: 'Traveler Tips',
-      desc: 'Crowd-sourced tips from fellow travelers.',
-      gradient: 'from-violet-500 to-purple-600',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.AI_RATINGS}${q}`,
-      icon: '⭐',
-      title: 'AI Ratings',
-      desc: 'AI-curated ratings for hotels, restaurants, and attractions.',
-      gradient: 'from-yellow-500 to-amber-600',
-      iconBg: 'bg-white/20',
-    },
-  ];
 
   // ── BOOKED/ACTIVE: in-trip companions
   const inTripCards: FeatureCard[] = [
@@ -174,34 +105,20 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
     },
   ];
 
-  // Decide which sections to show based on status
-  const showPreTrip = ['draft', 'planned', 'approved'].includes(status);
+  // This panel now shows ONLY stage-specific cards that SmartTripPreview doesn't
+  // cover (in-trip and post-trip actions). Pre-trip insights/tools are surfaced
+  // inline by SmartTripPreview so this panel stays out of the way until the
+  // customer actually needs trip-companion or memory-capture features.
   const showInTrip = ['booked', 'active'].includes(status);
   const showPostTrip = status === 'completed';
 
-  // If we don't have a clear phase (e.g. cancelled or unknown), default to pre-trip
   const sections: Array<{ title: string; subtitle: string; icon: string; cards: FeatureCard[] }> = [];
-  if (showPreTrip || (!showInTrip && !showPostTrip)) {
-    sections.push({
-      title: 'Get Ready for Your Trip',
-      subtitle: 'AI-powered insights to help you plan with confidence.',
-      icon: '🎯',
-      cards: preTripCards,
-    });
-  }
   if (showInTrip) {
     sections.push({
       title: 'Make the Most of Your Trip',
       subtitle: 'Local deals, wellness, and real-time helpers.',
       icon: '🌟',
       cards: inTripCards,
-    });
-    // Keep pre-trip cards available too — they're still useful while booked
-    sections.push({
-      title: 'Also Useful',
-      subtitle: 'Keep these handy during your trip.',
-      icon: '🧰',
-      cards: preTripCards.slice(0, 6),
     });
   }
   if (showPostTrip) {
@@ -213,6 +130,7 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
     });
   }
 
+  // Pre-trip stages: SmartTripPreview alone covers it, nothing to add here.
   if (sections.length === 0) return null;
 
   return (
@@ -224,9 +142,16 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
             Trip Intelligence Hub
           </h2>
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
           Every tool you need for <span className="font-semibold text-gray-800 dark:text-gray-200">{destination}</span>, pre-configured for your trip.
         </p>
+        <div className="mb-6 flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 bg-white/70 dark:bg-gray-800/50 rounded-xl px-3 py-2 border border-purple-100 dark:border-purple-800/40">
+          <span className="mt-0.5">💡</span>
+          <span>
+            Each card opens in a <span className="font-semibold">new tab</span> so you never lose
+            your place here. Close the tab to return — your entries on this page are safe.
+          </span>
+        </div>
 
         {sections.map((section, si) => (
           <div key={si} className={si > 0 ? 'mt-8' : ''}>
@@ -239,18 +164,23 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {section.cards.map((card) => (
-                <Link
+                <a
                   key={card.to}
-                  to={card.to}
+                  href={card.to}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`group relative bg-gradient-to-br ${card.gradient} rounded-2xl p-4 text-white overflow-hidden shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-200`}
+                  title="Opens in a new tab — your planner stays open"
                 >
                   <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${card.iconBg} backdrop-blur-sm text-xl mb-2`}>
                     {card.icon}
                   </div>
-                  <h4 className="font-bold text-sm mb-1">{card.title}</h4>
+                  <h4 className="font-bold text-sm mb-1 flex items-center gap-1">
+                    {card.title}
+                    <span className="opacity-60 text-[10px]" aria-hidden>↗</span>
+                  </h4>
                   <p className="text-xs text-white/85 leading-snug">{card.desc}</p>
-                  <span className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-white/80 text-sm">→</span>
-                </Link>
+                </a>
               ))}
             </div>
           </div>

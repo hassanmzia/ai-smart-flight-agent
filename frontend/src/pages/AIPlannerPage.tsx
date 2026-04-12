@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common';
 import Button from '@/components/common/Button';
@@ -14,7 +14,7 @@ import {
 } from '@/services/itineraryService';
 import TravelChat from '@/components/TravelChat';
 import AirportAutocomplete from '@/components/common/AirportAutocomplete';
-import TripIntelligencePanel from '@/components/TripIntelligencePanel';
+import SmartTripPreview from '@/components/SmartTripPreview';
 
 type OrderMode = 'form' | 'chat' | 'voice';
 type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'intelligence';
@@ -134,20 +134,38 @@ const AIPlannerPage = () => {
   const [activeTab, setActiveTab] = useState<ResultTab>('itinerary');
   const [expandedDay, setExpandedDay] = useState<number | null>(1);
 
-  // Form state
-  const [originCity, setOriginCity] = useState('');
-  const [originCountry, setOriginCountry] = useState('');
-  const [destinationCity, setDestinationCity] = useState('');
-  const [destinationCountry, setDestinationCountry] = useState('');
-  const [departureDate, setDepartureDate] = useState('');
-  const [returnDate, setReturnDate] = useState('');
-  const [passengers, setPassengers] = useState(1);
-  const [budget, setBudget] = useState('');
-  const [cuisine, setCuisine] = useState('');
-  const [travelStyle, setTravelStyle] = useState('');
-  const [interests, setInterests] = useState('');
-  const [accommodationPref, setAccommodationPref] = useState('');
+  // Form state — persisted to localStorage so entries survive if the user
+  // opens a Trip Intelligence Hub card (even same-tab) and comes back.
+  const LS_KEY = 'aiPlannerFormV1';
+  const saved = (() => {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; }
+  })();
+  const [originCity, setOriginCity] = useState<string>(saved.originCity || '');
+  const [originCountry, setOriginCountry] = useState<string>(saved.originCountry || '');
+  const [destinationCity, setDestinationCity] = useState<string>(saved.destinationCity || '');
+  const [destinationCountry, setDestinationCountry] = useState<string>(saved.destinationCountry || '');
+  const [departureDate, setDepartureDate] = useState<string>(saved.departureDate || '');
+  const [returnDate, setReturnDate] = useState<string>(saved.returnDate || '');
+  const [passengers, setPassengers] = useState<number>(typeof saved.passengers === 'number' ? saved.passengers : 1);
+  const [budget, setBudget] = useState<string>(saved.budget || '');
+  const [cuisine, setCuisine] = useState<string>(saved.cuisine || '');
+  const [travelStyle, setTravelStyle] = useState<string>(saved.travelStyle || '');
+  const [interests, setInterests] = useState<string>(saved.interests || '');
+  const [accommodationPref, setAccommodationPref] = useState<string>(saved.accommodationPref || '');
   const [chatParams, setChatParams] = useState<any>({});
+
+  // Persist form entries on every change.
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        originCity, originCountry, destinationCity, destinationCountry,
+        departureDate, returnDate, passengers, budget, cuisine,
+        travelStyle, interests, accommodationPref,
+      }));
+    } catch { /* ignore quota errors */ }
+  }, [originCity, originCountry, destinationCity, destinationCountry,
+      departureDate, returnDate, passengers, budget, cuisine,
+      travelStyle, interests, accommodationPref]);
 
   // Compose display labels from city/country
   const originLabel = originCountry ? `${originCity}, ${originCountry}` : originCity;
@@ -585,14 +603,16 @@ const AIPlannerPage = () => {
         </div>
       )}
 
-      {/* Pre-trip Intelligence Hub — shows once user has entered a destination */}
-      {!loading && !result && destinationCity && (
-        <TripIntelligencePanel
+      {/* Smart Trip Preview — inline live insights (weather, safety, budget,
+          crowds, "a day in your trip") as soon as a destination is entered.
+          Deep-dive chips open specialty pages in new tabs so form entries
+          on this page are never lost. */}
+      {!loading && destinationCity && (
+        <SmartTripPreview
           destination={destinationLabel}
           startDate={departureDate}
           endDate={returnDate}
           travelers={passengers}
-          status="draft"
         />
       )}
 
