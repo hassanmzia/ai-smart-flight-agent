@@ -69,7 +69,8 @@ const RegisterPage = () => {
         password_confirm: confirmPassword
       });
       showSuccess('Account created! A verification email has been sent to your inbox.');
-      navigate(ROUTES.DASHBOARD);
+      // Full page navigation to ensure clean state after auth change
+      window.location.href = ROUTES.DASHBOARD;
     } catch (error: any) {
       const errors = parseFieldErrors(error);
       setFieldErrors(errors);

@@ -180,7 +180,8 @@ const Header = () => {
 
   const handleLogout = () => {
     logout();
-    navigate(ROUTES.LOGIN);
+    // Full page navigation to ensure clean state after auth change
+    window.location.href = '/';
   };
 
   const closeMobile = () => setMobileMenuOpen(false);
