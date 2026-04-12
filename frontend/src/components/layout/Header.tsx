@@ -125,6 +125,10 @@ const communityItems: DropdownItem[] = [
   { to: ROUTES.TRAVEL_STORIES, icon: '📖', label: 'Travel Stories' },
   { to: ROUTES.TRIP_GALLERY, icon: '🗺️', label: 'Trip Gallery' },
   { to: ROUTES.CONTENT_HUB, icon: '📸', label: 'Content Hub' },
+];
+
+const myTripsItems: DropdownItem[] = [
+  { to: ROUTES.ITINERARY, icon: '📋', label: 'My Trips' },
   { to: ROUTES.COLLABORATE, icon: '👥', label: 'Collaborate' },
   { to: ROUTES.TRIP_MAP, icon: '🌍', label: 'My Travel Map' },
 ];
@@ -205,10 +209,7 @@ const Header = () => {
             <NavDropdown label="Explore" items={exploreItems} />
             <NavDropdown label="Travel Info" items={travelInfoItems} />
             <NavDropdown label="Community" items={communityItems} alignRight />
-
-            <Link to={ROUTES.ITINERARY} className={navBtnCls}>
-              My Trips
-            </Link>
+            <NavDropdown label="My Trips" items={myTripsItems} alignRight />
             {isAuthenticated && (
               <Link to={ROUTES.DASHBOARD} className={navBtnCls}>
                 Dashboard
@@ -380,28 +381,25 @@ const Header = () => {
           <div className="mx-4 border-t border-gray-100 dark:border-gray-700/50" />
           <MobileSection title="Community" items={communityItems} onClose={closeMobile} />
 
+          <div className="mx-4 border-t border-gray-100 dark:border-gray-700/50" />
+          <MobileSection title="My Trips" items={myTripsItems} onClose={closeMobile} />
+
           {/* Quick links */}
-          <div className="mx-4 border-t border-gray-200 dark:border-gray-700" />
-          <div className="py-2 px-2 space-y-0.5">
-            <Link
-              to={ROUTES.ITINERARY}
-              onClick={closeMobile}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 active:bg-gray-200 dark:active:bg-gray-600/50 transition-colors"
-            >
-              <span className="text-base leading-none">📋</span>
-              <span>My Trips</span>
-            </Link>
-            {isAuthenticated && (
-              <Link
-                to={ROUTES.DASHBOARD}
-                onClick={closeMobile}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 active:bg-gray-200 dark:active:bg-gray-600/50 transition-colors"
-              >
-                <span className="text-base leading-none">📊</span>
-                <span>Dashboard</span>
-              </Link>
-            )}
-          </div>
+          {isAuthenticated && (
+            <>
+              <div className="mx-4 border-t border-gray-200 dark:border-gray-700" />
+              <div className="py-2 px-2 space-y-0.5">
+                <Link
+                  to={ROUTES.DASHBOARD}
+                  onClick={closeMobile}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/50 active:bg-gray-200 dark:active:bg-gray-600/50 transition-colors"
+                >
+                  <span className="text-base leading-none">📊</span>
+                  <span>Dashboard</span>
+                </Link>
+              </div>
+            </>
+          )}
 
           {/* Bottom safe area spacing */}
           <div className="h-4" />
