@@ -292,3 +292,180 @@ Include all 12 months.""")
             'budget_tip': 'Book 6-8 weeks in advance during off-season for cheapest rates.',
             'weather_tip': 'Check the 10-day forecast before packing.',
         }
+
+    def generate_trip_experience(self, destination: str, start_date: str,
+                                  end_date: str, travelers: int = 1,
+                                  interests: List[str] = None) -> Dict[str, Any]:
+        """Generate an immersive trip experience preview with AI."""
+        api_key = getattr(settings, 'OPENAI_API_KEY', os.getenv('OPENAI_API_KEY', ''))
+        if not api_key or api_key in ('your_openai_api_key_here', ''):
+            return self._fallback_trip_experience(destination, start_date, end_date, travelers)
+
+        interests_text = ', '.join(interests) if interests else 'general sightseeing'
+
+        try:
+            from langchain_openai import ChatOpenAI
+            from langchain.schema import HumanMessage, SystemMessage
+
+            model = ChatOpenAI(model='gpt-4o-mini', temperature=0.5, api_key=api_key, request_timeout=45)
+
+            response = model.invoke([
+                SystemMessage(content="You are an expert travel experience designer. Return JSON only, no markdown fences. Be vivid, specific, and inspiring."),
+                HumanMessage(content=f"""Create an immersive trip experience preview for {travelers} traveler(s) visiting {destination} from {start_date} to {end_date}.
+Interests: {interests_text}
+
+Return JSON:
+{{
+    "destination": "{destination}",
+    "tagline": "A short inspiring tagline for the trip (max 10 words)",
+    "vibe_emoji": "3-4 emojis that capture the destination vibe",
+    "weather_preview": {{
+        "summary": "2-sentence weather description for these dates",
+        "avg_temp_high_c": number,
+        "avg_temp_low_c": number,
+        "condition": "sunny/partly_cloudy/rainy/snowy/mild/hot/cold",
+        "what_to_wear": "1-sentence packing advice"
+    }},
+    "crowd_forecast": {{
+        "level": "low/moderate/high/very_high",
+        "description": "1-sentence crowd description",
+        "tip": "1-sentence tip for managing crowds"
+    }},
+    "daily_budget": {{
+        "budget_usd": number,
+        "mid_range_usd": number,
+        "luxury_usd": number,
+        "currency": "local currency name",
+        "exchange_note": "brief exchange rate note"
+    }},
+    "cultural_highlights": [
+        {{"title": "name", "description": "1 sentence", "icon": "single emoji"}}
+    ],
+    "food_scene": {{
+        "summary": "2-sentence food scene overview",
+        "must_try": [
+            {{"dish": "name", "description": "brief desc", "price_range": "$-$$$$"}}
+        ],
+        "dining_tip": "1-sentence tip"
+    }},
+    "a_day_in_your_trip": {{
+        "morning": "2-sentence vivid morning description",
+        "afternoon": "2-sentence vivid afternoon description",
+        "evening": "2-sentence vivid evening description"
+    }},
+    "hidden_gems": [
+        {{"name": "place/experience", "why": "1 sentence why it's special", "icon": "single emoji"}}
+    ],
+    "local_phrases": [
+        {{"phrase": "hello in local language", "meaning": "Hello", "pronunciation": "phonetic"}}
+    ],
+    "packing_essentials": ["item1", "item2", "item3", "item4", "item5"],
+    "safety_wellness": {{
+        "safety_level": "very_safe/safe/moderate/caution",
+        "tips": ["tip1", "tip2"],
+        "health_note": "1-sentence health advisory"
+    }},
+    "trip_score": {{
+        "overall": 1-100,
+        "adventure": 1-100,
+        "relaxation": 1-100,
+        "culture": 1-100,
+        "food": 1-100,
+        "value": 1-100
+    }}
+}}
+Keep cultural_highlights to 4 items, must_try to 4 dishes, hidden_gems to 3 items, local_phrases to 4 phrases. Be specific to {destination}.""")
+            ])
+
+            content = response.content.strip()
+            if content.startswith('```'):
+                content = content.split('\n', 1)[1].rsplit('```', 1)[0]
+            result = json.loads(content)
+            result['success'] = True
+            return result
+
+        except Exception as e:
+            logger.error(f"Trip experience generation failed: {e}")
+            return self._fallback_trip_experience(destination, start_date, end_date, travelers)
+
+    def _fallback_trip_experience(self, destination: str, start_date: str,
+                                   end_date: str, travelers: int) -> Dict[str, Any]:
+        """Rich fallback when LLM is unavailable."""
+        return {
+            'success': True,
+            'destination': destination,
+            'tagline': f'Discover the magic of {destination}',
+            'vibe_emoji': '🌍✨🗺️',
+            'weather_preview': {
+                'summary': f'Check local forecasts for {destination} closer to your travel dates for the most accurate weather information.',
+                'avg_temp_high_c': 25,
+                'avg_temp_low_c': 15,
+                'condition': 'mild',
+                'what_to_wear': 'Pack layers to prepare for varying conditions.',
+            },
+            'crowd_forecast': {
+                'level': 'moderate',
+                'description': f'{destination} typically sees moderate tourist traffic during this period.',
+                'tip': 'Visit popular attractions early in the morning for a better experience.',
+            },
+            'daily_budget': {
+                'budget_usd': 50,
+                'mid_range_usd': 120,
+                'luxury_usd': 300,
+                'currency': 'Local currency',
+                'exchange_note': 'Check current exchange rates before your trip.',
+            },
+            'cultural_highlights': [
+                {'title': 'Local Heritage', 'description': f'Explore the rich cultural heritage of {destination}.', 'icon': '🏛️'},
+                {'title': 'Architecture', 'description': 'Admire the stunning local architecture and landmarks.', 'icon': '🏗️'},
+                {'title': 'Markets', 'description': 'Wander through vibrant local markets and bazaars.', 'icon': '🛍️'},
+                {'title': 'Art Scene', 'description': 'Discover galleries and street art throughout the city.', 'icon': '🎨'},
+            ],
+            'food_scene': {
+                'summary': f'{destination} offers a diverse culinary landscape blending traditional flavors with modern cuisine. Street food and local restaurants provide authentic experiences.',
+                'must_try': [
+                    {'dish': 'Local Specialty', 'description': 'A beloved traditional dish of the region', 'price_range': '$$'},
+                    {'dish': 'Street Food Favorite', 'description': 'Popular quick bites from local vendors', 'price_range': '$'},
+                ],
+                'dining_tip': 'Ask locals for their favorite spots — the best food is often off the beaten path.',
+            },
+            'a_day_in_your_trip': {
+                'morning': f'Start your day with a local breakfast and a stroll through the historic quarter of {destination}. The morning light reveals the city at its most peaceful.',
+                'afternoon': 'Spend the afternoon exploring top attractions and savoring a leisurely lunch at a local favorite. Take time to wander side streets and discover hidden corners.',
+                'evening': 'As the sun sets, find a rooftop bar or waterfront restaurant for dinner. End the night soaking in the local nightlife and atmosphere.',
+            },
+            'hidden_gems': [
+                {'name': 'Secret Viewpoint', 'why': 'A lesser-known spot with breathtaking panoramic views.', 'icon': '🌅'},
+                {'name': 'Local Neighborhood', 'why': 'An authentic neighborhood away from tourist crowds.', 'icon': '🏘️'},
+                {'name': 'Hidden Café', 'why': 'A tucked-away café beloved by locals for decades.', 'icon': '☕'},
+            ],
+            'local_phrases': [
+                {'phrase': 'Hello', 'meaning': 'Greeting', 'pronunciation': 'Check local language guide'},
+                {'phrase': 'Thank you', 'meaning': 'Gratitude', 'pronunciation': 'Check local language guide'},
+                {'phrase': 'Please', 'meaning': 'Polite request', 'pronunciation': 'Check local language guide'},
+                {'phrase': 'Goodbye', 'meaning': 'Farewell', 'pronunciation': 'Check local language guide'},
+            ],
+            'packing_essentials': [
+                'Comfortable walking shoes',
+                'Universal power adapter',
+                'Sunscreen and sunglasses',
+                'Reusable water bottle',
+                'Light rain jacket',
+            ],
+            'safety_wellness': {
+                'safety_level': 'safe',
+                'tips': [
+                    'Keep valuables secure and be aware of your surroundings in crowded areas.',
+                    'Save emergency numbers and your embassy contact in your phone.',
+                ],
+                'health_note': 'Carry basic medications and check if any vaccinations are recommended.',
+            },
+            'trip_score': {
+                'overall': 78,
+                'adventure': 70,
+                'relaxation': 75,
+                'culture': 80,
+                'food': 82,
+                'value': 76,
+            },
+        }

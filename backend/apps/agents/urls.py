@@ -23,6 +23,7 @@ from .views import (
     best_time_to_visit,
     destination_trends,
     crowd_levels,
+    trip_experience_preview,
     # Personalization
     get_travel_dna,
     get_recommendations,
@@ -162,6 +163,7 @@ urlpatterns = [
     path('best-time', best_time_to_visit, name='best_time_to_visit'),
     path('trends', destination_trends, name='destination_trends'),
     path('crowd-levels', crowd_levels, name='crowd_levels'),
+    path('trip-experience', trip_experience_preview, name='trip_experience_preview'),
     # Personalization
     path('travel-dna', get_travel_dna, name='get_travel_dna'),
     path('recommendations', get_recommendations, name='get_recommendations'),
