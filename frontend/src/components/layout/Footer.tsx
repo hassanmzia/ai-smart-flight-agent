@@ -57,7 +57,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to={ROUTES.DASHBOARD}
+                  to={ROUTES.MY_BOOKINGS}
                   className="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
                 >
                   My Bookings

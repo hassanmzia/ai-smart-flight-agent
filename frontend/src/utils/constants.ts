@@ -15,6 +15,7 @@ export const ROUTES = {
   FLIGHT_RESULTS: '/flights',
   HOTEL_RESULTS: '/hotels',
   BOOKING: '/booking',
+  MY_BOOKINGS: '/bookings',
   PAYMENT: '/payment',
   ITINERARY: '/itinerary',
   PROFILE: '/profile',
