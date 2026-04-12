@@ -15,6 +15,7 @@ import {
 import TravelChat from '@/components/TravelChat';
 import AirportAutocomplete from '@/components/common/AirportAutocomplete';
 import SmartTripPreview from '@/components/SmartTripPreview';
+import { ROUTES } from '@/utils/constants';
 
 type OrderMode = 'form' | 'chat' | 'voice';
 type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'intelligence';
@@ -642,6 +643,77 @@ const AIPlannerPage = () => {
       {/* ═══════════════════ RESULTS ═══════════════════ */}
       {result && result.success && (
         <div className="space-y-6">
+
+          {/* ── Personalization Banner ── */}
+          {result.personalization?.applied && (
+            <div className="rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800/40 p-4 md:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl leading-none" aria-hidden>✨</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-emerald-900 dark:text-emerald-100 flex items-center gap-1.5">
+                      Personalized for you
+                      <span className="text-emerald-600 dark:text-emerald-400">✓</span>
+                    </h3>
+                    <p className="text-sm text-emerald-800/80 dark:text-emerald-200/80 mt-0.5">
+                      This plan honors your Travel DNA, dietary needs, faith, and past trip signals.
+                    </p>
+                    {result.personalization.signals?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {result.personalization.signals.slice(0, 6).map((sig: string, i: number) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white/80 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100 border border-emerald-200 dark:border-emerald-700/50"
+                          >
+                            {sig}
+                          </span>
+                        ))}
+                        {result.personalization.signals.length > 6 && (
+                          <span className="text-xs text-emerald-700 dark:text-emerald-300 self-center">
+                            +{result.personalization.signals.length - 6} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={ROUTES.TRAVEL_PROFILE}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/60 transition-colors"
+                  title="Opens in a new tab"
+                >
+                  Edit preferences
+                  <span aria-hidden className="opacity-60">↗</span>
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Not-yet-personalized nudge for signed-in users with empty profiles */}
+          {result.personalization && !result.personalization.applied && isAuthenticated && (
+            <div className="rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800/40 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-xl leading-none" aria-hidden>💡</span>
+                  <p className="text-sm text-amber-900 dark:text-amber-100">
+                    <span className="font-semibold">Want a more tailored plan?</span>{' '}
+                    Set your Travel DNA, dietary needs, and faith preferences so future trips honor them.
+                  </p>
+                </div>
+                <a
+                  href={ROUTES.TRAVEL_PROFILE}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-white dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700/50 hover:bg-amber-50 dark:hover:bg-amber-900/60 transition-colors"
+                >
+                  Set up profile
+                  <span aria-hidden className="opacity-60">↗</span>
+                </a>
+              </div>
+            </div>
+          )}
 
           {/* ── Trip Overview Banner ── */}
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary-600 via-primary-700 to-indigo-800 text-white p-4 md:p-6 lg:p-8 shadow-xl">
