@@ -401,3 +401,212 @@ Factor in dietary/faith/mobility needs when scoring destinations. Avoid recommen
         except Exception:
             pass
         return None
+
+
+def build_user_planning_context(user) -> Dict[str, Any]:
+    """
+    Build a compact personalization context dict for the AI planner.
+
+    Pulls from UserPreference (dietary, faith, mobility, pace, languages,
+    travel style, budget range), Travel DNA, and the most recent trip
+    memories. Returns a shape safe to inject into an LLM system prompt
+    and to echo back to the frontend for a "Personalized for you" banner.
+
+    Non-authenticated users (or any lookup failure) get an empty dict, so
+    callers can unconditionally call this and still get a valid result.
+    """
+    if not user or not getattr(user, 'is_authenticated', False):
+        return {}
+
+    ctx: Dict[str, Any] = {
+        'has_personalization': False,
+        'signals': [],  # short human-readable labels for the UI banner
+    }
+
+    # 1) UserPreference — structured profile
+    try:
+        from .models import UserPreference
+        pref = UserPreference.objects.filter(user=user).first()
+        if pref:
+            ctx['has_personalization'] = True
+            profile: Dict[str, Any] = {}
+
+            # Dietary
+            if pref.dietary_preference and pref.dietary_preference != 'none':
+                profile['dietary_preference'] = pref.dietary_preference
+                ctx['signals'].append(f"Dietary: {pref.get_dietary_preference_display()}")
+            if pref.dietary_allergies:
+                profile['dietary_allergies'] = list(pref.dietary_allergies)
+                ctx['signals'].append(f"Allergies: {', '.join(pref.dietary_allergies)}")
+
+            # Faith
+            if pref.faith and pref.faith != 'none':
+                profile['faith'] = pref.faith
+                profile['prayer_reminders'] = pref.prayer_reminders
+                profile['faith_site_interest'] = pref.faith_site_interest
+                ctx['signals'].append(f"Faith: {pref.get_faith_display()}")
+
+            # Health / mobility
+            if pref.mobility and pref.mobility != 'full':
+                profile['mobility'] = pref.mobility
+                ctx['signals'].append(f"Mobility: {pref.get_mobility_display()}")
+            if pref.max_walking_km_per_day and float(pref.max_walking_km_per_day) < 10:
+                profile['max_walking_km_per_day'] = float(pref.max_walking_km_per_day)
+            if pref.health_conditions:
+                profile['health_conditions'] = list(pref.health_conditions)
+                ctx['signals'].append(f"Health: {', '.join(pref.health_conditions)}")
+            if pref.medications:
+                profile['medications'] = list(pref.medications)
+
+            # Pace
+            if pref.pace:
+                profile['pace'] = pref.pace
+            if pref.max_activities_per_day:
+                profile['max_activities_per_day'] = pref.max_activities_per_day
+            if pref.pace and pref.pace != 'moderate':
+                ctx['signals'].append(f"Pace: {pref.get_pace_display()}")
+
+            # Languages
+            if pref.languages_spoken:
+                profile['languages_spoken'] = list(pref.languages_spoken)
+
+            # Style / budget
+            if pref.trip_style:
+                profile['trip_style'] = pref.trip_style
+            if pref.budget_range and pref.budget_range != 'any':
+                profile['budget_range'] = pref.budget_range
+                ctx['signals'].append(f"Budget: {pref.get_budget_range_display()}")
+
+            # Preferred airlines / hotels / cuisines
+            if pref.preferred_airlines:
+                profile['preferred_airlines'] = list(pref.preferred_airlines)
+            if pref.preferred_hotel_chains:
+                profile['preferred_hotel_chains'] = list(pref.preferred_hotel_chains)
+            if pref.preferred_cuisines:
+                profile['preferred_cuisines'] = list(pref.preferred_cuisines)
+
+            ctx['profile'] = profile
+
+            # Travel DNA (structured learned profile)
+            if pref.travel_dna:
+                ctx['travel_dna'] = pref.travel_dna
+                ctx['signals'].insert(0, 'Travel DNA')
+    except Exception as e:
+        logger.warning(f"Failed to load UserPreference for planning context: {e}")
+
+    # 2) Recent trip memories — learned likes/dislikes
+    try:
+        from .models import TripMemory
+        memories = (
+            TripMemory.objects.filter(user=user)
+            .order_by('-created_at')[:5]
+        )
+        mem_snippets: List[Dict[str, Any]] = []
+        for m in memories:
+            highlights = m.highlights if isinstance(m.highlights, list) else []
+            lowlights = m.lowlights if isinstance(m.lowlights, list) else []
+            mem_snippets.append({
+                'destination': m.destination,
+                'sentiment': m.sentiment,
+                'rating': m.rating,
+                'highlights': highlights[:3],
+                'lowlights': lowlights[:3],
+            })
+        if mem_snippets:
+            ctx['recent_memories'] = mem_snippets
+            ctx['has_personalization'] = True
+            ctx['signals'].append(f"{len(mem_snippets)} past trip memories")
+    except Exception as e:
+        logger.warning(f"Failed to load TripMemory for planning context: {e}")
+
+    return ctx
+
+
+def format_user_context_for_prompt(ctx: Dict[str, Any]) -> str:
+    """
+    Render the planning context as a concise block of natural-language
+    instructions suitable for appending to an LLM system prompt.
+    Returns an empty string if there's nothing to personalize on.
+    """
+    if not ctx or not ctx.get('has_personalization'):
+        return ''
+
+    lines: List[str] = [
+        '',
+        '## Traveler Profile (personalize the plan to these — do not ignore)',
+    ]
+    profile = ctx.get('profile') or {}
+
+    if profile.get('dietary_preference'):
+        lines.append(f"- Dietary preference: {profile['dietary_preference']}. "
+                     f"Only recommend restaurants and dishes compatible with this.")
+    if profile.get('dietary_allergies'):
+        allergies = ', '.join(profile['dietary_allergies'])
+        lines.append(f"- Food allergies: {allergies}. Avoid these explicitly in any dining suggestion.")
+
+    if profile.get('faith') and profile['faith'] != 'none':
+        faith = profile['faith']
+        lines.append(f"- Faith: {faith}. Respect religious practices when suggesting activities.")
+        if profile.get('faith_site_interest'):
+            lines.append(f"  Include nearby {faith} worship sites of note in the itinerary.")
+        if profile.get('prayer_reminders'):
+            lines.append("  The traveler observes prayer times — avoid scheduling unbreakable activities during typical prayer windows.")
+
+    if profile.get('mobility') and profile['mobility'] != 'full':
+        lines.append(f"- Mobility: {profile['mobility']}. Prefer accessible venues, avoid long stairs / uneven terrain.")
+    if profile.get('max_walking_km_per_day'):
+        lines.append(f"- Max walking per day: {profile['max_walking_km_per_day']} km. Keep daily walking within this limit.")
+    if profile.get('health_conditions'):
+        conds = ', '.join(profile['health_conditions'])
+        lines.append(f"- Health considerations: {conds}. Factor these into pace, altitude, and activity choices.")
+
+    if profile.get('pace'):
+        lines.append(f"- Preferred pace: {profile['pace']} (no more than "
+                     f"{profile.get('max_activities_per_day', 5)} activities/day).")
+
+    if profile.get('languages_spoken'):
+        langs = ', '.join(profile['languages_spoken'])
+        lines.append(f"- Languages spoken: {langs}. Flag notable language barriers and phrases to learn.")
+
+    if profile.get('trip_style'):
+        lines.append(f"- Preferred travel style: {profile['trip_style']}.")
+    if profile.get('budget_range'):
+        lines.append(f"- Budget range: {profile['budget_range']} — scale recommendations accordingly.")
+
+    if profile.get('preferred_airlines'):
+        lines.append(f"- Preferred airlines: {', '.join(profile['preferred_airlines'])}.")
+    if profile.get('preferred_hotel_chains'):
+        lines.append(f"- Preferred hotel chains: {', '.join(profile['preferred_hotel_chains'])}.")
+    if profile.get('preferred_cuisines'):
+        lines.append(f"- Preferred cuisines: {', '.join(profile['preferred_cuisines'])}.")
+
+    # Travel DNA headline (abbreviated)
+    dna = ctx.get('travel_dna') or {}
+    dest_dna = dna.get('destinations') or {}
+    if dest_dna.get('favorite_destinations'):
+        favs = ', '.join(dest_dna['favorite_destinations'][:5])
+        lines.append(f"- Past favorite destinations: {favs}.")
+    style_dna = dna.get('style') or {}
+    if style_dna.get('style'):
+        lines.append(f"- Historical travel style signal: {style_dna['style']}.")
+
+    # Trip memories
+    memories = ctx.get('recent_memories') or []
+    if memories:
+        lines.append('- Recent trip feedback (learn from these):')
+        for m in memories[:3]:
+            bits = []
+            if m.get('destination'):
+                bits.append(m['destination'])
+            if m.get('sentiment'):
+                bits.append(f"felt {m['sentiment']}")
+            if m.get('rating') is not None:
+                bits.append(f"{m['rating']}/5")
+            if m.get('highlights'):
+                bits.append(f"loved: {', '.join(m['highlights'])}")
+            if m.get('lowlights'):
+                bits.append(f"disliked: {', '.join(m['lowlights'])}")
+            lines.append(f"  • {' — '.join(bits)}")
+
+    lines.append('')
+    return '\n'.join(lines)
