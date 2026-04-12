@@ -4,7 +4,16 @@ import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
 
-const PricingPage = () => {
+interface PricingPageProps {
+  /**
+   * When true, the page is rendered inside another container (e.g. the
+   * ProfilePage Pricing tab). The full-bleed gradient hero is skipped and a
+   * compact inline header with the billing toggle is rendered instead.
+   */
+  embedded?: boolean;
+}
+
+const PricingPage = ({ embedded = false }: PricingPageProps) => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
@@ -153,50 +162,88 @@ const PricingPage = () => {
     { name: 'Analytics Dashboard', free: false, pro: false, business: true },
   ];
 
-  return (
-    <div className="min-h-screen">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-800 dark:via-purple-800 dark:to-pink-800">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute -top-20 -right-20 w-72 h-72 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-pink-300 rounded-full blur-3xl"></div>
-        </div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 text-center">
-          <h1 className="text-xl md:text-2xl font-extrabold text-white mb-4">
-            Choose Your Travel Plan
-          </h1>
-          <p className="text-xl text-purple-100 max-w-2xl mx-auto mb-8">
-            Unlock the full power of AI-driven travel planning. Save time, save money, travel smarter.
-          </p>
+  // Inline billing toggle used in both modes
+  const billingToggle = (
+    <div
+      className={`inline-flex items-center gap-3 rounded-full p-1 ${
+        embedded
+          ? 'bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+          : 'bg-white/10 backdrop-blur-sm'
+      }`}
+    >
+      <button
+        onClick={() => setBillingCycle('monthly')}
+        className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+          billingCycle === 'monthly'
+            ? embedded
+              ? 'bg-white dark:bg-gray-700 text-purple-700 dark:text-purple-300 shadow'
+              : 'bg-white text-purple-700 shadow-lg'
+            : embedded
+            ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            : 'text-white hover:text-purple-100'
+        }`}
+      >
+        Monthly
+      </button>
+      <button
+        onClick={() => setBillingCycle('yearly')}
+        className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
+          billingCycle === 'yearly'
+            ? embedded
+              ? 'bg-white dark:bg-gray-700 text-purple-700 dark:text-purple-300 shadow'
+              : 'bg-white text-purple-700 shadow-lg'
+            : embedded
+            ? 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            : 'text-white hover:text-purple-100'
+        }`}
+      >
+        Yearly <span className="text-xs opacity-75">(Save 17%)</span>
+      </button>
+    </div>
+  );
 
-          {/* Billing Toggle */}
-          <div className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-full p-1">
-            <button
-              onClick={() => setBillingCycle('monthly')}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                billingCycle === 'monthly'
-                  ? 'bg-white text-purple-700 shadow-lg'
-                  : 'text-white hover:text-purple-100'
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBillingCycle('yearly')}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${
-                billingCycle === 'yearly'
-                  ? 'bg-white text-purple-700 shadow-lg'
-                  : 'text-white hover:text-purple-100'
-              }`}
-            >
-              Yearly <span className="text-xs opacity-75">(Save 17%)</span>
-            </button>
+  return (
+    <div className={embedded ? '' : 'min-h-screen'}>
+      {/* Hero Header (standalone mode only) */}
+      {!embedded && (
+        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-800 dark:via-purple-800 dark:to-pink-800">
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute -top-20 -right-20 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-1/4 w-48 h-48 bg-pink-300 rounded-full blur-3xl"></div>
+          </div>
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 text-center">
+            <h1 className="text-xl md:text-2xl font-extrabold text-white mb-4">
+              Choose Your Travel Plan
+            </h1>
+            <p className="text-xl text-purple-100 max-w-2xl mx-auto mb-8">
+              Unlock the full power of AI-driven travel planning. Save time, save money, travel smarter.
+            </p>
+            {billingToggle}
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Compact inline header (embedded mode) */}
+      {embedded && (
+        <div className="mb-8 text-center">
+          <h2 className="text-xl md:text-2xl font-extrabold text-gray-900 dark:text-white mb-2">
+            Choose Your Travel Plan
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-5">
+            Unlock the full power of AI-driven travel planning. Save time, save money, travel smarter.
+          </p>
+          {billingToggle}
+        </div>
+      )}
 
       {/* Pricing Cards */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-10 pb-16">
+      <div
+        className={
+          embedded
+            ? 'pb-4'
+            : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-10 pb-16'
+        }
+      >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {plans.map((plan) => {
             const isCurrent = plan.name.toLowerCase() === currentPlan;

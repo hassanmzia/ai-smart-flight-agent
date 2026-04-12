@@ -569,10 +569,10 @@ const ItineraryDetailPage = () => {
         />
       )}
 
-      {/* Trip Intelligence Hub — only renders for booked/active/completed
-          stages now (pre-trip is covered by SmartTripPreview above). Shows
-          in-trip companions (deals, health, faith, collaborate) or post-trip
-          memory tools (stories, gallery, tips). */}
+      {/* Trip Intelligence Hub — stage-aware deep-link grid. Pre-trip shows
+          decision-support tools (guides, safety, weather, predictions, etc.),
+          in-trip shows companions (deals, health, faith, collaborate), and
+          post-trip shows memory tools (stories, gallery, tips). */}
       {!isNewItinerary && formData.destination && (
         <TripIntelligencePanel
           destination={formData.destination}

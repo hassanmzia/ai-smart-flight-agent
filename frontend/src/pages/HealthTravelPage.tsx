@@ -126,6 +126,30 @@ export default function HealthTravelPage() {
   const [fatiguePlan, setFatiguePlan] = useState<FatigueDay[]>([]);
   const [fatigueSettings, setFatigueSettings] = useState({ max_walking_km: 10, pace: 'moderate', days: 3 });
 
+  // Derive country from "City, Country" destination for the Insurance tab
+  useEffect(() => {
+    if (!destination) return;
+    const parts = destination.split(',').map((s) => s.trim()).filter(Boolean);
+    const inferred = parts.length > 1 ? parts[parts.length - 1] : destination;
+    setCountry((prev) => prev || inferred);
+  }, [destination]);
+
+  // Auto-fetch data when destination arrives from URL or the user switches tabs.
+  // Mirrors the behaviour on FaithTravelPage so cards from the Trip Intelligence
+  // Hub land on a populated page instead of a misleading empty state.
+  useEffect(() => {
+    if (!destination) return;
+    const t = setTimeout(() => {
+      if (activeTab === 'medical') fetchFacilities();
+      else if (activeTab === 'accessibility') fetchAccessibility();
+      else if (activeTab === 'medication') fetchReminders();
+      else if (activeTab === 'insurance' && country) fetchInsurance();
+      else if (activeTab === 'fatigue') fetchFatiguePlan();
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, destination, country]);
+
   const fetchFacilities = async () => {
     if (!destination) { toast.error('Please enter a destination'); return; }
     setLoading(true);
@@ -385,7 +409,9 @@ export default function HealthTravelPage() {
 
             {facilities.length === 0 && !loading && (
               <p className="text-center text-gray-500 dark:text-gray-400 py-10">
-                {destination ? 'No facilities found. Try searching.' : 'Enter a destination to find medical facilities.'}
+                {destination
+                  ? `No medical facilities found for ${destination} yet. Adjust filters or try a nearby city.`
+                  : 'Enter a destination to find medical facilities.'}
               </p>
             )}
           </div>
