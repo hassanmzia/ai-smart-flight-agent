@@ -902,10 +902,16 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
     # For groups with a rental, prefer the rental as the accommodation in the itinerary
     accommodation_name_for_prompt = rental_name_for_prompt or hotel_name_for_prompt or 'the accommodation'
 
+    # The personalization block — put it FIRST so its binding constraints shape
+    # every subsequent choice the model makes (restaurant picks, activity mix,
+    # prayer breaks, phrase-of-the-day). Passive mentions get ignored; leading
+    # with it, then re-referencing it in WRITING RULES, actually changes output.
+    personalization_block = format_user_context_for_prompt(user_context)
+
     prompt = f"""You are an expert Travel Planner AI creating a polished, ready-to-follow travel itinerary for a public travel website.
 Write in a warm, professional, and conversational tone — like a knowledgeable travel advisor writing for a real person.
 Your output will be displayed directly to travelers, so make it clear, detailed, and genuinely useful.
-
+{personalization_block}
 ## YOUR DATA SOURCES (from 10+ specialized AI agents):
 
 ### Flight Details
@@ -926,11 +932,11 @@ Your output will be displayed directly to travelers, so make it clear, detailed,
 ### Budget Analysis
 {budget_summary}
 
-### User Preferences
+### Trip-Specific Preferences (in addition to the Traveler Profile above)
 {f'Interests: {interests}' if interests else 'No specific interests.'}
 {f'Travel style: {travel_style}' if travel_style else ''}
 {f'Cuisine preference: {cuisine}' if cuisine else ''}
-{format_user_context_for_prompt(user_context)}
+
 ### Weather Forecast
 {weather_by_day}
 
@@ -987,6 +993,8 @@ If the above attractions data is limited, use your knowledge to add the top 8-10
 
 {'10. **TAILOR TO INTERESTS**: The traveler enjoys ' + interests + '. Prioritize activities that match these interests.' if interests else ''}
 
+{"11. **HONOR THE TRAVELER PROFILE (BINDING)**: The Traveler Profile section at the top lists dietary, faith, mobility, language, pace, and allergy constraints. Every single restaurant, activity, transport note, and venue you write MUST be consistent with those constraints. If the profile says halal, name halal restaurants. If it says wheelchair-accessible, every major stop must be accessible and you must say so inline. If it says prayer-reminders, leave gaps for prayer and add a 🕌 line at the right times. If the traveler's languages do not include the local language, add a **Phrase of the Day** line under each day header with a useful local phrase and pronunciation. If the profile says low-walking, cap each day's walking and include a walking-km note. Never ignore these — the plan must visibly demonstrate the profile was honored." if personalization_block else ""}
+
 ---
 
 ## OUTPUT FORMAT (follow this structure exactly):
@@ -1011,12 +1019,16 @@ Recommend car rental OR public transit (pick one based on the transport data). E
 
 ## Day 2: [Descriptive Title]
 **[Next date] · [Weather]**
+{'**🗣️ Phrase of the Day:** [1 useful local-language phrase + pronunciation + meaning]' if personalization_block and user_context and user_context.get('profile', {}).get('languages_spoken') else ''}
+{'**🕌 Faith note:** [1 line — nearby worship place, halal/kosher option, or etiquette tip]' if personalization_block and user_context and user_context.get('profile', {}).get('faith') and user_context['profile']['faith'] != 'none' else ''}
 
 8:00 AM - Breakfast at {hotel_name_for_prompt or 'the hotel'} or a nearby café (~$cost)
 [Continue with a full day of timed activities, meals at named restaurants, and practical directions]
+{'[Include a 🕌 Prayer break line at the typical midday / afternoon / sunset windows]' if personalization_block and user_context and user_context.get('profile', {}).get('prayer_reminders') else ''}
 **Day total: ~$[real sum]**
+{'**Walking today: ≈[X] km** (keep under profile limit)' if personalization_block and user_context and user_context.get('profile', {}).get('max_walking_km_per_day') else ''}
 
-[Continue for each day — every day should have 6-10 timed entries covering morning, afternoon, and evening]
+[Continue for each day — every day should have 6-10 timed entries covering morning, afternoon, and evening. Each day MUST include the Phrase of the Day / Faith note / Walking total / Prayer break lines above when applicable per the Traveler Profile.]
 
 ## Day {num_nights + 1}: Departure Day
 **{return_date or departure_date} · [Weather]**
@@ -1502,11 +1514,20 @@ def chat(request):
         # ── If user confirmed and params are complete → run the planner ──
         if confirmed and prev_params.get('origin') and prev_params.get('destination') and prev_params.get('departure_date'):
             from .multi_agent_system import get_travel_system
+            from .personalization_service import build_user_planning_context
             travel_system = get_travel_system()
 
+            # Load traveler profile so the chat-initiated plan honors dietary /
+            # faith / mobility / language constraints, same as /plan-travel.
+            chat_user_context = build_user_planning_context(request.user)
+
             p = prev_params
+            chat_query = f"Plan a trip from {p['origin']} to {p['destination']}"
+            if chat_user_context.get('signals'):
+                chat_query += "\nTraveler profile signals: " + "; ".join(chat_user_context['signals'])
+
             result = travel_system.run(
-                user_query=f"Plan a trip from {p['origin']} to {p['destination']}",
+                user_query=chat_query,
                 origin=p['origin'],
                 destination=p['destination'],
                 departure_date=p['departure_date'],
@@ -1544,9 +1565,17 @@ def chat(request):
                         budget=p.get('budget'),
                         cuisine=p.get('cuisine'),
                         enhanced_data=enhanced_data,
+                        user_context=chat_user_context,
                     )
                 except Exception as e:
                     logger.error(f"LLM narrative failed: {e}", exc_info=True)
+
+            # Echo personalization so the chat-UI can show a "Personalized" badge.
+            if result.get('success'):
+                result['personalization'] = {
+                    'applied': bool(chat_user_context.get('has_personalization')),
+                    'signals': chat_user_context.get('signals', []),
+                }
 
             # Always ensure we have an itinerary, even without LLM
             if result.get('success') and not result.get('itinerary_text'):
