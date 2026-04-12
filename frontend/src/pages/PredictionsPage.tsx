@@ -743,26 +743,26 @@ const PredictionsPage = () => {
                   placeholder="Origin (e.g., NYC)"
                   value={priceOrigin}
                   onChange={(e) => setPriceOrigin(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 <input
                   type="text"
                   placeholder="Destination (e.g., LON)"
                   value={priceDest}
                   onChange={(e) => setPriceDest(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 <input
                   type="date"
                   value={priceDate}
                   onChange={(e) => setPriceDate(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
               <button
                 onClick={handlePricePredict}
                 disabled={priceLoading || !priceOrigin || !priceDest || !priceDate}
-                className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 transition-all"
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all"
               >
                 {priceLoading ? 'Analyzing...' : 'Predict Prices'}
               </button>
@@ -785,9 +785,9 @@ const PredictionsPage = () => {
 
                 {pricePrediction.current_estimate && (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-4 text-center">
+                    <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 text-center">
                       <p className="text-sm text-gray-600 dark:text-gray-400">Current Estimate</p>
-                      <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">${pricePrediction.current_estimate}</p>
+                      <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">${pricePrediction.current_estimate}</p>
                     </div>
                     <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 text-center">
                       <p className="text-sm text-gray-600 dark:text-gray-400">Confidence</p>
@@ -834,12 +834,12 @@ const PredictionsPage = () => {
                   placeholder="Destination (e.g., Paris, France)"
                   value={btDest}
                   onChange={(e) => setBtDest(e.target.value)}
-                  className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 <button
                   onClick={handleBestTime}
                   disabled={btLoading || !btDest}
-                  className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 transition-all"
+                  className="px-6 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all"
                 >
                   {btLoading ? 'Analyzing...' : 'Analyze'}
                 </button>
@@ -904,11 +904,11 @@ const PredictionsPage = () => {
                         <div key={i} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-3">
                           <div className="flex items-center justify-between mb-2">
                             <span className="font-semibold text-gray-900 dark:text-white text-sm">{m.month}</span>
-                            <span className="text-xs font-bold text-orange-600 dark:text-orange-400">{m.score}/100</span>
+                            <span className="text-xs font-bold text-purple-600 dark:text-purple-400">{m.score}/100</span>
                           </div>
                           <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 mb-2">
                             <div
-                              className="bg-gradient-to-r from-amber-500 to-orange-500 h-1.5 rounded-full"
+                              className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full"
                               style={{ width: `${m.score}%` }}
                             />
                           </div>
@@ -938,7 +938,7 @@ const PredictionsPage = () => {
                 <button
                   onClick={handleTrends}
                   disabled={trendsLoading}
-                  className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl font-semibold hover:from-amber-600 hover:to-orange-700 disabled:opacity-50 transition-all text-sm"
+                  className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all text-sm"
                 >
                   {trendsLoading ? 'Loading...' : 'Refresh Trends'}
                 </button>
@@ -955,7 +955,7 @@ const PredictionsPage = () => {
                       className="flex items-center gap-4 bg-gray-50 dark:bg-gray-700 rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                     >
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                        t.rank <= 3 ? 'bg-gradient-to-br from-amber-500 to-orange-600' : 'bg-gray-400 dark:bg-gray-500'
+                        t.rank <= 3 ? 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500' : 'bg-gray-400 dark:bg-gray-500'
                       }`}>
                         {t.rank}
                       </div>
@@ -965,7 +965,7 @@ const PredictionsPage = () => {
                       </div>
                       <div className="w-24 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
                         <div
-                          className="bg-gradient-to-r from-amber-500 to-orange-500 h-2 rounded-full"
+                          className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full"
                           style={{ width: `${Math.min((t.search_count / (trends[0]?.search_count || 1)) * 100, 100)}%` }}
                         />
                       </div>
