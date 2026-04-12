@@ -546,15 +546,21 @@ def _build_static_intelligence(*, destination, origin, departure_date, return_da
 
 def _synthesize_narrative(*, result, origin, destination, departure_date,
                          return_date, passengers, budget, cuisine,
-                         enhanced_data=None, interests=None, travel_style=None):
+                         enhanced_data=None, interests=None, travel_style=None,
+                         user_context=None):
     """
     Use LLM to generate a smart, decision-driven day-by-day itinerary.
     The LLM REASONS about all agent data to make real choices and MUST
     include the specific hotel, restaurants, flights, and car rental
     details from the search agents in the day-by-day plan.
+
+    If ``user_context`` (from build_user_planning_context) is provided,
+    a Traveler Profile section is appended to the prompt so the LLM
+    personalizes dining, pace, mobility, faith, and activity choices.
     """
     from langchain_openai import ChatOpenAI
     from langchain.schema import HumanMessage
+    from .personalization_service import format_user_context_for_prompt
 
     rec = result.get('recommendation', {})
     enhanced = enhanced_data or {}
@@ -924,7 +930,7 @@ Your output will be displayed directly to travelers, so make it clear, detailed,
 {f'Interests: {interests}' if interests else 'No specific interests.'}
 {f'Travel style: {travel_style}' if travel_style else ''}
 {f'Cuisine preference: {cuisine}' if cuisine else ''}
-
+{format_user_context_for_prompt(user_context)}
 ### Weather Forecast
 {weather_by_day}
 
@@ -1247,12 +1253,21 @@ def plan_travel(request):
         from .multi_agent_system import get_travel_system
         travel_system = get_travel_system()
 
+        # Load personalized user context (Travel DNA, UserPreference, memories)
+        # so the planner respects dietary/faith/mobility/pace, past likes, etc.
+        from .personalization_service import build_user_planning_context
+        user_context = build_user_planning_context(request.user)
+
         # Enrich query with interests/style if provided
         enriched_query = query
         if interests:
             enriched_query += f"\nUser interests: {interests}"
         if travel_style:
             enriched_query += f"\nTravel style: {travel_style}"
+        # Surface the user's profile signals in the natural-language query too,
+        # so every downstream agent (not just the narrative synthesizer) sees them.
+        if user_context.get('signals'):
+            enriched_query += "\nTraveler profile signals: " + "; ".join(user_context['signals'])
 
         # Run the multi-agent system
         result = travel_system.run(
@@ -1299,6 +1314,7 @@ def plan_travel(request):
                     enhanced_data=enhanced_data,
                     interests=interests,
                     travel_style=travel_style,
+                    user_context=user_context,
                 )
             except Exception as e:
                 logger.error(f"LLM narrative generation failed: {e}", exc_info=True)
@@ -1351,6 +1367,13 @@ def plan_travel(request):
             'destination_airport': destination,
             'destination_city': destination_label,
             'destination_country': destination_country,
+        }
+
+        # Echo personalization signals back so the frontend can show a
+        # "Personalized for you" badge with the exact traits applied.
+        result['personalization'] = {
+            'applied': bool(user_context.get('has_personalization')),
+            'signals': user_context.get('signals', []),
         }
 
         # Add debug info to result for diagnosing search issues

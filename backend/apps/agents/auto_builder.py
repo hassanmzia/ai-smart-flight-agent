@@ -48,6 +48,15 @@ class SmartItineraryBuilder:
 
         logger.info(f"Building {num_days}-day itinerary: {origin} -> {destination}")
 
+        # Load per-user personalization (dietary/faith/mobility/pace/memories)
+        # so the LLM honors the traveler's profile, not just the route.
+        try:
+            from .personalization_service import build_user_planning_context
+            user_context = build_user_planning_context(self.user)
+        except Exception as e:
+            logger.warning(f"Personalization context load failed: {e}")
+            user_context = {}
+
         # Phase 1: Gather all data in parallel
         gathered_data = self._gather_all_data(
             destination=destination,
@@ -72,7 +81,16 @@ class SmartItineraryBuilder:
             trip_style=trip_style,
             gathered_data=gathered_data,
             preferences=preferences,
+            user_context=user_context,
         )
+
+        # Echo personalization signals so the API response can display a
+        # "Personalized for you" badge on the frontend.
+        if isinstance(itinerary, dict):
+            itinerary['personalization'] = {
+                'applied': bool(user_context.get('has_personalization')),
+                'signals': user_context.get('signals', []),
+            }
 
         return itinerary
 
@@ -266,6 +284,16 @@ Return as concise bullet points."""
         import json
 
         gathered = kwargs.get('gathered_data', {})
+        user_context = kwargs.get('user_context', {}) or {}
+
+        # Render the traveler profile as a natural-language block the LLM can
+        # honor alongside the route/weather context.
+        personalization_block = ''
+        try:
+            from .personalization_service import format_user_context_for_prompt
+            personalization_block = format_user_context_for_prompt(user_context)
+        except Exception as e:
+            logger.warning(f"Personalization prompt formatting failed: {e}")
 
         # Build context summary for LLM
         context_parts = []
@@ -367,6 +395,8 @@ Return a JSON object with this structure (no markdown, raw JSON only):
 Available data:
 {context_text}
 
+{personalization_block}
+
 Create an optimized day-by-day plan following these rules:
 1. WEATHER-AWARE: Schedule outdoor activities (parks, beaches, walking tours) on sunny/clear days. Move indoor activities (museums, shopping, spas) to rainy or overcast days. Use the weather data to assign activities accordingly.
 2. PROXIMITY GROUPING: Cluster nearby attractions on the same day to minimize transit time. Order activities geographically so travelers move in one direction, not back-and-forth.
@@ -374,7 +404,8 @@ Create an optimized day-by-day plan following these rules:
 4. PACING: Alternate high-energy and relaxed activities. No more than 3 major attractions per day.
 5. LOGISTICS: First day should include arrival/check-in with lighter activities. Last day should include checkout/departure with morning-only plans.
 6. TRANSPORT: Add a transport item between distant locations with estimated travel time.
-7. ACCOMMODATION: If vacation rental data is available and there are 4+ travelers, compare hotel vs rental total cost and recommend the better value. Include "recommended_rental" in the JSON if a rental is a good fit (shared kitchen saves on meals, whole-property pricing split across travelers). Set it to null if hotels are clearly better."""
+7. ACCOMMODATION: If vacation rental data is available and there are 4+ travelers, compare hotel vs rental total cost and recommend the better value. Include "recommended_rental" in the JSON if a rental is a good fit (shared kitchen saves on meals, whole-property pricing split across travelers). Set it to null if hotels are clearly better.
+8. PERSONALIZATION: Honor the Traveler Profile above as binding constraints, not suggestions. Match restaurant choices to dietary needs and allergies. Respect faith requirements (prayer-friendly stops, worship places, halal/kosher where applicable). Stay within mobility/walking limits and pacing (max activities/day). Prefer the traveler's favored cuisines, airlines, and hotel styles when options are equivalent. Avoid patterns the traveler has disliked on past trips."""
 
             response = model.invoke([
                 SystemMessage(content=system),
