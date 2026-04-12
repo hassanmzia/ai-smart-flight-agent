@@ -2108,6 +2108,36 @@ def destination_trends(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def trip_experience_preview(request):
+    """Generate an immersive AI-powered trip experience preview."""
+    destination = request.data.get('destination')
+    start_date = request.data.get('start_date')
+    end_date = request.data.get('end_date')
+
+    if not all([destination, start_date, end_date]):
+        return Response(
+            {'error': 'destination, start_date, and end_date are required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        from .predictive_intelligence import PredictiveIntelligence
+        pi = PredictiveIntelligence()
+        result = pi.generate_trip_experience(
+            destination=destination,
+            start_date=start_date,
+            end_date=end_date,
+            travelers=request.data.get('travelers', 1),
+            interests=request.data.get('interests', []),
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Trip experience preview failed: {e}")
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 # ─────────────────────────────────────────────────
 # Personalization Endpoints
 # ─────────────────────────────────────────────────
