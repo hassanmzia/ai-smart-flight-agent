@@ -14,6 +14,7 @@ import {
 } from '@/services/itineraryService';
 import TravelChat from '@/components/TravelChat';
 import AirportAutocomplete from '@/components/common/AirportAutocomplete';
+import TripIntelligencePanel from '@/components/TripIntelligencePanel';
 
 type OrderMode = 'form' | 'chat' | 'voice';
 type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'intelligence';
@@ -582,6 +583,17 @@ const AIPlannerPage = () => {
             <TravelChat onPlanReady={handleChatPlanReady} onParamsExtracted={setChatParams} initialVoiceEnabled={true} key="voice-chat" />
           </div>
         </div>
+      )}
+
+      {/* Pre-trip Intelligence Hub — shows once user has entered a destination */}
+      {!loading && !result && destinationCity && (
+        <TripIntelligencePanel
+          destination={destinationLabel}
+          startDate={departureDate}
+          endDate={returnDate}
+          travelers={passengers}
+          status="draft"
+        />
       )}
 
       {/* Loading State */}
