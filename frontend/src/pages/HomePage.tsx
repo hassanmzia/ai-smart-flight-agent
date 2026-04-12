@@ -485,7 +485,8 @@ const HomePage = () => {
             <Button
               onClick={() => navigate(ROUTES.AI_PLANNER)}
               size="lg"
-              className="bg-white text-blue-600 hover:bg-gray-100 shadow-xl hover:shadow-2xl px-8 py-4 text-lg font-bold"
+              variant="outline"
+              className="border-2 border-white text-white hover:bg-white/10 px-8 py-4 text-lg font-bold"
             >
               <SparklesIcon className="h-6 w-6 mr-2 inline" />
               Plan with AI

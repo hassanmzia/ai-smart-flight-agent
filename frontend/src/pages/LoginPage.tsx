@@ -35,10 +35,10 @@ const LoginPage = () => {
       await login({ email, password });
       showSuccess('Login successful!');
 
-      // Redirect back to the page they were trying to access, or to dashboard
+      // Full page navigation to ensure clean state after auth change
       const state = location.state as { from?: string };
       const redirectTo = state?.from || ROUTES.DASHBOARD;
-      navigate(redirectTo);
+      window.location.href = redirectTo;
     } catch (error: any) {
       showError(error.message || 'Login failed');
     } finally {
