@@ -50,9 +50,14 @@ class SmartItineraryBuilder:
 
         # Load per-user personalization (dietary/faith/mobility/pace/memories)
         # so the LLM honors the traveler's profile, not just the route.
+        # Trip dates enable Ramadan Mode auto-detection for Muslim travelers.
         try:
             from .personalization_service import build_user_planning_context
-            user_context = build_user_planning_context(self.user)
+            user_context = build_user_planning_context(
+                self.user,
+                trip_start_date=start_date,
+                trip_end_date=end_date,
+            )
         except Exception as e:
             logger.warning(f"Personalization context load failed: {e}")
             user_context = {}
