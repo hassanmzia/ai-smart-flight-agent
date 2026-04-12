@@ -40,6 +40,73 @@ interface TrendItem {
   rank: number;
 }
 
+interface CrowdMonth {
+  month: string;
+  crowd_level: 'low' | 'moderate' | 'high' | 'very_high';
+  score: number;
+  notes: string;
+}
+
+interface CrowdLevels {
+  destination: string;
+  months?: CrowdMonth[];
+  peak_periods?: string[];
+  best_for_avoiding_crowds?: string;
+  major_events_driving_crowds?: string[];
+}
+
+interface TripExperience {
+  destination: string;
+  tagline?: string;
+  vibe_emoji?: string;
+  weather_preview?: {
+    summary: string;
+    avg_temp_high_c: number;
+    avg_temp_low_c: number;
+    condition: string;
+    what_to_wear: string;
+  };
+  crowd_forecast?: {
+    level: string;
+    description: string;
+    tip: string;
+  };
+  daily_budget?: {
+    budget_usd: number;
+    mid_range_usd: number;
+    luxury_usd: number;
+    currency: string;
+    exchange_note: string;
+  };
+  cultural_highlights?: Array<{ title: string; description: string; icon: string }>;
+  food_scene?: {
+    summary: string;
+    must_try: Array<{ dish: string; description: string; price_range: string }>;
+    dining_tip: string;
+  };
+  a_day_in_your_trip?: {
+    morning: string;
+    afternoon: string;
+    evening: string;
+  };
+  hidden_gems?: Array<{ name: string; why: string; icon: string }>;
+  local_phrases?: Array<{ phrase: string; meaning: string; pronunciation: string }>;
+  packing_essentials?: string[];
+  safety_wellness?: {
+    safety_level: string;
+    tips: string[];
+    health_note: string;
+  };
+  trip_score?: {
+    overall: number;
+    adventure: number;
+    relaxation: number;
+    culture: number;
+    food: number;
+    value: number;
+  };
+}
+
 const PredictionsPage = () => {
   const { isAuthenticated } = useAuth();
 
@@ -59,7 +126,20 @@ const PredictionsPage = () => {
   const [trends, setTrends] = useState<TrendItem[]>([]);
   const [trendsLoading, setTrendsLoading] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'prices' | 'besttime' | 'trends'>('prices');
+  // Trip Experience state
+  const [expDest, setExpDest] = useState('');
+  const [expStart, setExpStart] = useState('');
+  const [expEnd, setExpEnd] = useState('');
+  const [expTravelers, setExpTravelers] = useState(2);
+  const [tripExperience, setTripExperience] = useState<TripExperience | null>(null);
+  const [expLoading, setExpLoading] = useState(false);
+
+  // Crowd Levels state
+  const [crowdDest, setCrowdDest] = useState('');
+  const [crowdData, setCrowdData] = useState<CrowdLevels | null>(null);
+  const [crowdLoading, setCrowdLoading] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<'experience' | 'prices' | 'besttime' | 'crowds' | 'trends'>('experience');
 
   const handlePricePredict = async () => {
     if (!priceOrigin || !priceDest || !priceDate) return;
@@ -112,6 +192,37 @@ const PredictionsPage = () => {
     }
   };
 
+  const handleTripExperience = async () => {
+    if (!expDest || !expStart || !expEnd) return;
+    setExpLoading(true);
+    try {
+      const res = await api.post('/api/agents/trip-experience', {
+        destination: expDest,
+        start_date: expStart,
+        end_date: expEnd,
+        travelers: expTravelers,
+      });
+      setTripExperience(res.data);
+    } catch {
+      setTripExperience(null);
+    } finally {
+      setExpLoading(false);
+    }
+  };
+
+  const handleCrowdLevels = async () => {
+    if (!crowdDest) return;
+    setCrowdLoading(true);
+    try {
+      const res = await api.get(`/api/agents/crowd-levels?destination=${encodeURIComponent(crowdDest)}`);
+      setCrowdData(res.data);
+    } catch {
+      setCrowdData(null);
+    } finally {
+      setCrowdLoading(false);
+    }
+  };
+
   const trendBadge = (rec: string) => {
     const colors: Record<string, string> = {
       buy_now: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
@@ -138,33 +249,55 @@ const PredictionsPage = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-4">
-            Predictive Travel Intelligence
+      <div className="relative bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white overflow-hidden">
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div className="absolute top-10 left-10 text-6xl animate-pulse">✨</div>
+          <div className="absolute top-20 right-20 text-5xl animate-pulse delay-150">🌍</div>
+          <div className="absolute bottom-10 left-1/3 text-5xl animate-pulse delay-300">🗺️</div>
+          <div className="absolute top-1/2 right-10 text-4xl animate-pulse delay-500">🎒</div>
+        </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-xs font-medium mb-4">
+            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+            AI-Powered Travel Intelligence
+          </div>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4 leading-tight">
+            Preview Your Trip <span className="bg-gradient-to-r from-amber-300 to-pink-300 bg-clip-text text-transparent">Before You Go</span>
           </h1>
-          <p className="text-lg sm:text-xl text-teal-100 max-w-2xl">
-            AI-powered price forecasting, best-time-to-visit analysis, and destination trend insights.
+          <p className="text-base sm:text-lg text-white/90 max-w-2xl">
+            Live a preview of your upcoming adventure — weather vibes, local food, hidden gems, cultural moments, and what a day feels like on the ground. All powered by AI.
           </p>
+          <div className="mt-6 flex flex-wrap gap-2 text-xs">
+            <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">🌤️ Weather Preview</span>
+            <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">💰 Smart Budget</span>
+            <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">🍜 Food Scene</span>
+            <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">🏛️ Cultural Gems</span>
+            <span className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">💬 Local Phrases</span>
+          </div>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 -mt-6">
-        <div className="grid grid-cols-3 gap-1 sm:flex sm:gap-2">
-          {(['prices', 'besttime', 'trends'] as const).map((tab) => (
+        <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          {([
+            { key: 'experience', icon: '✨', label: 'Trip Experience' },
+            { key: 'prices', icon: '💰', label: 'Price Forecast' },
+            { key: 'besttime', icon: '📅', label: 'Best Time' },
+            { key: 'crowds', icon: '👥', label: 'Crowd Levels' },
+            { key: 'trends', icon: '🔥', label: 'Trending' },
+          ] as const).map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-2 sm:px-5 py-2 sm:py-3 rounded-t-xl font-semibold text-xs sm:text-sm text-center transition-all ${
-                activeTab === tab
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-shrink-0 px-3 sm:px-5 py-2.5 sm:py-3 rounded-t-xl font-semibold text-xs sm:text-sm text-center transition-all flex items-center gap-1.5 ${
+                activeTab === tab.key
                   ? 'bg-white dark:bg-gray-800 text-teal-600 dark:text-teal-400 shadow-lg'
                   : 'bg-white/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
               }`}
             >
-              {tab === 'prices' && 'Price Forecast'}
-              {tab === 'besttime' && 'Best Time to Visit'}
-              {tab === 'trends' && 'Trending Destinations'}
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
             </button>
           ))}
         </div>
@@ -172,6 +305,22 @@ const PredictionsPage = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Trip Experience Tab (placeholder, filled in step 2) */}
+        {activeTab === 'experience' && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center text-gray-500 dark:text-gray-400">
+            <p className="text-4xl mb-3">✨</p>
+            <p>Trip Experience Preview — coming up next.</p>
+          </div>
+        )}
+
+        {/* Crowd Levels Tab (placeholder, filled in step 3) */}
+        {activeTab === 'crowds' && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center text-gray-500 dark:text-gray-400">
+            <p className="text-4xl mb-3">👥</p>
+            <p>Crowd Levels — coming up next.</p>
+          </div>
+        )}
+
         {/* Price Forecast Tab */}
         {activeTab === 'prices' && (
           <div className="space-y-6">
