@@ -128,6 +128,7 @@ const communityItems: DropdownItem[] = [
 
 const myTripsItems: DropdownItem[] = [
   { to: ROUTES.ITINERARY, icon: '📋', label: 'My Trips' },
+  { to: ROUTES.MY_BOOKINGS, icon: '🧾', label: 'My Bookings' },
   { to: ROUTES.COLLABORATE, icon: '👥', label: 'Collaborate' },
   { to: ROUTES.TRIP_MAP, icon: '🌍', label: 'My Travel Map' },
   { to: ROUTES.TRAVEL_PROFILE, icon: '🧬', label: 'My Travel DNA' },
@@ -287,18 +288,6 @@ const Header = () => {
                               } block px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
                             >
                               Profile
-                            </Link>
-                          )}
-                        </Menu.Item>
-                        <Menu.Item>
-                          {({ active }) => (
-                            <Link
-                              to={ROUTES.DASHBOARD}
-                              className={`${
-                                active ? 'bg-gray-100 dark:bg-gray-700' : ''
-                              } block px-4 py-2 text-sm text-gray-700 dark:text-gray-300`}
-                            >
-                              My Bookings
                             </Link>
                           )}
                         </Menu.Item>

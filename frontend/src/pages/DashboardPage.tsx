@@ -250,7 +250,7 @@ const DashboardPage = () => {
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recent Bookings</h2>
             </div>
             {bookings.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.BOOKING)}>
+              <Button variant="ghost" size="sm" onClick={() => navigate(ROUTES.MY_BOOKINGS)}>
                 View all
               </Button>
             )}

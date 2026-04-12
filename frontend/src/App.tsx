@@ -65,6 +65,7 @@ const TripGalleryPage = lazy(() => import('./pages/TripGalleryPage'));
 const ContentHubPage = lazy(() => import('./pages/ContentHubPage'));
 const FaithTravelPage = lazy(() => import('./pages/FaithTravelPage'));
 const HealthTravelPage = lazy(() => import('./pages/HealthTravelPage'));
+const MyBookingsPage = lazy(() => import('./pages/MyBookingsPage'));
 
 // Create query client
 const queryClient = new QueryClient({
@@ -126,6 +127,7 @@ function App() {
                 <Route path="/booking/flight" element={<RequireAuth><FlightBookingPage /></RequireAuth>} />
                 <Route path="/booking/hotel" element={<RequireAuth><HotelBookingPage /></RequireAuth>} />
                 <Route path="/booking/rental" element={<RequireAuth><RentalBookingPage /></RequireAuth>} />
+                <Route path={ROUTES.MY_BOOKINGS} element={<RequireAuth><MyBookingsPage /></RequireAuth>} />
                 <Route path={ROUTES.BOOKING} element={<RequireAuth><BookingPage /></RequireAuth>} />
                 <Route path="/booking/:type/:id" element={<RequireAuth><BookingPage /></RequireAuth>} />
                 <Route path={ROUTES.PAYMENT} element={<RequireAuth><PaymentPage /></RequireAuth>} />
