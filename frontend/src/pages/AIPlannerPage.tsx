@@ -14,7 +14,7 @@ import {
 } from '@/services/itineraryService';
 import TravelChat from '@/components/TravelChat';
 import AirportAutocomplete from '@/components/common/AirportAutocomplete';
-import TripIntelligencePanel from '@/components/TripIntelligencePanel';
+import SmartTripPreview from '@/components/SmartTripPreview';
 
 type OrderMode = 'form' | 'chat' | 'voice';
 type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'intelligence';
@@ -603,16 +603,16 @@ const AIPlannerPage = () => {
         </div>
       )}
 
-      {/* Pre-trip Intelligence Hub — shows once user has entered a destination,
-          stays visible even after the plan is generated so customers can explore
-          predictions, safety, health, language, deals, etc. throughout the flow. */}
+      {/* Smart Trip Preview — inline live insights (weather, safety, budget,
+          crowds, "a day in your trip") as soon as a destination is entered.
+          Deep-dive chips open specialty pages in new tabs so form entries
+          on this page are never lost. */}
       {!loading && destinationCity && (
-        <TripIntelligencePanel
+        <SmartTripPreview
           destination={destinationLabel}
           startDate={departureDate}
           endDate={returnDate}
           travelers={passengers}
-          status="draft"
         />
       )}
 
