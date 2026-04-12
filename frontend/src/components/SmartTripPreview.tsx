@@ -304,6 +304,7 @@ const DeepDiveChips = ({ q }: { q: string }) => {
     { to: `${ROUTES.SAFETY_DASHBOARD}${q}`, icon: '🛡', label: 'Safety Details' },
     { to: `${ROUTES.LANGUAGE_TOOL}${q}`, icon: '💬', label: 'Local Phrases' },
     { to: `${ROUTES.DESTINATION_GUIDE}${q}`, icon: '📍', label: 'Destination Guide' },
+    { to: `${ROUTES.DESTINATION_KB}${q}`, icon: '📚', label: 'Traveler Tips' },
     { to: `${ROUTES.AI_RATINGS}${q}`, icon: '⭐', label: 'AI Ratings' },
     { to: `${ROUTES.PARTNERSHIPS}${q}`, icon: '🏷️', label: 'Deals & Coupons' },
   ];

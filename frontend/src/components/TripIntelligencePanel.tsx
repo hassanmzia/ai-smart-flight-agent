@@ -33,74 +33,6 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
   if (travelers) params.set('travelers', String(travelers));
   const q = `?${params.toString()}`;
 
-  // ── PRE-TRIP: planning, approval, and pre-departure
-  const preTripCards: FeatureCard[] = [
-    {
-      to: `${ROUTES.PREDICTIONS}${q}&tab=experience`,
-      icon: '✨',
-      title: 'Trip Experience Preview',
-      desc: 'Feel the destination before you go — weather, food, culture, a day in your trip.',
-      gradient: 'from-indigo-500 via-purple-500 to-pink-500',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.PREDICTIONS}${q}&tab=crowds`,
-      icon: '👥',
-      title: 'Crowd Forecast',
-      desc: 'Monthly crowd calendar — know when to go and when to wait.',
-      gradient: 'from-amber-500 to-orange-500',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.PREDICTIONS}${q}&tab=prices`,
-      icon: '💰',
-      title: 'Price Forecast',
-      desc: 'See if prices will rise, fall, or stay stable for your dates.',
-      gradient: 'from-emerald-500 to-green-600',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.SAFETY_DASHBOARD}${q}`,
-      icon: '🛡️',
-      title: 'Safety Intelligence',
-      desc: 'Travel advisories, safe areas, and emergency contacts.',
-      gradient: 'from-blue-500 to-cyan-600',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.LANGUAGE_TOOL}${q}`,
-      icon: '💬',
-      title: 'Local Phrases',
-      desc: 'Essential phrases and pronunciations for locals.',
-      gradient: 'from-fuchsia-500 to-pink-500',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.DESTINATION_GUIDE}${q}`,
-      icon: '📍',
-      title: 'Destination Guide',
-      desc: 'Cultural context, must-sees, and insider tips.',
-      gradient: 'from-teal-500 to-emerald-600',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.DESTINATION_KB}${q}`,
-      icon: '📚',
-      title: 'Traveler Tips',
-      desc: 'Crowd-sourced tips from fellow travelers.',
-      gradient: 'from-violet-500 to-purple-600',
-      iconBg: 'bg-white/20',
-    },
-    {
-      to: `${ROUTES.AI_RATINGS}${q}`,
-      icon: '⭐',
-      title: 'AI Ratings',
-      desc: 'AI-curated ratings for hotels, restaurants, and attractions.',
-      gradient: 'from-yellow-500 to-amber-600',
-      iconBg: 'bg-white/20',
-    },
-  ];
-
   // ── BOOKED/ACTIVE: in-trip companions
   const inTripCards: FeatureCard[] = [
     {
@@ -173,34 +105,20 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
     },
   ];
 
-  // Decide which sections to show based on status
-  const showPreTrip = ['draft', 'planned', 'approved'].includes(status);
+  // This panel now shows ONLY stage-specific cards that SmartTripPreview doesn't
+  // cover (in-trip and post-trip actions). Pre-trip insights/tools are surfaced
+  // inline by SmartTripPreview so this panel stays out of the way until the
+  // customer actually needs trip-companion or memory-capture features.
   const showInTrip = ['booked', 'active'].includes(status);
   const showPostTrip = status === 'completed';
 
-  // If we don't have a clear phase (e.g. cancelled or unknown), default to pre-trip
   const sections: Array<{ title: string; subtitle: string; icon: string; cards: FeatureCard[] }> = [];
-  if (showPreTrip || (!showInTrip && !showPostTrip)) {
-    sections.push({
-      title: 'Get Ready for Your Trip',
-      subtitle: 'AI-powered insights to help you plan with confidence.',
-      icon: '🎯',
-      cards: preTripCards,
-    });
-  }
   if (showInTrip) {
     sections.push({
       title: 'Make the Most of Your Trip',
       subtitle: 'Local deals, wellness, and real-time helpers.',
       icon: '🌟',
       cards: inTripCards,
-    });
-    // Keep pre-trip cards available too — they're still useful while booked
-    sections.push({
-      title: 'Also Useful',
-      subtitle: 'Keep these handy during your trip.',
-      icon: '🧰',
-      cards: preTripCards.slice(0, 6),
     });
   }
   if (showPostTrip) {
@@ -212,6 +130,7 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
     });
   }
 
+  // Pre-trip stages: SmartTripPreview alone covers it, nothing to add here.
   if (sections.length === 0) return null;
 
   return (

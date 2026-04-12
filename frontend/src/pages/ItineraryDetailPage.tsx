@@ -8,6 +8,7 @@ import { ItineraryPDFViewer } from '@/components/ItineraryPDFViewer';
 import DayByDayPlan from '@/components/DayByDayPlan';
 import TripFeedbackModal from '@/components/TripFeedbackModal';
 import TripIntelligencePanel from '@/components/TripIntelligencePanel';
+import SmartTripPreview from '@/components/SmartTripPreview';
 import { API_ENDPOINTS } from '@/utils/constants';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
@@ -556,9 +557,22 @@ const ItineraryDetailPage = () => {
         )}
       </Card>
 
-      {/* Trip Intelligence Hub — stage-aware feature discovery.
-          Placed above the day-by-day plan so it's visible without scrolling
-          and adapts automatically as the trip moves through its lifecycle. */}
+      {/* Smart Trip Preview — inline live insights (weather, safety, budget,
+          crowds, "a day in your trip") right at the top, useful at every
+          stage of the trip lifecycle. */}
+      {!isNewItinerary && formData.destination && (
+        <SmartTripPreview
+          destination={formData.destination}
+          startDate={formData.start_date}
+          endDate={formData.end_date}
+          travelers={formData.number_of_travelers}
+        />
+      )}
+
+      {/* Trip Intelligence Hub — only renders for booked/active/completed
+          stages now (pre-trip is covered by SmartTripPreview above). Shows
+          in-trip companions (deals, health, faith, collaborate) or post-trip
+          memory tools (stories, gallery, tips). */}
       {!isNewItinerary && formData.destination && (
         <TripIntelligencePanel
           destination={formData.destination}
