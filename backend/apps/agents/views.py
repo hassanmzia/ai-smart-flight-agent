@@ -1277,8 +1277,13 @@ def plan_travel(request):
 
         # Load personalized user context (Travel DNA, UserPreference, memories)
         # so the planner respects dietary/faith/mobility/pace, past likes, etc.
+        # Trip dates enable Ramadan Mode auto-detection for Muslim travelers.
         from .personalization_service import build_user_planning_context
-        user_context = build_user_planning_context(request.user)
+        user_context = build_user_planning_context(
+            request.user,
+            trip_start_date=departure_date,
+            trip_end_date=return_date,
+        )
 
         # Enrich query with interests/style if provided
         enriched_query = query
@@ -1529,7 +1534,12 @@ def chat(request):
 
             # Load traveler profile so the chat-initiated plan honors dietary /
             # faith / mobility / language constraints, same as /plan-travel.
-            chat_user_context = build_user_planning_context(request.user)
+            # Trip dates enable Ramadan Mode auto-detection.
+            chat_user_context = build_user_planning_context(
+                request.user,
+                trip_start_date=prev_params.get('departure_date'),
+                trip_end_date=prev_params.get('return_date'),
+            )
 
             p = prev_params
             chat_query = f"Plan a trip from {p['origin']} to {p['destination']}"

@@ -4,13 +4,90 @@ Learns from user behavior to build a "Travel DNA" profile and
 serve personalized recommendations.
 """
 import logging
-from typing import Dict, Any, List, Optional
-from datetime import timedelta
+from typing import Dict, Any, List, Optional, Tuple
+from datetime import date, datetime, timedelta
 from django.conf import settings
 from django.utils import timezone
 from django.db.models import Count, Avg, Q
 
 logger = logging.getLogger(__name__)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Ramadan detection (approximate Gregorian ranges — subject to local
+# moon sighting; source: astronomical calculations / published almanacs).
+# The Islamic lunar calendar shifts ~10-11 days earlier each year.
+# Update this table as new years are planned for.
+# ──────────────────────────────────────────────────────────────────────
+RAMADAN_APPROX_RANGES: Dict[int, Tuple[date, date]] = {
+    2024: (date(2024, 3, 10), date(2024, 4, 9)),
+    2025: (date(2025, 2, 28), date(2025, 3, 29)),
+    2026: (date(2026, 2, 17), date(2026, 3, 19)),
+    2027: (date(2027, 2, 6),  date(2027, 3, 8)),
+    2028: (date(2028, 1, 27), date(2028, 2, 25)),
+    2029: (date(2029, 1, 15), date(2029, 2, 13)),
+    2030: (date(2030, 1, 5),  date(2030, 2, 3)),
+    # 2030 also has a second Ramadan starting late Dec 2030 (→ Jan 2031).
+    # We represent that window under 2031 since the bulk of fasting days
+    # fall in Jan 2031 when most travel itineraries would use it.
+    2031: (date(2030, 12, 25), date(2031, 1, 23)),
+}
+
+
+def _parse_trip_date(d) -> Optional[date]:
+    """Coerce ISO string / date / datetime → date. None on failure."""
+    if not d:
+        return None
+    if isinstance(d, datetime):
+        return d.date()
+    if isinstance(d, date):
+        return d
+    if isinstance(d, str):
+        # Try the common shapes. First 10 chars is always the ISO date
+        # portion for anything like '2026-03-01...' — that's the fast path.
+        head = d[:10]
+        try:
+            return datetime.strptime(head, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass
+        # Fall back to full-string parse for other shapes.
+        for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%SZ', '%Y/%m/%d'):
+            try:
+                return datetime.strptime(d, fmt).date()
+            except (ValueError, TypeError):
+                continue
+    return None
+
+
+def compute_ramadan_overlap(trip_start, trip_end) -> Optional[Dict[str, Any]]:
+    """
+    Return {'active': True, 'ramadan_start': ISO, 'ramadan_end': ISO,
+    'overlap_start': ISO, 'overlap_end': ISO} when the trip window
+    intersects a known Ramadan range; None otherwise.
+    """
+    ts = _parse_trip_date(trip_start)
+    te = _parse_trip_date(trip_end) or ts
+    if not ts:
+        return None
+    if te < ts:
+        ts, te = te, ts
+
+    for year in range(ts.year, te.year + 2):
+        window = RAMADAN_APPROX_RANGES.get(year)
+        if not window:
+            continue
+        rs, re = window
+        overlap_start = max(ts, rs)
+        overlap_end = min(te, re)
+        if overlap_start <= overlap_end:
+            return {
+                'active': True,
+                'ramadan_start': rs.isoformat(),
+                'ramadan_end': re.isoformat(),
+                'overlap_start': overlap_start.isoformat(),
+                'overlap_end': overlap_end.isoformat(),
+            }
+    return None
 
 
 # ISO-639-1 -> human name. The LLM handles codes, but expanded names are
@@ -434,7 +511,123 @@ Factor in dietary/faith/mobility needs when scoring destinations. Avoid recommen
         return None
 
 
-def build_user_planning_context(user) -> Dict[str, Any]:
+def _build_islam_rules(ctx: Dict[str, Any]) -> List[str]:
+    """
+    Return the full set of binding rules for a Muslim traveler. All 5
+    pillars of faith-aware travel fire unconditionally (Prayer Times,
+    Worship Places, Dietary Options, Spiritual Sites, Ramadan Mode).
+
+    When ctx['ramadan_mode'] is present, a dedicated Ramadan block is
+    appended that shifts meals to Iftar/Suhoor and adds Taraweeh prayer.
+    """
+    out: List[str] = []
+
+    # 1) PRAYER TIMES — 5 daily prayers, non-negotiable scheduling gaps.
+    out.append(
+        "ISLAM — PRAYER TIMES (mandatory): Observe the 5 daily prayers — "
+        "Fajr (pre-dawn), Dhuhr (just after midday), Asr (mid-afternoon), "
+        "Maghrib (just after sunset), Isha (night). Leave a 15-minute gap "
+        "around each window. Never schedule unbreakable timed activities "
+        "(shows, tours with fixed start, timed restaurant bookings) inside "
+        "those windows. On EVERY day's schedule, add explicit "
+        "\"🕌 Prayer break — Dhuhr / Asr / Maghrib (~15 min at [nearby "
+        "mosque or quiet spot])\" lines at the right times."
+    )
+
+    # 2) WORSHIP PLACES — mosque mapping, day 1 anchor.
+    out.append(
+        "ISLAM — WORSHIP PLACES (mandatory): On Day 1, identify the "
+        "closest mosque to the hotel by name (distance in minutes walk / "
+        "taxi) and include its Jumu'ah (Friday) prayer start time if the "
+        "trip spans a Friday. For each day's activity cluster, name ONE "
+        "mosque or musallah (prayer room) within a 10-minute reach of the "
+        "midday activity, so the traveler always has a prayer option. "
+        "Where applicable, note mosque etiquette (shoes off, modest dress, "
+        "women's section entrance)."
+    )
+
+    # 3) DIETARY OPTIONS — halal-first, pork/alcohol exclusion.
+    out.append(
+        "ISLAM — DIETARY OPTIONS (mandatory): Every restaurant, café, "
+        "street-food stop, and meal line MUST be halal-certified, "
+        "halal-friendly, or explicitly pork-and-alcohol-free. Name the "
+        "specific halal option inline — e.g., \"Dinner: Maroosh Grill "
+        "(halal-certified — try the mixed grill platter)\". Exclude bars, "
+        "pork-centric venues, and venues where alcohol is the primary "
+        "draw. When the city has a well-known Muslim quarter or halal "
+        "district, prefer restaurants from that area and name it. If halal "
+        "options are scarce at a destination, flag that upfront and "
+        "suggest vegetarian/seafood fallbacks."
+    )
+
+    # 4) SPIRITUAL SITES — at least one prominent Islamic site per trip.
+    out.append(
+        "ISLAM — SPIRITUAL SITES (mandatory): Include at least ONE "
+        "prominent Islamic heritage or spiritual site visit across the "
+        "trip — a historic mosque, Islamic museum, Sufi shrine, or "
+        "notable madrasa. For each such site, name it and add: visiting "
+        "hours, prayer-time access rules (non-Muslims are often restricted "
+        "during prayers), dress code (women: headscarf; men: long trousers), "
+        "and entry cost. If multiple days allow, spread 2–3 sites across "
+        "the trip — don't cluster them all on Day 1."
+    )
+
+    # 5) FAITH NOTE — per-day visible line.
+    out.append(
+        "ISLAM — FAITH NOTE (per day): In each day, include one "
+        "**Faith note** line (1 sentence) — e.g., a nearby mosque's "
+        "congregation reputation, a neighborhood with strong Muslim "
+        "community/food scene, an etiquette tip, or a local Islamic "
+        "cultural detail the traveler will appreciate."
+    )
+
+    # 6) RAMADAN MODE — auto-enabled when trip dates overlap Ramadan.
+    ramadan = ctx.get('ramadan_mode')
+    if ramadan and ramadan.get('active'):
+        out.append(
+            "ISLAM — RAMADAN MODE ACTIVE (mandatory): The trip overlaps "
+            f"Ramadan ({ramadan['ramadan_start']} → {ramadan['ramadan_end']}). "
+            f"Days inside the overlap window ({ramadan['overlap_start']} → "
+            f"{ramadan['overlap_end']}) MUST be re-shaped for a fasting "
+            "traveler:\n"
+            "  • NO midday meals — skip lunch. Replace with a light "
+            "shaded walking tour or indoor activity (museum / gallery / "
+            "bazaar browse).\n"
+            "  • **Suhoor**: add a pre-dawn meal line (~90 min before "
+            "Fajr) — name a 24-hour or pre-dawn-opening halal spot, or "
+            "recommend hotel room-service / grocery provisions.\n"
+            "  • **Iftar**: the main social meal moves to just after "
+            "Maghrib (sunset). Name a specific Iftar buffet or restaurant "
+            "known for Ramadan spread — reservations are often required "
+            "during Ramadan, flag that.\n"
+            "  • Expect many restaurants to be closed from Fajr to "
+            "Maghrib — do NOT schedule daytime café/restaurant stops. "
+            "For non-fasters in the party, suggest hotel-based options.\n"
+            "  • Add an optional **Taraweeh prayer** slot after Isha "
+            "(~90 min, at a nearby mosque) — a signature Ramadan "
+            "spiritual experience for those interested.\n"
+            "  • Include 1 **Ramadan night-market / souq / cultural "
+            "evening** activity where available — night energy is much "
+            "higher than daytime during Ramadan.\n"
+            "  • Activity pacing: lighter mornings, more rest at "
+            "midday, evenings extend later (9 pm - midnight is typical)."
+        )
+    else:
+        # Light-touch nudge even when not active, so the LLM knows it's
+        # been considered (prevents hallucinated Ramadan planning).
+        out.append(
+            "ISLAM — RAMADAN MODE: Not active for these dates (trip "
+            "does not overlap Ramadan). Plan for normal meal schedule."
+        )
+
+    return out
+
+
+def build_user_planning_context(
+    user,
+    trip_start_date=None,
+    trip_end_date=None,
+) -> Dict[str, Any]:
     """
     Build a compact personalization context dict for the AI planner.
 
@@ -442,6 +635,12 @@ def build_user_planning_context(user) -> Dict[str, Any]:
     travel style, budget range), Travel DNA, and the most recent trip
     memories. Returns a shape safe to inject into an LLM system prompt
     and to echo back to the frontend for a "Personalized for you" banner.
+
+    If ``trip_start_date`` / ``trip_end_date`` are supplied and the traveler's
+    faith is Islam, we additionally compute Ramadan overlap and, when positive,
+    inject a ``ramadan_mode`` block so the itinerary shifts to Iftar/Suhoor
+    scheduling, adds Taraweeh prayer options, and flags daytime restaurant
+    closures.
 
     Non-authenticated users (or any lookup failure) get an empty dict, so
     callers can unconditionally call this and still get a valid result.
@@ -553,6 +752,19 @@ def build_user_planning_context(user) -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"Failed to load TripMemory for planning context: {e}")
 
+    # 3) Ramadan Mode — auto-activate when faith=islam AND trip dates
+    # overlap a known Ramadan window. The LLM uses this to shift meals
+    # to Iftar/Suhoor, skip daytime dining, add Taraweeh, etc.
+    try:
+        profile = ctx.get('profile') or {}
+        if profile.get('faith') == 'islam' and (trip_start_date or trip_end_date):
+            overlap = compute_ramadan_overlap(trip_start_date, trip_end_date)
+            if overlap:
+                ctx['ramadan_mode'] = overlap
+                ctx['signals'].append('Ramadan Mode')
+    except Exception as e:
+        logger.warning(f"Ramadan overlap detection failed: {e}")
+
     return ctx
 
 
@@ -595,63 +807,54 @@ def format_user_context_for_prompt(ctx: Dict[str, Any]) -> str:
     if faith and faith != 'none':
         # Faith values match UserPreference.FAITH_CHOICES (models.py:505):
         #   islam / christianity / judaism / hinduism / buddhism / sikhism / other
-        faith_rule = (
-            f"FAITH: Traveler is **{faith}**. "
-        )
         if faith == 'islam':
-            faith_rule += (
-                "All restaurants MUST be halal-certified or pork-and-alcohol-free — name the specific "
-                "halal option. Exclude bars/pork-centric venues. Prefer venues close to mosques for "
-                "prayer-friendly scheduling. "
+            # Comprehensive Islam plan: ALWAYS includes all 5 pillars of
+            # faith-aware travel — Prayer Times, Worship Places, Dietary
+            # Options, Spiritual Sites, Ramadan Mode. Do NOT gate these on
+            # profile toggles; Muslim travelers expect the full set.
+            rules.extend(_build_islam_rules(ctx))
+        else:
+            faith_rule = (
+                f"FAITH: Traveler is **{faith}**. "
             )
-        elif faith == 'judaism':
-            faith_rule += (
-                "Prefer kosher or kosher-style dining — name specific kosher restaurants. Avoid "
-                "shellfish/pork and meat+dairy mixing. Note Shabbat (Fri sundown - Sat sundown) — "
-                "many kosher venues close then, so plan accordingly. "
-            )
-        elif faith == 'hinduism':
-            faith_rule += (
-                "Avoid beef entirely. Prefer vegetarian-forward restaurants; many Hindus avoid "
-                "onion/garlic too — offer a sattvic-friendly option when possible. "
-            )
-        elif faith == 'buddhism':
-            faith_rule += (
-                "Prefer vegetarian restaurants where possible. Respect temple etiquette (silence, "
-                "no pointing feet at altars). "
-            )
-        elif faith == 'christianity':
-            faith_rule += (
-                "Note a nearby church suitable for Sunday service if the trip spans a Sunday "
-                "(name the church and service time if known). "
-            )
-        elif faith == 'sikhism':
-            faith_rule += (
-                "Avoid beef and pork. Prefer vegetarian or Punjabi-friendly restaurants. If a "
-                "Gurdwara is nearby, mention it — langar meals are free and welcoming to visitors. "
-            )
-        faith_rule += (
-            f"In each day, add a brief **Faith note** item (1 line) mentioning either a "
-            f"nearby {faith} worship place, faith-relevant etiquette (dress, entry rules), "
-            f"or a neighborhood with strong {faith} community/food."
-        )
-        rules.append(faith_rule)
-        if profile.get('faith_site_interest'):
-            rules.append(
-                f"FAITH SITES: Include at least 1 prominent {faith} worship site visit across the trip "
-                f"(name it, add visiting hours, dress code, and entry cost)."
-            )
-        if profile.get('prayer_reminders'):
-            # Islam observes 5 daily prayers — be specific about the windows.
-            if faith == 'islam':
-                rules.append(
-                    "PRAYER TIMES: Islam observes 5 daily prayers — Fajr (dawn), Dhuhr (midday), "
-                    "Asr (afternoon), Maghrib (sunset), Isha (night). Leave 15-min gaps around those "
-                    "windows. Do NOT schedule unbreakable timed activities inside them. Add a "
-                    "\"🕌 Prayer break — ~15 min\" line at the right times each day. Near the hotel, "
-                    "name the closest mosque."
+            if faith == 'judaism':
+                faith_rule += (
+                    "Prefer kosher or kosher-style dining — name specific kosher restaurants. Avoid "
+                    "shellfish/pork and meat+dairy mixing. Note Shabbat (Fri sundown - Sat sundown) — "
+                    "many kosher venues close then, so plan accordingly. "
                 )
-            else:
+            elif faith == 'hinduism':
+                faith_rule += (
+                    "Avoid beef entirely. Prefer vegetarian-forward restaurants; many Hindus avoid "
+                    "onion/garlic too — offer a sattvic-friendly option when possible. "
+                )
+            elif faith == 'buddhism':
+                faith_rule += (
+                    "Prefer vegetarian restaurants where possible. Respect temple etiquette (silence, "
+                    "no pointing feet at altars). "
+                )
+            elif faith == 'christianity':
+                faith_rule += (
+                    "Note a nearby church suitable for Sunday service if the trip spans a Sunday "
+                    "(name the church and service time if known). "
+                )
+            elif faith == 'sikhism':
+                faith_rule += (
+                    "Avoid beef and pork. Prefer vegetarian or Punjabi-friendly restaurants. If a "
+                    "Gurdwara is nearby, mention it — langar meals are free and welcoming to visitors. "
+                )
+            faith_rule += (
+                f"In each day, add a brief **Faith note** item (1 line) mentioning either a "
+                f"nearby {faith} worship place, faith-relevant etiquette (dress, entry rules), "
+                f"or a neighborhood with strong {faith} community/food."
+            )
+            rules.append(faith_rule)
+            if profile.get('faith_site_interest'):
+                rules.append(
+                    f"FAITH SITES: Include at least 1 prominent {faith} worship site visit across the trip "
+                    f"(name it, add visiting hours, dress code, and entry cost)."
+                )
+            if profile.get('prayer_reminders'):
                 rules.append(
                     "PRAYER TIMES: Leave gaps around the traveler's typical prayer windows. "
                     "Do NOT schedule unbreakable timed activities inside those windows. Add a "
@@ -769,10 +972,20 @@ def format_user_context_for_prompt(ctx: Dict[str, Any]) -> str:
     checks: List[str] = []
     if diet or profile.get('dietary_allergies'):
         checks.append("meals are dietary/allergy-compatible and labeled so")
-    if faith and faith != 'none':
+    if faith == 'islam':
+        # Islam always runs the full 5-pillar check (Prayer / Worship /
+        # Dietary / Spiritual / Faith note). Ramadan block fires separately
+        # below when active.
+        checks.append("5 prayer windows (Fajr/Dhuhr/Asr/Maghrib/Isha) have 15-min gaps")
+        checks.append("a nearby mosque/musallah is named for the midday cluster")
+        checks.append("every food stop is halal-certified or halal-friendly (labeled inline)")
+        checks.append("a Faith note line is present")
+        if ctx.get('ramadan_mode', {}).get('active'):
+            checks.append("Ramadan Mode is active: lunch replaced by Iftar, Suhoor included, Taraweeh optional")
+    elif faith and faith != 'none':
         checks.append("a Faith note / worship cue / halal-or-kosher restaurant is present")
-    if profile.get('prayer_reminders'):
-        checks.append("prayer-time gaps are respected")
+        if profile.get('prayer_reminders'):
+            checks.append("prayer-time gaps are respected")
     if mobility and mobility != 'full':
         checks.append("every venue is accessible")
     if profile.get('max_walking_km_per_day'):
