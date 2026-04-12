@@ -469,10 +469,12 @@ def build_user_planning_context(user) -> Dict[str, Any]:
             # Languages
             if pref.languages_spoken:
                 profile['languages_spoken'] = list(pref.languages_spoken)
+                ctx['signals'].append(f"Languages: {', '.join(pref.languages_spoken)}")
 
             # Style / budget
             if pref.trip_style:
                 profile['trip_style'] = pref.trip_style
+                ctx['signals'].append(f"Style: {pref.trip_style}")
             if pref.budget_range and pref.budget_range != 'any':
                 profile['budget_range'] = pref.budget_range
                 ctx['signals'].append(f"Budget: {pref.get_budget_range_display()}")
@@ -484,6 +486,7 @@ def build_user_planning_context(user) -> Dict[str, Any]:
                 profile['preferred_hotel_chains'] = list(pref.preferred_hotel_chains)
             if pref.preferred_cuisines:
                 profile['preferred_cuisines'] = list(pref.preferred_cuisines)
+                ctx['signals'].append(f"Cuisines: {', '.join(pref.preferred_cuisines[:3])}")
 
             ctx['profile'] = profile
 
@@ -524,89 +527,207 @@ def build_user_planning_context(user) -> Dict[str, Any]:
 
 def format_user_context_for_prompt(ctx: Dict[str, Any]) -> str:
     """
-    Render the planning context as a concise block of natural-language
-    instructions suitable for appending to an LLM system prompt.
+    Render the planning context as a DIRECTIVE block of instructions
+    suitable for appending to an LLM system prompt. The LLM must treat
+    these as binding and explicitly reflect them in each day's output.
+
     Returns an empty string if there's nothing to personalize on.
     """
     if not ctx or not ctx.get('has_personalization'):
         return ''
 
-    lines: List[str] = [
-        '',
-        '## Traveler Profile (personalize the plan to these — do not ignore)',
-    ]
     profile = ctx.get('profile') or {}
 
-    if profile.get('dietary_preference'):
-        lines.append(f"- Dietary preference: {profile['dietary_preference']}. "
-                     f"Only recommend restaurants and dishes compatible with this.")
+    # Build a concise checklist the LLM MUST satisfy in its output.
+    # Each entry is a (constraint, enforcement) pair — enforcement is
+    # worded as an imperative the model can comply with per-activity.
+    rules: List[str] = []
+
+    # ── Dietary ──
+    diet = profile.get('dietary_preference')
+    if diet:
+        rules.append(
+            f"DIETARY: Traveler is **{diet}**. Every restaurant, café, meal stop, and "
+            f"food activity you suggest MUST be {diet}-friendly. When you name a restaurant, "
+            f"add \"({diet}-friendly — [specific dish or note])\" inline. If a famous local "
+            f"restaurant is not {diet}-compatible, skip it and pick a compatible alternative."
+        )
     if profile.get('dietary_allergies'):
         allergies = ', '.join(profile['dietary_allergies'])
-        lines.append(f"- Food allergies: {allergies}. Avoid these explicitly in any dining suggestion.")
+        rules.append(
+            f"ALLERGIES: Traveler is allergic to **{allergies}**. Never suggest a dish "
+            f"containing these. For every meal, add a note like \"(Ask staff to avoid {allergies})\"."
+        )
 
-    if profile.get('faith') and profile['faith'] != 'none':
-        faith = profile['faith']
-        lines.append(f"- Faith: {faith}. Respect religious practices when suggesting activities.")
+    # ── Faith ──
+    faith = profile.get('faith')
+    if faith and faith != 'none':
+        faith_rule = (
+            f"FAITH: Traveler is **{faith}**. "
+        )
+        if faith == 'muslim':
+            faith_rule += (
+                "All restaurants MUST be halal-certified or pork-and-alcohol-free — name the specific "
+                "halal option. Exclude bars/pork-centric venues. "
+            )
+        elif faith == 'jewish':
+            faith_rule += (
+                "Prefer kosher or kosher-style dining — name specific kosher restaurants. Avoid "
+                "shellfish/pork and meat+dairy mixing. "
+            )
+        elif faith == 'hindu':
+            faith_rule += (
+                "Avoid beef entirely. Prefer vegetarian-forward restaurants. "
+            )
+        elif faith == 'buddhist':
+            faith_rule += (
+                "Prefer vegetarian restaurants where possible. "
+            )
+        elif faith == 'christian':
+            faith_rule += (
+                "Note a nearby church suitable for Sunday service if trip spans a Sunday. "
+            )
+        faith_rule += (
+            f"In each day, add a brief **Faith note** item (1 line) mentioning either a "
+            f"nearby {faith} worship place, faith-relevant etiquette (dress, entry rules), "
+            f"or a neighborhood with strong {faith} community/food."
+        )
+        rules.append(faith_rule)
         if profile.get('faith_site_interest'):
-            lines.append(f"  Include nearby {faith} worship sites of note in the itinerary.")
+            rules.append(
+                f"FAITH SITES: Include at least 1 prominent {faith} worship site visit across the trip "
+                f"(name it, add visiting hours, dress code, and entry cost)."
+            )
         if profile.get('prayer_reminders'):
-            lines.append("  The traveler observes prayer times — avoid scheduling unbreakable activities during typical prayer windows.")
+            rules.append(
+                "PRAYER TIMES: Leave gaps around typical prayer windows (dawn, midday, afternoon, "
+                "sunset, night). Do NOT schedule unbreakable timed activities (shows, bookings) "
+                "inside those windows. Add a \"🕌 Prayer break — ~15 min\" line at the right times."
+            )
 
-    if profile.get('mobility') and profile['mobility'] != 'full':
-        lines.append(f"- Mobility: {profile['mobility']}. Prefer accessible venues, avoid long stairs / uneven terrain.")
+    # ── Mobility / health ──
+    mobility = profile.get('mobility')
+    if mobility and mobility != 'full':
+        rules.append(
+            f"MOBILITY: Traveler has **{mobility}** mobility. Every venue you recommend MUST be "
+            f"wheelchair-accessible or have elevators/ramps. Avoid hike-only sights, stairs-only "
+            f"attractions, and uneven cobblestone-heavy routes. Add \"(accessible entrance / "
+            f"elevator / step-free)\" notes to each major stop."
+        )
     if profile.get('max_walking_km_per_day'):
-        lines.append(f"- Max walking per day: {profile['max_walking_km_per_day']} km. Keep daily walking within this limit.")
+        km = profile['max_walking_km_per_day']
+        rules.append(
+            f"WALKING LIMIT: Keep each day's total walking under **{km} km**. Use taxis/metro for "
+            f"longer transfers. Add a daily walking estimate like \"≈ {min(km, 3)} km walking\" at "
+            f"the end of each day."
+        )
     if profile.get('health_conditions'):
         conds = ', '.join(profile['health_conditions'])
-        lines.append(f"- Health considerations: {conds}. Factor these into pace, altitude, and activity choices.")
+        rules.append(
+            f"HEALTH: Traveler manages **{conds}**. Avoid strenuous hikes/altitude spikes. "
+            f"Note the nearest pharmacy/hospital near the hotel on Day 1."
+        )
+    if profile.get('medications'):
+        rules.append(
+            "MEDICATIONS: Traveler takes regular medication — remind them in the Packing list "
+            "to carry prescriptions + a printed note in English and local language."
+        )
 
-    if profile.get('pace'):
-        lines.append(f"- Preferred pace: {profile['pace']} (no more than "
-                     f"{profile.get('max_activities_per_day', 5)} activities/day).")
+    # ── Pace ──
+    pace = profile.get('pace')
+    if pace:
+        max_acts = profile.get('max_activities_per_day', 5)
+        rules.append(
+            f"PACE: Keep it **{pace}** — NO MORE than **{max_acts} major activities per day** "
+            f"(meals don't count). Include a mid-afternoon rest/café break."
+        )
 
+    # ── Languages — make this ACTIVE, not passive ──
     if profile.get('languages_spoken'):
         langs = ', '.join(profile['languages_spoken'])
-        lines.append(f"- Languages spoken: {langs}. Flag notable language barriers and phrases to learn.")
+        rules.append(
+            f"LANGUAGE: Traveler speaks **{langs}**. For a destination where the local language is "
+            f"NOT in this list, add a **\"Phrase of the day\"** line to each day with 1 useful "
+            f"local-language phrase (with pronunciation) — e.g., greeting, ordering, asking for "
+            f"help, directions. Also flag 2 venues where English/traveler's language is reliably "
+            f"spoken. If the local language IS one of the traveler's languages, skip the phrase "
+            f"coaching and instead note cultural speech nuances (formal vs. informal)."
+        )
 
+    # ── Style / budget / prefs ──
     if profile.get('trip_style'):
-        lines.append(f"- Preferred travel style: {profile['trip_style']}.")
+        rules.append(f"STYLE: Traveler prefers **{profile['trip_style']}** trips — tune activity "
+                     f"selection to match (e.g., adventure ≠ luxury spa day).")
     if profile.get('budget_range'):
-        lines.append(f"- Budget range: {profile['budget_range']} — scale recommendations accordingly.")
-
+        rules.append(f"BUDGET RANGE: **{profile['budget_range']}** — scale every recommended "
+                     f"restaurant/activity/hotel tier accordingly.")
     if profile.get('preferred_airlines'):
-        lines.append(f"- Preferred airlines: {', '.join(profile['preferred_airlines'])}.")
+        rules.append(f"AIRLINES: Prefer {', '.join(profile['preferred_airlines'])} when flight "
+                     f"options are roughly equivalent on price and schedule.")
     if profile.get('preferred_hotel_chains'):
-        lines.append(f"- Preferred hotel chains: {', '.join(profile['preferred_hotel_chains'])}.")
+        rules.append(f"HOTEL CHAINS: Prefer {', '.join(profile['preferred_hotel_chains'])} "
+                     f"properties when available and comparable.")
     if profile.get('preferred_cuisines'):
-        lines.append(f"- Preferred cuisines: {', '.join(profile['preferred_cuisines'])}.")
+        rules.append(f"FAVORED CUISINES: Lean toward {', '.join(profile['preferred_cuisines'])} "
+                     f"when picking meals (still respect dietary/faith rules above).")
 
-    # Travel DNA headline (abbreviated)
+    # ── Travel DNA + memory signals ──
     dna = ctx.get('travel_dna') or {}
     dest_dna = dna.get('destinations') or {}
     if dest_dna.get('favorite_destinations'):
         favs = ', '.join(dest_dna['favorite_destinations'][:5])
-        lines.append(f"- Past favorite destinations: {favs}.")
-    style_dna = dna.get('style') or {}
-    if style_dna.get('style'):
-        lines.append(f"- Historical travel style signal: {style_dna['style']}.")
+        rules.append(f"PAST FAVORITES: Traveler enjoyed {favs}. Echo patterns they liked if relevant.")
 
-    # Trip memories
     memories = ctx.get('recent_memories') or []
-    if memories:
-        lines.append('- Recent trip feedback (learn from these):')
-        for m in memories[:3]:
-            bits = []
-            if m.get('destination'):
-                bits.append(m['destination'])
-            if m.get('sentiment'):
-                bits.append(f"felt {m['sentiment']}")
-            if m.get('rating') is not None:
-                bits.append(f"{m['rating']}/5")
-            if m.get('highlights'):
-                bits.append(f"loved: {', '.join(m['highlights'])}")
-            if m.get('lowlights'):
-                bits.append(f"disliked: {', '.join(m['lowlights'])}")
-            lines.append(f"  • {' — '.join(bits)}")
+    loved: List[str] = []
+    disliked: List[str] = []
+    for m in memories[:3]:
+        for h in (m.get('highlights') or [])[:3]:
+            loved.append(h)
+        for l in (m.get('lowlights') or [])[:3]:
+            disliked.append(l)
+    if loved:
+        rules.append(f"LOVED PREVIOUSLY: {', '.join(loved[:5])}. Try to include similar experiences.")
+    if disliked:
+        rules.append(f"DISLIKED PREVIOUSLY: {', '.join(disliked[:5])}. AVOID these patterns entirely.")
+
+    if not rules:
+        return ''
+
+    lines: List[str] = [
+        '',
+        '## 🎯 TRAVELER PROFILE — BINDING CONSTRAINTS (NOT SUGGESTIONS)',
+        '',
+        'The following rules come from the traveler\'s saved preferences. You MUST honor',
+        'every one of them in the itinerary. For each day you produce, silently verify the',
+        'plan against each rule below — if any activity violates a rule, REPLACE it before',
+        'writing the final output. Do not simply list the preferences back; the plan itself',
+        'must visibly reflect them (e.g., name a halal restaurant, include a prayer break,',
+        'add a local phrase, flag accessible venues).',
+        '',
+    ]
+    for i, r in enumerate(rules, start=1):
+        lines.append(f"{i}. {r}")
 
     lines.append('')
+    lines.append('## 📋 PER-DAY PERSONALIZATION CHECK (include in each day)')
+    checks: List[str] = []
+    if diet or profile.get('dietary_allergies'):
+        checks.append("meals are dietary/allergy-compatible and labeled so")
+    if faith and faith != 'none':
+        checks.append("a Faith note / worship cue / halal-or-kosher restaurant is present")
+    if profile.get('prayer_reminders'):
+        checks.append("prayer-time gaps are respected")
+    if mobility and mobility != 'full':
+        checks.append("every venue is accessible")
+    if profile.get('max_walking_km_per_day'):
+        checks.append(f"walking stays under {profile['max_walking_km_per_day']} km")
+    if profile.get('languages_spoken'):
+        checks.append("a Phrase of the Day is included (when local language differs)")
+    if pace:
+        checks.append(f"no more than {profile.get('max_activities_per_day', 5)} major activities")
+    if checks:
+        lines.append('Each day must silently satisfy ALL of: ' + '; '.join(checks) + '.')
+    lines.append('')
+
     return '\n'.join(lines)

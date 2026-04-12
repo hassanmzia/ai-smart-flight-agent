@@ -366,16 +366,20 @@ Return a JSON object with this structure (no markdown, raw JSON only):
       "day_number": 1,
       "date": "YYYY-MM-DD",
       "title": "Day theme",
+      "phrase_of_the_day": "Optional — a useful local-language phrase + pronunciation. Include when the local language is NOT in the traveler's languages_spoken list. Omit if not applicable.",
+      "faith_note": "Optional — 1 line naming a nearby worship place / halal-or-kosher option / faith etiquette. Include when traveler's faith is set (not 'none'). Omit otherwise.",
+      "walking_km_estimate": "Optional number — total walking km for the day. Include when the traveler has a max_walking_km_per_day limit.",
       "items": [
         {
           "time": "09:00",
           "title": "Activity name",
-          "type": "flight|checkin|attraction|restaurant|transport|shopping|relaxation",
+          "type": "flight|checkin|attraction|restaurant|transport|shopping|relaxation|prayer_break",
           "description": "Brief description",
           "location": "Specific place name",
           "estimated_cost": number,
           "duration_hours": number,
-          "tips": "Helpful tip"
+          "tips": "Helpful tip",
+          "personalization_notes": "Short note on how this honors the Traveler Profile — e.g. 'Halal-certified', 'Wheelchair-accessible entrance', 'Vegan menu available', 'Near mosque', 'Quiet pace'. Include whenever a profile dimension applies. Use empty string if no profile dimension applies."
         }
       ]
     }
@@ -405,7 +409,14 @@ Create an optimized day-by-day plan following these rules:
 5. LOGISTICS: First day should include arrival/check-in with lighter activities. Last day should include checkout/departure with morning-only plans.
 6. TRANSPORT: Add a transport item between distant locations with estimated travel time.
 7. ACCOMMODATION: If vacation rental data is available and there are 4+ travelers, compare hotel vs rental total cost and recommend the better value. Include "recommended_rental" in the JSON if a rental is a good fit (shared kitchen saves on meals, whole-property pricing split across travelers). Set it to null if hotels are clearly better.
-8. PERSONALIZATION: Honor the Traveler Profile above as binding constraints, not suggestions. Match restaurant choices to dietary needs and allergies. Respect faith requirements (prayer-friendly stops, worship places, halal/kosher where applicable). Stay within mobility/walking limits and pacing (max activities/day). Prefer the traveler's favored cuisines, airlines, and hotel styles when options are equivalent. Avoid patterns the traveler has disliked on past trips."""
+8. PERSONALIZATION (BINDING — the plan MUST visibly reflect the Traveler Profile above):
+   - DIETARY/ALLERGIES: Every restaurant item MUST be compatible with the traveler's dietary_preference and allergies. Name only compatible restaurants and put the compatibility in `personalization_notes` (e.g., "Halal", "Vegan menu", "No peanuts").
+   - FAITH: If faith is set and faith_site_interest is true, include at least one worship-site visit across the trip. On every day, set `faith_note` to a short faith-aware line (nearby mosque/church/temple, kosher deli, dress code tip). If prayer_reminders is true, add `prayer_break` items at midday/afternoon/sunset windows (15-min duration, $0 cost).
+   - MOBILITY: If mobility is not 'full', every attraction/restaurant item MUST be accessible — state "wheelchair-accessible" or "step-free" in `personalization_notes`. Exclude stairs-only or steep-terrain venues.
+   - WALKING: If max_walking_km_per_day is set, keep each day's walking under it. Set `walking_km_estimate` on each day.
+   - LANGUAGE: If the destination's primary language is NOT in the traveler's languages_spoken, set `phrase_of_the_day` on every day to a useful phrase + pronunciation. Pick different phrases each day (greeting, ordering food, asking directions, emergency help, please/thank-you, numbers, etc.).
+   - PACE: Never exceed max_activities_per_day major activities (meals don't count).
+   - PREFERENCES: Prefer the traveler's favored cuisines, airlines, and hotel chains when options are equivalent. Avoid patterns on the traveler's "disliked previously" list."""
 
             response = model.invoke([
                 SystemMessage(content=system),
