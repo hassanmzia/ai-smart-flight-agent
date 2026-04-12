@@ -995,6 +995,16 @@ If the above attractions data is limited, use your knowledge to add the top 8-10
 
 {"11. **HONOR THE TRAVELER PROFILE (BINDING)**: The Traveler Profile section at the top lists dietary, faith, mobility, language, pace, and allergy constraints. Every single restaurant, activity, transport note, and venue you write MUST be consistent with those constraints. If the profile says halal, name halal restaurants. If it says wheelchair-accessible, every major stop must be accessible and you must say so inline. If it says prayer-reminders, leave gaps for prayer and add a 🕌 line at the right times. If the traveler's languages do not include the local language, add a **Phrase of the Day** line under each day header with a useful local phrase and pronunciation. If the profile says low-walking, cap each day's walking and include a walking-km note. Never ignore these — the plan must visibly demonstrate the profile was honored." if personalization_block else ""}
 
+12. **SAFETY-AWARE SELECTION**: Cross-reference every hotel, restaurant, and neighborhood suggestion against the Safety Information above. If a place falls inside `safety.areas_to_avoid`, SKIP it and pick a safer alternative. Surface 1-2 of the top `safety.scam_warnings` as bullets in the "Good to Know" section. If `safety.tap_water_safe` is false, add "Refillable water bottle + water purification tablets or bottled water budget" to the Packing Checklist and mention it briefly in "Good to Know".
+
+13. **MUST-TRY DISHES**: Using `food_scene.must_try_dishes`, weave 2-3 of those SPECIFIC named dishes into dinner/lunch stops across different days — name the dish AND a restaurant where it's known (e.g., "Try **pad kra pao** at ..."). Don't list dishes in isolation; schedule them.
+
+14. **USE LOCAL PHRASES AS SOURCE**: When you produce a "Phrase of the Day" line (per Traveler Profile), source it from `local_customs.useful_phrases` if available — pick a different phrase each day (greeting → ordering → asking for help → thank-you). If `useful_phrases` is empty, use your knowledge of the destination's primary language.
+
+15. **LOCAL CUSTOMS DRIVE RECOMMENDATIONS**: If `local_customs.dress_code` notes a specific rule (e.g., "cover shoulders in temples"), add it to "Good to Know" AND remind the traveler to dress appropriately on days that include religious/faith sites. Reflect `local_customs.dining_etiquette` in the tone of restaurant notes (e.g., "remove shoes at entry", "tipping ~10% is expected").
+
+16. **TRANSPORT DECISION IS BINDING**: The "Getting Around" section MUST adopt whatever `best_transport.recommendation` says (public_transit / car_rental / mixed). Do NOT contradict it elsewhere in the plan — if it says public_transit, every transport line should be metro/bus/walk/rideshare, not rentals.
+
 ---
 
 ## OUTPUT FORMAT (follow this structure exactly):

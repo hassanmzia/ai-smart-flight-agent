@@ -246,34 +246,25 @@ class SmartItineraryBuilder:
             return None
 
     def _get_destination_intelligence(self, kwargs):
-        """Get enhanced destination intelligence from LLM."""
+        """
+        Reuse the full structured destination-intelligence agent from views.py
+        (weather_by_day, safety, best_transport, local_events, must_see_attractions,
+        food_scene, local_customs, packing_essentials) so the Smart Itinerary
+        Builder is as informed as the main /plan-travel narrative path.
+
+        Falls back to None on any failure — callers handle that.
+        """
         try:
-            import os
-            openai_key = getattr(settings, 'OPENAI_API_KEY', os.getenv('OPENAI_API_KEY', ''))
-            if not openai_key or openai_key in ('your_openai_api_key_here', ''):
-                return None
-
-            from langchain_openai import ChatOpenAI
-            from langchain.schema import HumanMessage
-
-            model = ChatOpenAI(
-                model='gpt-4o-mini',
-                temperature=0.3,
-                api_key=openai_key,
-                request_timeout=30,
+            from .views import _gather_enhanced_agent_data
+            enhanced = _gather_enhanced_agent_data(
+                destination=kwargs['destination'],
+                origin=kwargs.get('origin', ''),
+                departure_date=kwargs['start_date'],
+                return_date=kwargs['end_date'],
+                cuisine=kwargs.get('preferences', {}).get('cuisine', ''),
             )
-
-            prompt = f"""Provide a brief travel intelligence summary for {kwargs['destination']}
-for dates {kwargs['start_date']} to {kwargs['end_date']}. Include:
-- Best neighborhoods to stay
-- Must-try local dishes (top 5)
-- Key safety tips
-- Local transport recommendations
-- Cultural tips
-Return as concise bullet points."""
-
-            response = model.invoke([HumanMessage(content=prompt)])
-            return response.content
+            # Return the full structured intel dict (same shape the Intelligence tab renders).
+            return enhanced.get('destination_intelligence') or None
         except Exception as e:
             logger.warning(f"Destination intelligence failed: {e}")
             return None
@@ -322,11 +313,57 @@ Return as concise bullet points."""
         if gathered.get('weather'):
             context_parts.append(f"Weather: {json.dumps(gathered['weather'], default=str)[:300]}")
 
-        if gathered.get('intelligence'):
-            context_parts.append(f"Local intelligence: {gathered['intelligence'][:500]}")
+        # ── Structured destination intelligence (same shape as the Intelligence
+        # tab in the UI). Surface each sub-field under its own header so the
+        # LLM can actually use safety / transport / customs / food_scene / events
+        # / must_see when making day-by-day choices, rather than treating this
+        # as an opaque text blob.
+        intel = gathered.get('intelligence') if isinstance(gathered.get('intelligence'), dict) else None
+        if intel:
+            if intel.get('weather_by_day'):
+                context_parts.append(
+                    f"Weather by day (use to pick indoor/outdoor activities): "
+                    f"{json.dumps(intel['weather_by_day'], default=str)[:800]}"
+                )
+            if intel.get('safety'):
+                context_parts.append(
+                    f"Safety (AVOID `areas_to_avoid` for hotels/restaurants; cite `scam_warnings` "
+                    f"in tips; if `tap_water_safe` is false, add water-bottle to packing): "
+                    f"{json.dumps(intel['safety'], default=str)[:800]}"
+                )
+            if intel.get('best_transport'):
+                context_parts.append(
+                    f"Transport (adopt `recommendation` — public_transit/car_rental/mixed — "
+                    f"everywhere in the plan): {json.dumps(intel['best_transport'], default=str)[:600]}"
+                )
+            if intel.get('local_events'):
+                context_parts.append(
+                    f"Local events during the trip (schedule onto the matching date): "
+                    f"{json.dumps(intel['local_events'], default=str)[:800]}"
+                )
+            if intel.get('local_customs'):
+                context_parts.append(
+                    f"Local customs (reflect `dress_code` / `dining_etiquette` in notes; "
+                    f"use `useful_phrases` as source for phrase_of_the_day): "
+                    f"{json.dumps(intel['local_customs'], default=str)[:800]}"
+                )
+            if intel.get('must_see_attractions'):
+                context_parts.append(
+                    f"Must-see attractions (pick 2-3 per day across the trip, use real names): "
+                    f"{json.dumps(intel['must_see_attractions'], default=str)[:1200]}"
+                )
+            if intel.get('food_scene'):
+                context_parts.append(
+                    f"Food scene (weave 2-3 `must_try_dishes` into dinners across different days): "
+                    f"{json.dumps(intel['food_scene'], default=str)[:600]}"
+                )
+            if intel.get('packing_essentials'):
+                context_parts.append(
+                    f"Packing essentials: {json.dumps(intel['packing_essentials'], default=str)[:400]}"
+                )
 
         if gathered.get('attractions'):
-            context_parts.append(f"Attractions: {json.dumps(gathered['attractions'], default=str)[:500]}")
+            context_parts.append(f"Attractions (from Maps API): {json.dumps(gathered['attractions'], default=str)[:500]}")
 
         context_text = '\n\n'.join(context_parts)
 
@@ -402,21 +439,25 @@ Available data:
 {personalization_block}
 
 Create an optimized day-by-day plan following these rules:
-1. WEATHER-AWARE: Schedule outdoor activities (parks, beaches, walking tours) on sunny/clear days. Move indoor activities (museums, shopping, spas) to rainy or overcast days. Use the weather data to assign activities accordingly.
+1. WEATHER-AWARE: Schedule outdoor activities (parks, beaches, walking tours) on sunny/clear days using `weather_by_day`. Move indoor activities (museums, shopping, spas) to rainy or overcast days. Reference the per-day condition/rain_chance when assigning activities.
 2. PROXIMITY GROUPING: Cluster nearby attractions on the same day to minimize transit time. Order activities geographically so travelers move in one direction, not back-and-forth.
-3. MEALS: Include breakfast, lunch, and dinner spots near the day's activities.
-4. PACING: Alternate high-energy and relaxed activities. No more than 3 major attractions per day.
+3. MEALS: Include breakfast, lunch, and dinner spots near the day's activities. Weave 2-3 dishes from `food_scene.must_try_dishes` into dinners across different days — name the dish AND the restaurant.
+4. PACING: Alternate high-energy and relaxed activities. No more than 3 major attractions per day (or the Traveler Profile's max_activities_per_day if stricter).
 5. LOGISTICS: First day should include arrival/check-in with lighter activities. Last day should include checkout/departure with morning-only plans.
-6. TRANSPORT: Add a transport item between distant locations with estimated travel time.
-7. ACCOMMODATION: If vacation rental data is available and there are 4+ travelers, compare hotel vs rental total cost and recommend the better value. Include "recommended_rental" in the JSON if a rental is a good fit (shared kitchen saves on meals, whole-property pricing split across travelers). Set it to null if hotels are clearly better.
+6. TRANSPORT: Every transport item between distant locations MUST match `best_transport.recommendation`. If it's `public_transit`, use metro/bus/walk/rideshare; if `car_rental`, use the car; if `mixed`, choose whichever fits the stop. Include estimated travel time for each transfer.
+7. ACCOMMODATION: If vacation rental data is available and there are 4+ travelers, compare hotel vs rental total cost and recommend the better value. Include "recommended_rental" in the JSON if a rental is a good fit (shared kitchen saves on meals, whole-property pricing split across travelers). Set it to null if hotels are clearly better. Also cross-check every hotel/rental against `safety.areas_to_avoid` — skip picks that fall inside those areas.
 8. PERSONALIZATION (BINDING — the plan MUST visibly reflect the Traveler Profile above):
    - DIETARY/ALLERGIES: Every restaurant item MUST be compatible with the traveler's dietary_preference and allergies. Name only compatible restaurants and put the compatibility in `personalization_notes` (e.g., "Halal", "Vegan menu", "No peanuts").
    - FAITH: If faith is set and faith_site_interest is true, include at least one worship-site visit across the trip. On every day, set `faith_note` to a short faith-aware line (nearby mosque/church/temple, kosher deli, dress code tip). If prayer_reminders is true, add `prayer_break` items at midday/afternoon/sunset windows (15-min duration, $0 cost).
    - MOBILITY: If mobility is not 'full', every attraction/restaurant item MUST be accessible — state "wheelchair-accessible" or "step-free" in `personalization_notes`. Exclude stairs-only or steep-terrain venues.
    - WALKING: If max_walking_km_per_day is set, keep each day's walking under it. Set `walking_km_estimate` on each day.
-   - LANGUAGE: If the destination's primary language is NOT in the traveler's languages_spoken, set `phrase_of_the_day` on every day to a useful phrase + pronunciation. Pick different phrases each day (greeting, ordering food, asking directions, emergency help, please/thank-you, numbers, etc.).
+   - LANGUAGE: If the destination's primary language is NOT in the traveler's languages_spoken, set `phrase_of_the_day` on every day. Source phrases from `local_customs.useful_phrases` when available, otherwise use your knowledge. Different phrase each day (greeting → ordering food → directions → thank-you → emergency help).
    - PACE: Never exceed max_activities_per_day major activities (meals don't count).
-   - PREFERENCES: Prefer the traveler's favored cuisines, airlines, and hotel chains when options are equivalent. Avoid patterns on the traveler's "disliked previously" list."""
+   - PREFERENCES: Prefer the traveler's favored cuisines, airlines, and hotel chains when options are equivalent. Avoid patterns on the traveler's "disliked previously" list.
+9. MUST-SEE ATTRACTIONS: Each day (except arrival/departure) must include 2-3 items from `must_see_attractions`, using the exact `name` field. Spread the top picks across days so no single day is empty.
+10. LOCAL EVENTS: Any event in `local_events` whose `date` falls within the trip MUST be scheduled onto that exact date as an item. Don't invent dates — match them.
+11. SAFETY NOTES: Include 1-2 of `safety.scam_warnings` in `travel_tips`. If `safety.tap_water_safe` is false, add "Water bottle / water purification" to `packing_list` AND add a morning "Grab bottled water" line on Day 1. Put `safety.emergency_number` in `travel_tips`.
+12. LOCAL CUSTOMS: If `local_customs.dress_code` is notable (e.g., cover shoulders in temples), add it to `travel_tips`. If `local_customs.dining_etiquette` has a specific rule (tipping %, remove shoes, no pork), reflect it in the `tips` field of relevant restaurant items."""
 
             response = model.invoke([
                 SystemMessage(content=system),
