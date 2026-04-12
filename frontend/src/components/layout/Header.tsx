@@ -131,6 +131,7 @@ const myTripsItems: DropdownItem[] = [
   { to: ROUTES.ITINERARY, icon: '📋', label: 'My Trips' },
   { to: ROUTES.COLLABORATE, icon: '👥', label: 'Collaborate' },
   { to: ROUTES.TRIP_MAP, icon: '🌍', label: 'My Travel Map' },
+  { to: ROUTES.TRAVEL_PROFILE, icon: '🧬', label: 'My Travel DNA' },
 ];
 
 /* ------------------------------------------------------------------ */
