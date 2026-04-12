@@ -585,8 +585,10 @@ const AIPlannerPage = () => {
         </div>
       )}
 
-      {/* Pre-trip Intelligence Hub — shows once user has entered a destination */}
-      {!loading && !result && destinationCity && (
+      {/* Pre-trip Intelligence Hub — shows once user has entered a destination,
+          stays visible even after the plan is generated so customers can explore
+          predictions, safety, health, language, deals, etc. throughout the flow. */}
+      {!loading && destinationCity && (
         <TripIntelligencePanel
           destination={destinationLabel}
           startDate={departureDate}

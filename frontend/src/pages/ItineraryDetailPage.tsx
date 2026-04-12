@@ -556,6 +556,19 @@ const ItineraryDetailPage = () => {
         )}
       </Card>
 
+      {/* Trip Intelligence Hub — stage-aware feature discovery.
+          Placed above the day-by-day plan so it's visible without scrolling
+          and adapts automatically as the trip moves through its lifecycle. */}
+      {!isNewItinerary && formData.destination && (
+        <TripIntelligencePanel
+          destination={formData.destination}
+          startDate={formData.start_date}
+          endDate={formData.end_date}
+          travelers={formData.number_of_travelers}
+          status={itineraryStatus}
+        />
+      )}
+
       {/* Day-by-Day Plan */}
       {!isNewItinerary && id && formData.start_date && formData.end_date && (
         <div className="mb-6">
@@ -567,17 +580,6 @@ const ItineraryDetailPage = () => {
             onUpdate={handleDaysUpdate}
           />
         </div>
-      )}
-
-      {/* Trip Intelligence Hub — stage-aware feature discovery */}
-      {!isNewItinerary && formData.destination && (
-        <TripIntelligencePanel
-          destination={formData.destination}
-          startDate={formData.start_date}
-          endDate={formData.end_date}
-          travelers={formData.number_of_travelers}
-          status={itineraryStatus}
-        />
       )}
 
       {/* PDF Export & Email */}
