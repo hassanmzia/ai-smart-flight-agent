@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
@@ -51,6 +52,7 @@ const DISCOUNT_LABELS: Record<string, string> = {
 type Tab = 'coupons' | 'referrals' | 'partner';
 
 export default function PartnershipsPage() {
+  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState<Tab>('coupons');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -58,6 +60,12 @@ export default function PartnershipsPage() {
   const [loading, setLoading] = useState(false);
   const [destination, setDestination] = useState('');
   const [category, setCategory] = useState('');
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setDestination(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [referralEmail, setReferralEmail] = useState('');
   const [copiedCode, setCopiedCode] = useState('');
   // Partner registration

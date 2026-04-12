@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
@@ -52,6 +53,7 @@ const SORT_OPTIONS = [
 type Tab = 'browse' | 'create' | 'my-templates';
 
 export default function TripGalleryPage() {
+  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState<Tab>('browse');
   const [templates, setTemplates] = useState<TripTemplate[]>([]);
@@ -62,6 +64,12 @@ export default function TripGalleryPage() {
   const [destination, setDestination] = useState('');
   const [style, setStyle] = useState('');
   const [sortBy, setSortBy] = useState('popular');
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setDestination(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const [genForm, setGenForm] = useState({ destination: '', duration_days: 3, style: 'adventure', budget: 0 });
   const [generating, setGenerating] = useState(false);

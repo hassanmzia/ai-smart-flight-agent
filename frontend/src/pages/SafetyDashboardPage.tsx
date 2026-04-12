@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/services/api';
 
@@ -81,6 +82,7 @@ function ScoreBar({ label, score, max = 100 }: { label: string; score: number; m
 }
 
 export default function SafetyDashboardPage() {
+  const [searchParams] = useSearchParams();
   const [destination, setDestination] = useState('');
   const [country, setCountry] = useState('');
   const [risk, setRisk] = useState<RiskAssessment | null>(null);
@@ -88,6 +90,12 @@ export default function SafetyDashboardPage() {
   const [alerts, setAlerts] = useState<SafetyAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'risk' | 'health' | 'alerts'>('risk');
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setDestination(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const assess = async () => {
     if (!destination.trim()) return;

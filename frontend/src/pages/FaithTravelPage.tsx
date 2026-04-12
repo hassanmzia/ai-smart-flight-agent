@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '@/services/api';
 import { API_ENDPOINTS } from '../utils/constants';
@@ -80,10 +81,17 @@ const QUICK_DESTINATIONS = [
 ];
 
 export default function FaithTravelPage() {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'prayer' | 'worship' | 'dietary' | 'spiritual' | 'ramadan'>('prayer');
   const [destination, setDestination] = useState('');
   const [selectedFaith, setSelectedFaith] = useState('islam');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setDestination(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Prayer times state
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);

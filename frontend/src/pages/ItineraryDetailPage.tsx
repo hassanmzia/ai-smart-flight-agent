@@ -7,6 +7,7 @@ import { createItinerary, getItinerary, updateItinerary, deleteItinerary } from 
 import { ItineraryPDFViewer } from '@/components/ItineraryPDFViewer';
 import DayByDayPlan from '@/components/DayByDayPlan';
 import TripFeedbackModal from '@/components/TripFeedbackModal';
+import TripIntelligencePanel from '@/components/TripIntelligencePanel';
 import { API_ENDPOINTS } from '@/utils/constants';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
@@ -566,6 +567,17 @@ const ItineraryDetailPage = () => {
             onUpdate={handleDaysUpdate}
           />
         </div>
+      )}
+
+      {/* Trip Intelligence Hub — stage-aware feature discovery */}
+      {!isNewItinerary && formData.destination && (
+        <TripIntelligencePanel
+          destination={formData.destination}
+          startDate={formData.start_date}
+          endDate={formData.end_date}
+          travelers={formData.number_of_travelers}
+          status={itineraryStatus}
+        />
       )}
 
       {/* PDF Export & Email */}

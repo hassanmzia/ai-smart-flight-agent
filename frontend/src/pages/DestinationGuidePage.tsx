@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/services/api';
 
@@ -88,6 +89,7 @@ function ScoreCircle({ score }: { score: number }) {
 }
 
 export default function DestinationGuidePage() {
+  const [searchParams] = useSearchParams();
   const [destination, setDestination] = useState('');
   const [selectedType, setSelectedType] = useState('must_visit');
   const [guide, setGuide] = useState<Guide | null>(null);
@@ -97,6 +99,12 @@ export default function DestinationGuidePage() {
   // Live context state
   const [liveCtx, setLiveCtx] = useState<Record<string, unknown> | null>(null);
   const [loadingCtx, setLoadingCtx] = useState(false);
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setDestination(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const fetchGuide = async (type?: string) => {
     const guideType = type || selectedType;
