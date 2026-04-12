@@ -88,7 +88,6 @@ const planItems: DropdownItem[] = [
   { to: ROUTES.CHAT, icon: '💬', label: 'AI Chat' },
   { to: ROUTES.AGENT_HUB, icon: '🧠', label: 'Agent Hub' },
   { to: ROUTES.PREDICTIONS, icon: '📊', label: 'Predictions' },
-  { to: ROUTES.PRICING, icon: '💎', label: 'Pricing & Plans' },
 ];
 
 const searchItems: DropdownItem[] = [

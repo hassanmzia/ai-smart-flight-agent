@@ -6,8 +6,9 @@ import Input from '@/components/common/Input';
 import { toast } from 'react-hot-toast';
 import profileService, { UpdateUserData, UpdateProfileData, ChangePasswordData } from '@/services/profileService';
 import { UserCircleIcon, CameraIcon } from '@heroicons/react/24/outline';
+import PricingPage from './PricingPage';
 
-type TabType = 'account' | 'profile' | 'security' | 'preferences';
+type TabType = 'account' | 'profile' | 'security' | 'preferences' | 'pricing';
 
 const ProfilePage = () => {
   useRequireAuth();
@@ -166,6 +167,7 @@ const ProfilePage = () => {
     { id: 'profile' as TabType, label: 'Profile', icon: '📝' },
     { id: 'security' as TabType, label: 'Security', icon: '🔒' },
     { id: 'preferences' as TabType, label: 'Preferences', icon: '⚙️' },
+    { id: 'pricing' as TabType, label: 'Pricing & Plans', icon: '💎' },
   ];
 
   return (
@@ -576,6 +578,15 @@ const ProfilePage = () => {
                   </label>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pricing & Plans Tab */}
+        {activeTab === 'pricing' && (
+          <Card>
+            <CardContent>
+              <PricingPage embedded />
             </CardContent>
           </Card>
         )}
