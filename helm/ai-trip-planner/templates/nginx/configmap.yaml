@@ -26,7 +26,7 @@ data:
         listen 80;
         server_name {{ .Values.global.domain }};
 
-        location /health {
+        location = /health {
             access_log off;
             return 200 'OK';
             add_header Content-Type text/plain;
