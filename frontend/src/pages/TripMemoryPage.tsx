@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/services/api';
 
@@ -65,6 +66,7 @@ function StarRating({
 }
 
 export default function TripMemoryPage() {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'memories' | 'add' | 'insights' | 'suggestions'>(
     'memories'
   );
@@ -76,6 +78,12 @@ export default function TripMemoryPage() {
   /* ─── Add Memory Form ─── */
   const [formDest, setFormDest] = useState('');
   const [formDate, setFormDate] = useState('');
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setFormDest(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [formSentiment, setFormSentiment] = useState('liked');
   const [formRating, setFormRating] = useState(4);
   const [formHighlights, setFormHighlights] = useState('');

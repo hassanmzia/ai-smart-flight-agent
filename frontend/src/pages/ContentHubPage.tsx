@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
@@ -40,6 +41,7 @@ const TYPE_COLORS: Record<string, string> = {
 type Tab = 'explore' | 'submit' | 'my-content' | 'trending';
 
 export default function ContentHubPage() {
+  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState<Tab>('explore');
   const [content, setContent] = useState<ContentItemData[]>([]);
@@ -55,6 +57,12 @@ export default function ContentHubPage() {
     tags: '',
   });
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setDestination(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const fetchContent = useCallback(async () => {
     if (!destination.trim()) return;

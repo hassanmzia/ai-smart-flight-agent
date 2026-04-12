@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '@/services/api';
 import { API_ENDPOINTS } from '../utils/constants';
@@ -87,9 +88,16 @@ const TIMEZONES = [
 ];
 
 export default function HealthTravelPage() {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'medical' | 'accessibility' | 'medication' | 'insurance' | 'fatigue'>('medical');
   const [destination, setDestination] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setDestination(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Medical facilities
   const [facilities, setFacilities] = useState<MedicalFacility[]>([]);

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/services/api';
 
@@ -55,6 +56,7 @@ function ScoreCircle({ score, label, size = 'md' }: { score: number | null; labe
 }
 
 export default function AIRatingsPage() {
+  const [searchParams] = useSearchParams();
   const [entityType, setEntityType] = useState('destination');
   const [entityName, setEntityName] = useState('');
   const [destination, setDestination] = useState('');
@@ -62,6 +64,12 @@ export default function AIRatingsPage() {
   const [prediction, setPrediction] = useState<EnjoymentPrediction | null>(null);
   const [loading, setLoading] = useState(false);
   const [predicting, setPredicting] = useState(false);
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setDestination(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const getAIRating = async () => {
     if (!entityName.trim() || !destination.trim()) return;

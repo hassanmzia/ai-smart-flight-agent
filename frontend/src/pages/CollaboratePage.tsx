@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/common';
 import Button from '@/components/common/Button';
@@ -25,11 +26,18 @@ interface VoteItem {
 }
 
 const CollaboratePage = () => {
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'my-trips' | 'create' | 'join'>('my-trips');
   const [inviteEmail, setInviteEmail] = useState('');
   const [tripName, setTripName] = useState('');
   const [destination, setDestination] = useState('');
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setDestination(dest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Mock data for demonstration
   const [collaborators] = useState<Collaborator[]>([

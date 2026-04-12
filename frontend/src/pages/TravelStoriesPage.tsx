@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
@@ -42,6 +43,7 @@ const FORMAT_OPTIONS = [
 type Tab = 'explore' | 'create' | 'my-stories';
 
 export default function TravelStoriesPage() {
+  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState<Tab>('explore');
   const [stories, setStories] = useState<Story[]>([]);
@@ -56,6 +58,12 @@ export default function TravelStoriesPage() {
     highlights: '',
   });
   const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    const dest = searchParams.get('destination');
+    if (dest) setForm((prev) => ({ ...prev, destination: dest }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const fetchPublicStories = useCallback(async () => {
     setLoading(true);
