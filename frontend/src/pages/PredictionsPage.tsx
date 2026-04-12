@@ -278,8 +278,8 @@ const PredictionsPage = () => {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 -mt-6">
-        <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+        <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide">
           {([
             { key: 'experience', icon: '✨', label: 'Trip Experience' },
             { key: 'prices', icon: '💰', label: 'Price Forecast' },
@@ -290,13 +290,13 @@ const PredictionsPage = () => {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex-shrink-0 px-3 sm:px-5 py-2.5 sm:py-3 rounded-t-xl font-semibold text-xs sm:text-sm text-center transition-all flex items-center gap-1.5 ${
+              className={`flex-shrink-0 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm text-center transition-all flex items-center gap-2 border ${
                 activeTab === tab.key
-                  ? 'bg-white dark:bg-gray-800 text-teal-600 dark:text-teal-400 shadow-lg'
-                  : 'bg-white/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800'
+                  ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white shadow-lg border-transparent'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500 hover:shadow-md'
               }`}
             >
-              <span>{tab.icon}</span>
+              <span className="text-base">{tab.icon}</span>
               <span>{tab.label}</span>
             </button>
           ))}
@@ -304,7 +304,7 @@ const PredictionsPage = () => {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8">
         {/* Trip Experience Tab */}
         {activeTab === 'experience' && (
           <div className="space-y-6">
