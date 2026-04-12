@@ -261,10 +261,10 @@ const PredictionsPage = () => {
             <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
             AI-Powered Travel Intelligence
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-4 leading-tight">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold mb-3 leading-tight">
             Preview Your Trip <span className="bg-gradient-to-r from-amber-300 to-pink-300 bg-clip-text text-transparent">Before You Go</span>
           </h1>
-          <p className="text-base sm:text-lg text-white/90 max-w-2xl">
+          <p className="text-sm sm:text-base text-white/90 max-w-2xl">
             Live a preview of your upcoming adventure — weather vibes, local food, hidden gems, cultural moments, and what a day feels like on the ground. All powered by AI.
           </p>
           <div className="mt-6 flex flex-wrap gap-2 text-xs">
