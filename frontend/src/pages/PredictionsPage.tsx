@@ -305,11 +305,331 @@ const PredictionsPage = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Trip Experience Tab (placeholder, filled in step 2) */}
+        {/* Trip Experience Tab */}
         {activeTab === 'experience' && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center text-gray-500 dark:text-gray-400">
-            <p className="text-4xl mb-3">✨</p>
-            <p>Trip Experience Preview — coming up next.</p>
+          <div className="space-y-6">
+            {/* Input form */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-3xl">✨</span>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Preview Your Trip Experience</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Feel the destination before you even pack.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <input
+                  type="text"
+                  placeholder="Destination (e.g., Kyoto, Japan)"
+                  value={expDest}
+                  onChange={(e) => setExpDest(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <input
+                  type="date"
+                  value={expStart}
+                  onChange={(e) => setExpStart(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <input
+                  type="date"
+                  value={expEnd}
+                  onChange={(e) => setExpEnd(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  placeholder="Travelers"
+                  value={expTravelers}
+                  onChange={(e) => setExpTravelers(parseInt(e.target.value) || 1)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={handleTripExperience}
+                disabled={expLoading || !expDest || !expStart || !expEnd}
+                className="mt-4 px-6 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all flex items-center gap-2"
+              >
+                {expLoading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    Crafting your preview...
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span> Generate Experience Preview
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Skeleton while loading */}
+            {expLoading && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 animate-pulse">
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-3"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full mb-2"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Results */}
+            {tripExperience && !expLoading && (
+              <div className="space-y-6">
+                {/* Hero card */}
+                <div className="relative bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-3xl shadow-xl p-8 text-white overflow-hidden">
+                  <div className="absolute top-4 right-4 text-5xl opacity-80">{tripExperience.vibe_emoji}</div>
+                  <p className="text-xs uppercase tracking-widest text-white/70 mb-2">Your Preview</p>
+                  <h3 className="text-3xl sm:text-4xl font-extrabold mb-2">{tripExperience.destination}</h3>
+                  {tripExperience.tagline && (
+                    <p className="text-lg text-white/90 italic">"{tripExperience.tagline}"</p>
+                  )}
+                  {tripExperience.trip_score && (
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <div className="px-4 py-2 bg-white/15 backdrop-blur-sm rounded-xl border border-white/20">
+                        <p className="text-xs text-white/70">Overall Score</p>
+                        <p className="text-2xl font-bold">{tripExperience.trip_score.overall}/100</p>
+                      </div>
+                      <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+                        {[
+                          { label: 'Adventure', value: tripExperience.trip_score.adventure, icon: '🧗' },
+                          { label: 'Relax', value: tripExperience.trip_score.relaxation, icon: '🧘' },
+                          { label: 'Culture', value: tripExperience.trip_score.culture, icon: '🏛️' },
+                          { label: 'Food', value: tripExperience.trip_score.food, icon: '🍜' },
+                          { label: 'Value', value: tripExperience.trip_score.value, icon: '💎' },
+                        ].map((s) => (
+                          <div key={s.label} className="px-2 py-2 bg-white/10 rounded-lg">
+                            <p className="text-lg">{s.icon}</p>
+                            <p className="text-xs text-white/70">{s.label}</p>
+                            <p className="text-sm font-bold">{s.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Weather + Crowd + Budget */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {tripExperience.weather_preview && (
+                    <div className="bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20 rounded-2xl shadow-md p-6 border border-sky-100 dark:border-sky-800/40">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-2xl">🌤️</span>
+                        <h4 className="font-bold text-gray-900 dark:text-white">Weather Preview</h4>
+                      </div>
+                      <div className="flex items-baseline gap-2 mb-2">
+                        <span className="text-3xl font-bold text-sky-700 dark:text-sky-300">{tripExperience.weather_preview.avg_temp_high_c}°</span>
+                        <span className="text-lg text-gray-500 dark:text-gray-400">/ {tripExperience.weather_preview.avg_temp_low_c}°C</span>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">{tripExperience.weather_preview.summary}</p>
+                      <div className="text-xs text-sky-700 dark:text-sky-400 bg-white/60 dark:bg-sky-900/30 rounded-lg p-2">
+                        👕 {tripExperience.weather_preview.what_to_wear}
+                      </div>
+                    </div>
+                  )}
+                  {tripExperience.crowd_forecast && (
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-2xl shadow-md p-6 border border-amber-100 dark:border-amber-800/40">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-2xl">👥</span>
+                        <h4 className="font-bold text-gray-900 dark:text-white">Crowd Forecast</h4>
+                      </div>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase mb-3 ${
+                        tripExperience.crowd_forecast.level === 'low' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                        tripExperience.crowd_forecast.level === 'moderate' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                        'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                      }`}>{tripExperience.crowd_forecast.level.replace('_', ' ')}</span>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">{tripExperience.crowd_forecast.description}</p>
+                      <div className="text-xs text-amber-700 dark:text-amber-400 bg-white/60 dark:bg-amber-900/30 rounded-lg p-2">
+                        💡 {tripExperience.crowd_forecast.tip}
+                      </div>
+                    </div>
+                  )}
+                  {tripExperience.daily_budget && (
+                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-2xl shadow-md p-6 border border-emerald-100 dark:border-emerald-800/40">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-2xl">💰</span>
+                        <h4 className="font-bold text-gray-900 dark:text-white">Daily Budget</h4>
+                      </div>
+                      <div className="space-y-2 mb-3">
+                        <div className="flex justify-between text-sm"><span className="text-gray-600 dark:text-gray-400">Budget</span><span className="font-bold text-emerald-700 dark:text-emerald-400">${tripExperience.daily_budget.budget_usd}/day</span></div>
+                        <div className="flex justify-between text-sm"><span className="text-gray-600 dark:text-gray-400">Mid-range</span><span className="font-bold text-emerald-700 dark:text-emerald-400">${tripExperience.daily_budget.mid_range_usd}/day</span></div>
+                        <div className="flex justify-between text-sm"><span className="text-gray-600 dark:text-gray-400">Luxury</span><span className="font-bold text-emerald-700 dark:text-emerald-400">${tripExperience.daily_budget.luxury_usd}/day</span></div>
+                      </div>
+                      <div className="text-xs text-emerald-700 dark:text-emerald-400 bg-white/60 dark:bg-emerald-900/30 rounded-lg p-2">
+                        💱 {tripExperience.daily_budget.exchange_note}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* A Day in Your Trip */}
+                {tripExperience.a_day_in_your_trip && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                    <div className="flex items-center gap-2 mb-5">
+                      <span className="text-2xl">🌅</span>
+                      <h4 className="text-lg font-bold text-gray-900 dark:text-white">A Day in Your Trip</h4>
+                    </div>
+                    <div className="space-y-4">
+                      {[
+                        { label: 'Morning', icon: '☀️', text: tripExperience.a_day_in_your_trip.morning, color: 'from-amber-100 to-yellow-100 dark:from-amber-900/20 dark:to-yellow-900/20' },
+                        { label: 'Afternoon', icon: '🌆', text: tripExperience.a_day_in_your_trip.afternoon, color: 'from-orange-100 to-red-100 dark:from-orange-900/20 dark:to-red-900/20' },
+                        { label: 'Evening', icon: '🌙', text: tripExperience.a_day_in_your_trip.evening, color: 'from-indigo-100 to-purple-100 dark:from-indigo-900/20 dark:to-purple-900/20' },
+                      ].map((seg) => (
+                        <div key={seg.label} className={`bg-gradient-to-r ${seg.color} rounded-xl p-4 flex gap-4`}>
+                          <div className="text-3xl">{seg.icon}</div>
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400 mb-1">{seg.label}</p>
+                            <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">{seg.text}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cultural Highlights */}
+                {tripExperience.cultural_highlights && tripExperience.cultural_highlights.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-2xl">🏛️</span>
+                      <h4 className="text-lg font-bold text-gray-900 dark:text-white">Cultural Highlights</h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {tripExperience.cultural_highlights.map((h, i) => (
+                        <div key={i} className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                          <div className="text-3xl flex-shrink-0">{h.icon}</div>
+                          <div>
+                            <p className="font-semibold text-gray-900 dark:text-white">{h.title}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{h.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Food Scene */}
+                {tripExperience.food_scene && (
+                  <div className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20 rounded-2xl shadow-lg p-6 border border-rose-100 dark:border-rose-800/40">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">🍜</span>
+                      <h4 className="text-lg font-bold text-gray-900 dark:text-white">Food Scene</h4>
+                    </div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">{tripExperience.food_scene.summary}</p>
+                    {tripExperience.food_scene.must_try && tripExperience.food_scene.must_try.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                        {tripExperience.food_scene.must_try.map((dish, i) => (
+                          <div key={i} className="bg-white/70 dark:bg-gray-800/50 rounded-xl p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="font-semibold text-gray-900 dark:text-white">{dish.dish}</p>
+                              <span className="text-xs font-bold text-rose-600 dark:text-rose-400">{dish.price_range}</span>
+                            </div>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">{dish.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="text-xs text-rose-700 dark:text-rose-400 bg-white/60 dark:bg-rose-900/30 rounded-lg p-2">
+                      🍽️ {tripExperience.food_scene.dining_tip}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hidden Gems + Local Phrases */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {tripExperience.hidden_gems && tripExperience.hidden_gems.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-2xl">💎</span>
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">Hidden Gems</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {tripExperience.hidden_gems.map((g, i) => (
+                          <div key={i} className="flex gap-3 p-3 bg-gradient-to-r from-violet-50 to-fuchsia-50 dark:from-violet-900/20 dark:to-fuchsia-900/20 rounded-xl">
+                            <div className="text-2xl">{g.icon}</div>
+                            <div>
+                              <p className="font-semibold text-gray-900 dark:text-white text-sm">{g.name}</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">{g.why}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {tripExperience.local_phrases && tripExperience.local_phrases.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-2xl">💬</span>
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">Local Phrases</h4>
+                      </div>
+                      <div className="space-y-2">
+                        {tripExperience.local_phrases.map((p, i) => (
+                          <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                            <div className="flex-1">
+                              <p className="font-bold text-gray-900 dark:text-white">{p.phrase}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">🗣️ {p.pronunciation}</p>
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{p.meaning}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Packing + Safety */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {tripExperience.packing_essentials && tripExperience.packing_essentials.length > 0 && (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-2xl">🎒</span>
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">Packing Essentials</h4>
+                      </div>
+                      <ul className="space-y-2">
+                        {tripExperience.packing_essentials.map((item, i) => (
+                          <li key={i} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                            <span className="w-5 h-5 rounded-full bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {tripExperience.safety_wellness && (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-2xl">🛡️</span>
+                        <h4 className="text-lg font-bold text-gray-900 dark:text-white">Safety & Wellness</h4>
+                      </div>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase mb-3 ${
+                        tripExperience.safety_wellness.safety_level === 'very_safe' || tripExperience.safety_wellness.safety_level === 'safe' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                        tripExperience.safety_wellness.safety_level === 'moderate' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                        'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                      }`}>{tripExperience.safety_wellness.safety_level.replace('_', ' ')}</span>
+                      <ul className="space-y-2 mb-3">
+                        {tripExperience.safety_wellness.tips?.map((tip, i) => (
+                          <li key={i} className="text-sm text-gray-700 dark:text-gray-300 flex gap-2">
+                            <span className="text-blue-500">•</span>
+                            {tip}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="text-xs text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-lg p-2">
+                        🏥 {tripExperience.safety_wellness.health_note}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
