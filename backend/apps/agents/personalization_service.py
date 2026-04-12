@@ -13,6 +13,37 @@ from django.db.models import Count, Avg, Q
 logger = logging.getLogger(__name__)
 
 
+# ISO-639-1 -> human name. The LLM handles codes, but expanded names are
+# unambiguous (especially for less common codes like bn, ur, ta, te, etc.)
+# when we inject them into a prompt rule about phrase-of-the-day.
+ISO_639_NAMES: Dict[str, str] = {
+    'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
+    'it': 'Italian', 'pt': 'Portuguese', 'nl': 'Dutch', 'sv': 'Swedish',
+    'no': 'Norwegian', 'da': 'Danish', 'fi': 'Finnish', 'pl': 'Polish',
+    'ru': 'Russian', 'uk': 'Ukrainian', 'cs': 'Czech', 'sk': 'Slovak',
+    'hu': 'Hungarian', 'ro': 'Romanian', 'bg': 'Bulgarian', 'el': 'Greek',
+    'tr': 'Turkish', 'he': 'Hebrew', 'ar': 'Arabic', 'fa': 'Persian/Farsi',
+    'ur': 'Urdu', 'hi': 'Hindi', 'bn': 'Bengali', 'pa': 'Punjabi',
+    'ta': 'Tamil', 'te': 'Telugu', 'ml': 'Malayalam', 'kn': 'Kannada',
+    'gu': 'Gujarati', 'mr': 'Marathi', 'si': 'Sinhala', 'ne': 'Nepali',
+    'th': 'Thai', 'vi': 'Vietnamese', 'id': 'Indonesian', 'ms': 'Malay',
+    'tl': 'Filipino/Tagalog', 'ja': 'Japanese', 'ko': 'Korean',
+    'zh': 'Chinese (Mandarin)', 'yue': 'Cantonese', 'sw': 'Swahili',
+    'am': 'Amharic', 'so': 'Somali', 'ha': 'Hausa', 'yo': 'Yoruba',
+    'zu': 'Zulu', 'af': 'Afrikaans',
+}
+
+
+def _expand_languages(langs: List[str]) -> str:
+    """Return 'Bengali (bn), English (en)' style for prompt injection."""
+    out = []
+    for code in langs:
+        c = (code or '').lower().strip()
+        name = ISO_639_NAMES.get(c)
+        out.append(f"{name} ({c})" if name else c)
+    return ', '.join(out) if out else ''
+
+
 class PersonalizationService:
     """Builds and uses personalized travel profiles."""
 
@@ -562,30 +593,42 @@ def format_user_context_for_prompt(ctx: Dict[str, Any]) -> str:
     # ── Faith ──
     faith = profile.get('faith')
     if faith and faith != 'none':
+        # Faith values match UserPreference.FAITH_CHOICES (models.py:505):
+        #   islam / christianity / judaism / hinduism / buddhism / sikhism / other
         faith_rule = (
             f"FAITH: Traveler is **{faith}**. "
         )
-        if faith == 'muslim':
+        if faith == 'islam':
             faith_rule += (
                 "All restaurants MUST be halal-certified or pork-and-alcohol-free — name the specific "
-                "halal option. Exclude bars/pork-centric venues. "
+                "halal option. Exclude bars/pork-centric venues. Prefer venues close to mosques for "
+                "prayer-friendly scheduling. "
             )
-        elif faith == 'jewish':
+        elif faith == 'judaism':
             faith_rule += (
                 "Prefer kosher or kosher-style dining — name specific kosher restaurants. Avoid "
-                "shellfish/pork and meat+dairy mixing. "
+                "shellfish/pork and meat+dairy mixing. Note Shabbat (Fri sundown - Sat sundown) — "
+                "many kosher venues close then, so plan accordingly. "
             )
-        elif faith == 'hindu':
+        elif faith == 'hinduism':
             faith_rule += (
-                "Avoid beef entirely. Prefer vegetarian-forward restaurants. "
+                "Avoid beef entirely. Prefer vegetarian-forward restaurants; many Hindus avoid "
+                "onion/garlic too — offer a sattvic-friendly option when possible. "
             )
-        elif faith == 'buddhist':
+        elif faith == 'buddhism':
             faith_rule += (
-                "Prefer vegetarian restaurants where possible. "
+                "Prefer vegetarian restaurants where possible. Respect temple etiquette (silence, "
+                "no pointing feet at altars). "
             )
-        elif faith == 'christian':
+        elif faith == 'christianity':
             faith_rule += (
-                "Note a nearby church suitable for Sunday service if trip spans a Sunday. "
+                "Note a nearby church suitable for Sunday service if the trip spans a Sunday "
+                "(name the church and service time if known). "
+            )
+        elif faith == 'sikhism':
+            faith_rule += (
+                "Avoid beef and pork. Prefer vegetarian or Punjabi-friendly restaurants. If a "
+                "Gurdwara is nearby, mention it — langar meals are free and welcoming to visitors. "
             )
         faith_rule += (
             f"In each day, add a brief **Faith note** item (1 line) mentioning either a "
@@ -599,11 +642,21 @@ def format_user_context_for_prompt(ctx: Dict[str, Any]) -> str:
                 f"(name it, add visiting hours, dress code, and entry cost)."
             )
         if profile.get('prayer_reminders'):
-            rules.append(
-                "PRAYER TIMES: Leave gaps around typical prayer windows (dawn, midday, afternoon, "
-                "sunset, night). Do NOT schedule unbreakable timed activities (shows, bookings) "
-                "inside those windows. Add a \"🕌 Prayer break — ~15 min\" line at the right times."
-            )
+            # Islam observes 5 daily prayers — be specific about the windows.
+            if faith == 'islam':
+                rules.append(
+                    "PRAYER TIMES: Islam observes 5 daily prayers — Fajr (dawn), Dhuhr (midday), "
+                    "Asr (afternoon), Maghrib (sunset), Isha (night). Leave 15-min gaps around those "
+                    "windows. Do NOT schedule unbreakable timed activities inside them. Add a "
+                    "\"🕌 Prayer break — ~15 min\" line at the right times each day. Near the hotel, "
+                    "name the closest mosque."
+                )
+            else:
+                rules.append(
+                    "PRAYER TIMES: Leave gaps around the traveler's typical prayer windows. "
+                    "Do NOT schedule unbreakable timed activities inside those windows. Add a "
+                    "\"Prayer break — ~15 min\" line at the right times."
+                )
 
     # ── Mobility / health ──
     mobility = profile.get('mobility')
@@ -644,7 +697,9 @@ def format_user_context_for_prompt(ctx: Dict[str, Any]) -> str:
 
     # ── Languages — make this ACTIVE, not passive ──
     if profile.get('languages_spoken'):
-        langs = ', '.join(profile['languages_spoken'])
+        # Expand ISO codes (e.g. 'bn' → 'Bengali (bn)') so the LLM treats
+        # less-common codes unambiguously.
+        langs = _expand_languages(profile['languages_spoken'])
         rules.append(
             f"LANGUAGE: Traveler speaks **{langs}**. For a destination where the local language is "
             f"NOT in this list, add a **\"Phrase of the day\"** line to each day with 1 useful "
