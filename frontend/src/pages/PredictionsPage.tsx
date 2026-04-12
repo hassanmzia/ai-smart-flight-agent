@@ -633,11 +633,102 @@ const PredictionsPage = () => {
           </div>
         )}
 
-        {/* Crowd Levels Tab (placeholder, filled in step 3) */}
+        {/* Crowd Levels Tab */}
         {activeTab === 'crowds' && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center text-gray-500 dark:text-gray-400">
-            <p className="text-4xl mb-3">👥</p>
-            <p>Crowd Levels — coming up next.</p>
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-3xl">👥</span>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Crowd Levels Forecast</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Know when to go — and when to wait.</p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  placeholder="Destination (e.g., Venice, Italy)"
+                  value={crowdDest}
+                  onChange={(e) => setCrowdDest(e.target.value)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <button
+                  onClick={handleCrowdLevels}
+                  disabled={crowdLoading || !crowdDest}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all"
+                >
+                  {crowdLoading ? 'Analyzing...' : 'Analyze Crowds'}
+                </button>
+              </div>
+            </div>
+
+            {crowdData && (
+              <>
+                {/* Summary */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{crowdData.destination}</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {crowdData.best_for_avoiding_crowds && (
+                      <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800/40">
+                        <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-1">🌿 Best for Avoiding Crowds</p>
+                        <p className="text-sm text-gray-800 dark:text-gray-200">{crowdData.best_for_avoiding_crowds}</p>
+                      </div>
+                    )}
+                    {crowdData.peak_periods && crowdData.peak_periods.length > 0 && (
+                      <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 rounded-xl p-4 border border-red-100 dark:border-red-800/40">
+                        <p className="text-xs font-bold uppercase tracking-wider text-red-700 dark:text-red-400 mb-1">🔥 Peak Periods</p>
+                        <div className="flex flex-wrap gap-1">
+                          {crowdData.peak_periods.map((p, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded-full bg-white/70 dark:bg-red-900/40 text-xs text-red-800 dark:text-red-300">{p}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {crowdData.major_events_driving_crowds && crowdData.major_events_driving_crowds.length > 0 && (
+                    <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl p-4 border border-amber-100 dark:border-amber-800/40">
+                      <p className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2">🎉 Major Events</p>
+                      <ul className="text-sm text-gray-800 dark:text-gray-200 space-y-1">
+                        {crowdData.major_events_driving_crowds.map((ev, i) => (
+                          <li key={i} className="flex gap-2"><span className="text-amber-500">•</span>{ev}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Monthly calendar */}
+                {crowdData.months && crowdData.months.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Monthly Crowd Calendar</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {crowdData.months.map((m, i) => {
+                        const bg = m.crowd_level === 'low' ? 'from-green-400 to-emerald-500' :
+                          m.crowd_level === 'moderate' ? 'from-yellow-400 to-amber-500' :
+                          m.crowd_level === 'high' ? 'from-orange-400 to-red-500' :
+                          'from-red-500 to-rose-600';
+                        return (
+                          <div key={i} className="rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                            <div className={`bg-gradient-to-br ${bg} p-3 text-white`}>
+                              <p className="text-xs uppercase tracking-wider opacity-80">{m.month}</p>
+                              <p className="text-lg font-bold capitalize">{m.crowd_level.replace('_', ' ')}</p>
+                              <div className="mt-2 flex items-center gap-1">
+                                {[...Array(10)].map((_, idx) => (
+                                  <div key={idx} className={`h-1 flex-1 rounded-full ${idx < m.score ? 'bg-white' : 'bg-white/30'}`} />
+                                ))}
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-700/50 p-3">
+                              <p className="text-xs text-gray-700 dark:text-gray-300">{m.notes}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
