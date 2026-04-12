@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 
@@ -140,6 +141,33 @@ const PredictionsPage = () => {
   const [crowdLoading, setCrowdLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'experience' | 'prices' | 'besttime' | 'crowds' | 'trends'>('experience');
+
+  // Deep-link: auto-fill forms and select tab from ?destination=...&start_date=...&end_date=...&travelers=...&tab=...
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const dest = searchParams.get('destination') || '';
+    const start = searchParams.get('start_date') || '';
+    const end = searchParams.get('end_date') || '';
+    const travelers = searchParams.get('travelers');
+    const tab = searchParams.get('tab');
+
+    if (dest) {
+      setExpDest(dest);
+      setCrowdDest(dest);
+      setBtDest(dest);
+      setPriceDest(dest);
+    }
+    if (start) setExpStart(start);
+    if (end) setExpEnd(end);
+    if (travelers) {
+      const n = parseInt(travelers, 10);
+      if (!isNaN(n) && n > 0) setExpTravelers(n);
+    }
+    if (tab && ['experience', 'prices', 'besttime', 'crowds', 'trends'].includes(tab)) {
+      setActiveTab(tab as typeof activeTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handlePricePredict = async () => {
     if (!priceOrigin || !priceDest || !priceDate) return;
