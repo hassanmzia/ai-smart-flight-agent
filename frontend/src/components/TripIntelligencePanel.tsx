@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { ROUTES } from '@/utils/constants';
 
 interface Props {
@@ -224,9 +223,16 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
             Trip Intelligence Hub
           </h2>
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
           Every tool you need for <span className="font-semibold text-gray-800 dark:text-gray-200">{destination}</span>, pre-configured for your trip.
         </p>
+        <div className="mb-6 flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 bg-white/70 dark:bg-gray-800/50 rounded-xl px-3 py-2 border border-purple-100 dark:border-purple-800/40">
+          <span className="mt-0.5">💡</span>
+          <span>
+            Each card opens in a <span className="font-semibold">new tab</span> so you never lose
+            your place here. Close the tab to return — your entries on this page are safe.
+          </span>
+        </div>
 
         {sections.map((section, si) => (
           <div key={si} className={si > 0 ? 'mt-8' : ''}>
@@ -239,18 +245,23 @@ const TripIntelligencePanel = ({ destination, startDate, endDate, travelers, sta
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {section.cards.map((card) => (
-                <Link
+                <a
                   key={card.to}
-                  to={card.to}
+                  href={card.to}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`group relative bg-gradient-to-br ${card.gradient} rounded-2xl p-4 text-white overflow-hidden shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-200`}
+                  title="Opens in a new tab — your planner stays open"
                 >
                   <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${card.iconBg} backdrop-blur-sm text-xl mb-2`}>
                     {card.icon}
                   </div>
-                  <h4 className="font-bold text-sm mb-1">{card.title}</h4>
+                  <h4 className="font-bold text-sm mb-1 flex items-center gap-1">
+                    {card.title}
+                    <span className="opacity-60 text-[10px]" aria-hidden>↗</span>
+                  </h4>
                   <p className="text-xs text-white/85 leading-snug">{card.desc}</p>
-                  <span className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity text-white/80 text-sm">→</span>
-                </Link>
+                </a>
               ))}
             </div>
           </div>
