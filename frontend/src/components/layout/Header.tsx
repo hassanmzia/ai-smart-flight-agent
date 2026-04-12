@@ -30,7 +30,7 @@ const dropdownTransition = {
 };
 
 const navBtnCls =
-  'text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-all whitespace-nowrap';
+  'text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 px-2 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 transition-all whitespace-nowrap';
 
 const itemCls = (active: boolean) =>
   `${active ? 'bg-gray-50 dark:bg-gray-700' : ''} flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 rounded-md`;
