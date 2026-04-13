@@ -43,7 +43,173 @@ class ItineraryViewSet(viewsets.ModelViewSet):
         ).distinct()
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        instance = serializer.save(user=self.request.user)
+        # If the trip was created already shared with collaborators, fire off
+        # invitation emails so they know they have access.
+        try:
+            invitees = [
+                str(e).lower().strip()
+                for e in (instance.shared_with or [])
+                if e and '@' in str(e)
+            ]
+            owner_email = (self.request.user.email or '').lower()
+            invitees = [e for e in invitees if e and e != owner_email]
+            if invitees:
+                self._send_invite_emails(instance, invitees)
+        except Exception as exc:  # noqa: BLE001 — never block create on email
+            logging.getLogger(__name__).warning(
+                'Invite email after create failed: %s', exc
+            )
+
+    def perform_update(self, serializer):
+        # Snapshot the existing collaborator list BEFORE save so we can detect
+        # newly-added emails and email only those (not re-spam everyone).
+        existing_emails = set()
+        if serializer.instance is not None:
+            existing_emails = {
+                str(e).lower().strip()
+                for e in (serializer.instance.shared_with or [])
+                if e and '@' in str(e)
+            }
+
+        instance = serializer.save()
+
+        try:
+            new_emails = {
+                str(e).lower().strip()
+                for e in (instance.shared_with or [])
+                if e and '@' in str(e)
+            }
+            owner_email = (self.request.user.email or '').lower()
+            added = sorted(new_emails - existing_emails - {owner_email})
+            if added:
+                self._send_invite_emails(instance, added)
+        except Exception as exc:  # noqa: BLE001
+            logging.getLogger(__name__).warning(
+                'Invite email after update failed: %s', exc
+            )
+
+    def _send_invite_emails(self, itinerary, emails):
+        """
+        Send invitation emails (best-effort) to one or more collaborators.
+
+        Used by ``perform_create``, ``perform_update`` and the explicit
+        ``invite`` action so every code path that adds an email to
+        ``shared_with`` results in a real email landing in the recipient's
+        inbox.
+
+        Returns the list of emails that the mail layer accepted (i.e. did not
+        raise on). Errors are logged but never raised so the API call that
+        triggered the send still succeeds.
+        """
+        from django.core.mail import EmailMultiAlternatives
+        from django.conf import settings as dj_settings
+        from django.core import signing
+
+        log = logging.getLogger(__name__)
+        emails = [e for e in (emails or []) if e and '@' in e]
+        if not emails:
+            return []
+
+        # Build absolute URLs to the trip and a join code so the recipient
+        # can land on the trip with one click after sign-in.
+        request = getattr(self, 'request', None)
+        try:
+            origin = request.build_absolute_uri('/')[:-1] if request else ''
+        except Exception:  # noqa: BLE001
+            origin = ''
+
+        trip_link = f"{origin}/itineraries/{itinerary.id}" if origin else (
+            f"/itineraries/{itinerary.id}"
+        )
+        try:
+            join_token = signing.dumps(
+                {'itinerary_id': itinerary.id}, salt='trip-invite'
+            )
+            join_link = (
+                f"{origin}/collaborate?join={join_token}" if origin else
+                f"/collaborate?join={join_token}"
+            )
+        except Exception:  # noqa: BLE001
+            join_link = trip_link
+
+        inviter = ''
+        if request and request.user and request.user.is_authenticated:
+            inviter = (
+                request.user.get_full_name()
+                or request.user.first_name
+                or request.user.email
+                or 'A friend'
+            )
+        else:
+            inviter = (itinerary.user.get_full_name() if itinerary.user else '') or 'A friend'
+
+        subject = f'{inviter} invited you to plan "{itinerary.title}"'
+        text_body = (
+            f'Hi,\n\n'
+            f'{inviter} has invited you to collaborate on the trip\n'
+            f'"{itinerary.title}" to {itinerary.destination}\n'
+            f'({itinerary.start_date} – {itinerary.end_date}).\n\n'
+            f'Open the trip:  {trip_link}\n'
+            f'Or join with one click:  {join_link}\n\n'
+            f'Sign in (or sign up) with this email address to accept the '
+            f'invitation and start editing the itinerary together.\n\n'
+            f'— AI Smart Trip Planner'
+        )
+        html_body = (
+            f'<div style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;'
+            f'max-width:560px;margin:0 auto;padding:16px;">'
+            f'<h2 style="color:#0f766e;margin:0 0 12px 0;">'
+            f'You\'re invited to plan a trip together!</h2>'
+            f'<p><strong>{inviter}</strong> has invited you to collaborate on '
+            f'<strong>{itinerary.title}</strong> '
+            f'(to {itinerary.destination}, {itinerary.start_date} – '
+            f'{itinerary.end_date}).</p>'
+            f'<p style="margin:24px 0;">'
+            f'<a href="{join_link}" style="background:#0d9488;color:#fff;'
+            f'text-decoration:none;padding:10px 18px;border-radius:8px;'
+            f'display:inline-block;font-weight:600;">Join the trip</a>'
+            f'</p>'
+            f'<p style="font-size:13px;color:#6b7280;">'
+            f'Or open the trip directly: '
+            f'<a href="{trip_link}" style="color:#0d9488;">{trip_link}</a>'
+            f'</p>'
+            f'<p style="font-size:13px;color:#6b7280;">'
+            f'Sign in (or sign up) with this email address to accept and start '
+            f'editing the itinerary together.'
+            f'</p>'
+            f'<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">'
+            f'<p style="font-size:12px;color:#9ca3af;">'
+            f'— AI Smart Trip Planner'
+            f'</p>'
+            f'</div>'
+        )
+
+        from_email = getattr(dj_settings, 'DEFAULT_FROM_EMAIL', None)
+        sent = []
+        for to_email in emails:
+            try:
+                msg = EmailMultiAlternatives(
+                    subject=subject,
+                    body=text_body,
+                    from_email=from_email,
+                    to=[to_email],
+                )
+                msg.attach_alternative(html_body, 'text/html')
+                # Send one at a time so a single bad address doesn't sink the
+                # entire batch.
+                msg.send(fail_silently=False)
+                sent.append(to_email)
+                log.info(
+                    'Sent collaboration invite for trip %s to %s',
+                    itinerary.id, to_email,
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.warning(
+                    'Failed to send collaboration invite for trip %s to %s: %s',
+                    itinerary.id, to_email, exc,
+                )
+        return sent
 
     def _generate_itinerary_text(self, itinerary):
         """Generate markdown-formatted itinerary text from database model.
@@ -1241,33 +1407,17 @@ class ItineraryViewSet(viewsets.ModelViewSet):
             itinerary.is_shared = True
         itinerary.save(update_fields=['shared_with', 'is_shared', 'updated_at'])
 
-        # Best-effort email — don't break the API if mail fails.
+        # Best-effort email — don't break the API if mail fails. Centralized
+        # in ``_send_invite_emails`` so create / update / explicit-invite all
+        # produce the same nicely-formatted invitation.
+        sent = []
         if added:
-            try:
-                from django.core.mail import send_mail
-                from django.conf import settings as dj_settings
-                origin = request.build_absolute_uri('/')[:-1]
-                link = f"{origin}/itineraries/{itinerary.id}"
-                inviter = request.user.first_name or request.user.email
-                send_mail(
-                    subject=f'{inviter} invited you to plan "{itinerary.title}"',
-                    message=(
-                        f'You have been invited to collaborate on the trip '
-                        f'"{itinerary.title}" to {itinerary.destination}.\n\n'
-                        f'Open it here: {link}\n\n'
-                        f'You may need to sign in or create an account with '
-                        f'this email address to access it.'
-                    ),
-                    from_email=getattr(dj_settings, 'DEFAULT_FROM_EMAIL', None),
-                    recipient_list=added,
-                    fail_silently=True,
-                )
-            except Exception:
-                pass
+            sent = self._send_invite_emails(itinerary, added) or []
 
         return Response({
             'success': True,
             'added': added,
+            'emailed': sent,
             'already_invited': [e for e in emails if e not in added],
             'shared_with': itinerary.shared_with,
         })
