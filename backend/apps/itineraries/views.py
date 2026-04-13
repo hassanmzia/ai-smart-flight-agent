@@ -35,7 +35,12 @@ class ItineraryViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if self.request.user.is_staff:
             return Itinerary.objects.all()
-        return Itinerary.objects.filter(user=self.request.user)
+        # Owner OR a collaborator (email in shared_with list).
+        from django.db.models import Q
+        user_email = (self.request.user.email or '').lower()
+        return Itinerary.objects.filter(
+            Q(user=self.request.user) | Q(shared_with__icontains=user_email)
+        ).distinct()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -1174,6 +1179,222 @@ class ItineraryViewSet(viewsets.ModelViewSet):
             'success': True,
             'message': 'Thank you for your feedback!',
             'feedback': TripFeedbackSerializer(feedback).data,
+        })
+
+    # ── Collaboration Endpoints ──────────────────────────────────────────────
+
+    def _normalize_emails(self, raw):
+        """Normalize a raw email payload (string or list) into a clean list."""
+        if isinstance(raw, str):
+            parts = [p.strip() for p in raw.replace(',', '\n').splitlines()]
+        elif isinstance(raw, list):
+            parts = [str(p).strip() for p in raw]
+        else:
+            parts = []
+        # Lowercase, dedupe, keep things that look like emails.
+        seen = set()
+        out = []
+        for p in parts:
+            if not p or '@' not in p:
+                continue
+            low = p.lower()
+            if low in seen:
+                continue
+            seen.add(low)
+            out.append(low)
+        return out
+
+    @action(detail=True, methods=['post'], url_path='invite')
+    def invite(self, request, pk=None):
+        """
+        Invite one or more collaborators to this itinerary.
+
+        Body: { "emails": ["a@x.com", "b@y.com"] }   OR   { "email": "a@x.com" }
+
+        Only the trip owner can invite. Adds emails to ``shared_with`` (kept
+        lowercase, deduped) and flips ``is_shared`` on. Best-effort sends an
+        invitation email; errors are swallowed so the API call still succeeds.
+        """
+        itinerary = self.get_object()
+        if itinerary.user_id != request.user.id:
+            return Response(
+                {'error': 'Only the trip owner can invite collaborators.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        raw = request.data.get('emails') or request.data.get('email') or []
+        emails = self._normalize_emails(raw)
+        if not emails:
+            return Response(
+                {'error': 'Please provide at least one valid email address.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Don't let owner invite themselves.
+        owner_email = (request.user.email or '').lower()
+        emails = [e for e in emails if e != owner_email]
+
+        existing = [str(e).lower() for e in (itinerary.shared_with or [])]
+        added = [e for e in emails if e not in existing]
+        itinerary.shared_with = existing + added
+        if itinerary.shared_with:
+            itinerary.is_shared = True
+        itinerary.save(update_fields=['shared_with', 'is_shared', 'updated_at'])
+
+        # Best-effort email — don't break the API if mail fails.
+        if added:
+            try:
+                from django.core.mail import send_mail
+                from django.conf import settings as dj_settings
+                origin = request.build_absolute_uri('/')[:-1]
+                link = f"{origin}/itineraries/{itinerary.id}"
+                inviter = request.user.first_name or request.user.email
+                send_mail(
+                    subject=f'{inviter} invited you to plan "{itinerary.title}"',
+                    message=(
+                        f'You have been invited to collaborate on the trip '
+                        f'"{itinerary.title}" to {itinerary.destination}.\n\n'
+                        f'Open it here: {link}\n\n'
+                        f'You may need to sign in or create an account with '
+                        f'this email address to access it.'
+                    ),
+                    from_email=getattr(dj_settings, 'DEFAULT_FROM_EMAIL', None),
+                    recipient_list=added,
+                    fail_silently=True,
+                )
+            except Exception:
+                pass
+
+        return Response({
+            'success': True,
+            'added': added,
+            'already_invited': [e for e in emails if e not in added],
+            'shared_with': itinerary.shared_with,
+        })
+
+    @action(detail=True, methods=['post'], url_path='remove-collaborator')
+    def remove_collaborator(self, request, pk=None):
+        """Remove a collaborator email from this trip. Owner-only."""
+        itinerary = self.get_object()
+        if itinerary.user_id != request.user.id:
+            return Response(
+                {'error': 'Only the trip owner can manage collaborators.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        target = (request.data.get('email') or '').strip().lower()
+        if not target:
+            return Response(
+                {'error': 'email is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        existing = [str(e).lower() for e in (itinerary.shared_with or [])]
+        if target not in existing:
+            return Response({'success': True, 'shared_with': existing})
+        existing.remove(target)
+        itinerary.shared_with = existing
+        if not existing:
+            itinerary.is_shared = False
+        itinerary.save(update_fields=['shared_with', 'is_shared', 'updated_at'])
+        return Response({'success': True, 'shared_with': existing})
+
+    @action(detail=False, methods=['get'], url_path='shared-with-me')
+    def shared_with_me(self, request):
+        """List trips where the current user is a collaborator (not owner)."""
+        email = (request.user.email or '').lower()
+        if not email:
+            return Response([])
+        qs = Itinerary.objects.filter(
+            shared_with__icontains=email,
+        ).exclude(user=request.user).order_by('-start_date')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(self.get_serializer(qs, many=True).data)
+
+    @action(detail=False, methods=['get'], url_path='my-shared')
+    def my_shared(self, request):
+        """List the current user's own trips that they have shared with others."""
+        qs = Itinerary.objects.filter(
+            user=request.user, is_shared=True
+        ).order_by('-start_date')
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(self.get_serializer(qs, many=True).data)
+
+    @action(detail=True, methods=['get'], url_path='invite-link')
+    def invite_link(self, request, pk=None):
+        """Generate a signed invite code/link for this trip. Owner-only."""
+        itinerary = self.get_object()
+        if itinerary.user_id != request.user.id:
+            return Response(
+                {'error': 'Only the trip owner can issue invite links.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        from django.core import signing
+        token = signing.dumps(
+            {'itinerary_id': itinerary.id},
+            salt='trip-invite',
+        )
+        origin = request.build_absolute_uri('/')[:-1]
+        return Response({
+            'success': True,
+            'code': token,
+            'url': f'{origin}/collaborate?join={token}',
+        })
+
+    @action(detail=False, methods=['post'], url_path='join-by-code')
+    def join_by_code(self, request):
+        """
+        Join a shared trip using an invite code (signed token).
+
+        Body: { "code": "<signed token>" }
+
+        Adds the current user's email to ``shared_with`` and returns the trip.
+        """
+        from django.core import signing
+        code = (request.data.get('code') or '').strip()
+        if not code:
+            return Response(
+                {'error': 'Invite code is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            data = signing.loads(code, salt='trip-invite', max_age=60 * 60 * 24 * 90)
+        except signing.BadSignature:
+            return Response(
+                {'error': 'Invalid or expired invite code.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            itinerary = Itinerary.objects.get(id=data.get('itinerary_id'))
+        except Itinerary.DoesNotExist:
+            return Response(
+                {'error': 'The invited trip no longer exists.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        email = (request.user.email or '').lower()
+        if itinerary.user_id == request.user.id:
+            return Response({
+                'success': True,
+                'message': "You're the owner of this trip.",
+                'itinerary': self.get_serializer(itinerary).data,
+            })
+
+        existing = [str(e).lower() for e in (itinerary.shared_with or [])]
+        if email and email not in existing:
+            existing.append(email)
+            itinerary.shared_with = existing
+            itinerary.is_shared = True
+            itinerary.save(update_fields=['shared_with', 'is_shared', 'updated_at'])
+
+        return Response({
+            'success': True,
+            'message': f'You joined "{itinerary.title}".',
+            'itinerary': self.get_serializer(itinerary).data,
         })
 
 
