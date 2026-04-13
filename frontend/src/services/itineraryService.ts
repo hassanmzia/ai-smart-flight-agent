@@ -58,6 +58,9 @@ export const createItinerary = async (data: {
   origin_country?: string;
   destination_city?: string;
   destination_country?: string;
+  is_shared?: boolean;
+  shared_with?: string[];
+  is_public?: boolean;
 }): Promise<Itinerary> => {
   console.log('Creating itinerary with data:', data);
   console.log('POST URL:', `${API_ENDPOINTS.ITINERARY.CREATE}/`);

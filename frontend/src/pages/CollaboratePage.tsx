@@ -19,6 +19,7 @@ import Input from '@/components/common/Input';
 import Loading from '@/components/common/Loading';
 import { ROUTES } from '@/utils/constants';
 import { formatDate } from '@/utils/formatters';
+import { generateAndSaveAiItinerary } from '@/utils/aiItinerarySaver';
 
 type Tab = 'my-trips' | 'create' | 'join';
 
@@ -198,6 +199,16 @@ const CollaboratePage = () => {
   const [endDate, setEndDate] = useState('');
   const [inviteEmails, setInviteEmails] = useState('');
 
+  // AI-generation extras (mirrors AI Travel Planner inputs).
+  const [useAi, setUseAi] = useState(true);
+  const [originCity, setOriginCity] = useState('');
+  const [travelers, setTravelers] = useState<number>(2);
+  const [budget, setBudget] = useState('');
+  const [interests, setInterests] = useState('');
+  const [travelStyle, setTravelStyle] = useState('');
+  const [aiBuilding, setAiBuilding] = useState(false);
+  const [aiStatus, setAiStatus] = useState<string>('');
+
   // Join form
   const [joinCode, setJoinCode] = useState('');
 
@@ -331,7 +342,22 @@ const CollaboratePage = () => {
     { id: 'join', label: 'Join Trip', icon: '🔗' },
   ];
 
-  const submitCreate = (e: React.FormEvent) => {
+  const parseEmailList = (s: string) =>
+    s
+      .split(/[\s,\n]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e.includes('@'));
+
+  const resetCreateForm = () => {
+    setTripName('');
+    setStartDate('');
+    setEndDate('');
+    setInviteEmails('');
+    setBudget('');
+    setInterests('');
+  };
+
+  const submitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tripName.trim() || !destination.trim() || !startDate || !endDate) {
       toast.error('Trip name, destination, and dates are required');
@@ -341,15 +367,65 @@ const CollaboratePage = () => {
       toast.error('End date must be after start date');
       return;
     }
+
+    const emails = parseEmailList(inviteEmails);
+
+    // ── Path A: AI-generated full itinerary (flights, hotels, dining, …)
+    if (useAi) {
+      if (!originCity.trim()) {
+        toast.error('Origin city is required for AI generation');
+        return;
+      }
+      setAiBuilding(true);
+      setAiStatus('AI agents are searching flights, hotels, and activities…');
+      try {
+        const { itinerary } = await generateAndSaveAiItinerary(
+          {
+            origin_city: originCity.trim(),
+            destination_city: destination.trim(),
+            departure_date: startDate,
+            return_date: endDate,
+            passengers: travelers,
+            budget: budget || undefined,
+            travel_style: travelStyle || undefined,
+            interests: interests || undefined,
+          },
+          {
+            titleOverride: tripName.trim(),
+            isShared: true,
+            sharedWith: emails,
+          },
+        );
+        setAiStatus('');
+        toast.success('Shared trip created with full AI itinerary!');
+        // Fire-and-forget: send invitations now that the trip exists.
+        if (emails.length > 0) {
+          inviteCollaborators(itinerary.id, emails).catch(() => {
+            /* invites are best-effort; trip is already shared via shared_with */
+          });
+        }
+        queryClient.invalidateQueries({ queryKey: ['collab'] });
+        queryClient.invalidateQueries({ queryKey: ['itineraries'] });
+        resetCreateForm();
+        navigate(`/itineraries/${itinerary.id}`);
+      } catch (err: any) {
+        toast.error(
+          err?.response?.data?.error || err?.message || 'AI planning failed',
+        );
+      } finally {
+        setAiBuilding(false);
+        setAiStatus('');
+      }
+      return;
+    }
+
+    // ── Path B: bare-bones shared trip (the original behavior)
     createMutation.mutate({
       title: tripName.trim(),
       destination: destination.trim(),
       start_date: startDate,
       end_date: endDate,
-      invite_emails: inviteEmails
-        .split(/[\s,\n]+/)
-        .map((e) => e.trim())
-        .filter((e) => e.includes('@')),
+      invite_emails: emails,
     });
   };
 
@@ -471,7 +547,37 @@ const CollaboratePage = () => {
               <CardTitle>Create a Shared Trip</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={submitCreate} className="space-y-6 max-w-lg">
+              <form onSubmit={submitCreate} className="space-y-6 max-w-2xl">
+                {/* AI toggle */}
+                <div
+                  className={`rounded-2xl border p-4 transition-colors ${
+                    useAi
+                      ? 'border-teal-200 dark:border-teal-800 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20'
+                      : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40'
+                  }`}
+                >
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useAi}
+                      onChange={(e) => setUseAi(e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
+                    />
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                        ✨ Auto-build a complete itinerary with AI
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                        Generates day-by-day activities, recommended flights,
+                        hotels, restaurants, and attractions — exactly like the
+                        AI Travel Planner. Your collaborators land on a fully
+                        populated trip with Flights / Hotels / Cars / Dining
+                        tabs. Takes about a minute.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
                 <Input
                   label="Trip Name"
                   value={tripName}
@@ -479,13 +585,25 @@ const CollaboratePage = () => {
                   placeholder="e.g., Tokyo Adventure 2026"
                   required
                 />
+
+                {useAi && (
+                  <Input
+                    label="From (Origin City)"
+                    value={originCity}
+                    onChange={(e) => setOriginCity(e.target.value)}
+                    placeholder="e.g., New York"
+                    required={useAi}
+                  />
+                )}
+
                 <Input
-                  label="Destination"
+                  label={useAi ? 'To (Destination City)' : 'Destination'}
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
                   placeholder="e.g., Tokyo, Japan"
                   required
                 />
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Start Date"
@@ -502,6 +620,68 @@ const CollaboratePage = () => {
                     required
                   />
                 </div>
+
+                {useAi && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Input
+                        label="Travelers"
+                        type="number"
+                        min={1}
+                        value={travelers}
+                        onChange={(e) =>
+                          setTravelers(Math.max(1, Number(e.target.value)))
+                        }
+                      />
+                      <Input
+                        label="Budget USD (optional)"
+                        type="number"
+                        value={budget}
+                        onChange={(e) => setBudget(e.target.value)}
+                        placeholder="e.g., 3000"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        Travel Style (optional)
+                      </label>
+                      <select
+                        value={travelStyle}
+                        onChange={(e) => setTravelStyle(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      >
+                        <option value="">Any Style</option>
+                        {[
+                          'Budget',
+                          'Comfort',
+                          'Luxury',
+                          'Adventure',
+                          'Cultural',
+                          'Family',
+                          'Romantic',
+                          'Business',
+                        ].map((s) => (
+                          <option key={s} value={s.toLowerCase()}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        Group Interests (optional)
+                      </label>
+                      <textarea
+                        value={interests}
+                        onChange={(e) => setInterests(e.target.value)}
+                        rows={3}
+                        placeholder="e.g., temples, ramen, anime stores, nightlife, day trips to Mt. Fuji"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Invite Collaborators (optional)
@@ -510,7 +690,7 @@ const CollaboratePage = () => {
                     value={inviteEmails}
                     onChange={(e) => setInviteEmails(e.target.value)}
                     placeholder="alice@example.com, bob@example.com"
-                    rows={3}
+                    rows={2}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -518,12 +698,24 @@ const CollaboratePage = () => {
                     They'll receive an email invite.
                   </p>
                 </div>
+
+                {aiBuilding && (
+                  <div className="rounded-xl bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 p-4">
+                    <Loading
+                      text={aiStatus || 'Building your shared itinerary…'}
+                    />
+                  </div>
+                )}
+
                 <Button
                   type="submit"
                   className="w-full"
-                  isLoading={createMutation.isPending}
+                  isLoading={createMutation.isPending || aiBuilding}
+                  disabled={createMutation.isPending || aiBuilding}
                 >
-                  Create Shared Trip
+                  {useAi
+                    ? '✨ Generate & Share Trip'
+                    : 'Create Shared Trip'}
                 </Button>
               </form>
             </CardContent>

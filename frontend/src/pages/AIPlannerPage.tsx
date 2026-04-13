@@ -8,10 +8,9 @@ import { useToast } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import {
-  createItinerary,
-  createItineraryDay,
-  createItineraryItem,
-} from '@/services/itineraryService';
+  parseItineraryNarrative,
+  saveAiPlanAsItinerary,
+} from '@/utils/aiItinerarySaver';
 import TravelChat from '@/components/TravelChat';
 import AirportAutocomplete from '@/components/common/AirportAutocomplete';
 import SmartTripPreview from '@/components/SmartTripPreview';
@@ -20,89 +19,9 @@ import { ROUTES } from '@/utils/constants';
 type OrderMode = 'form' | 'chat' | 'voice';
 type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'intelligence';
 
-interface ParsedActivity {
-  time: string | undefined;
-  title: string;
-  itemType: 'flight' | 'hotel' | 'restaurant' | 'attraction' | 'activity' | 'transport' | 'note';
-  estimatedCost: number | undefined;
-}
-
-interface ParsedDay {
-  dayNumber: number;
-  title: string;
-  activities: ParsedActivity[];
-}
-
-function parseItineraryNarrative(text: string): ParsedDay[] {
-  if (!text) return [];
-  const days: ParsedDay[] = [];
-  const dayPattern = /^##\s*Day\s+(\d+)\s*[:\-–]\s*(.*)$/gm;
-  const matches: { index: number; dayNum: number; title: string }[] = [];
-  let match;
-  while ((match = dayPattern.exec(text)) !== null) {
-    matches.push({ index: match.index, dayNum: parseInt(match[1]), title: match[2].trim() });
-  }
-  for (let i = 0; i < matches.length; i++) {
-    const start = matches[i].index;
-    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
-    const section = text.slice(start, end);
-    const activities: ParsedActivity[] = [];
-    const timePattern = /\*{0,2}(\d{1,2}:\d{2}\s*[AaPp][Mm]?)\*{0,2}\s*[-–:]\s*(.+)/g;
-    let timeMatch;
-    while ((timeMatch = timePattern.exec(section)) !== null) {
-      const timeStr = timeMatch[1].trim();
-      let activityText = timeMatch[2].trim().replace(/\*\*/g, '').replace(/\*/g, '');
-      let cost: number | undefined;
-      const costMatch = activityText.match(/[\(~]*\$(\d+(?:\.\d+)?)\)?/);
-      if (costMatch) cost = parseFloat(costMatch[1]);
-      const itemType = guessItemType(activityText);
-      activities.push({ time: timeStr, title: activityText, itemType, estimatedCost: cost });
-    }
-    const bulletPattern = /^[-*•]\s+(?!\d{1,2}:\d{2})(.+)/gm;
-    let bulletMatch;
-    while ((bulletMatch = bulletPattern.exec(section)) !== null) {
-      const text = bulletMatch[1].trim().replace(/\*\*/g, '').replace(/\*/g, '');
-      if (activities.some(a => text.includes(a.title.slice(0, 20)))) continue;
-      if (text.startsWith('#') || text.startsWith('---')) continue;
-      let cost: number | undefined;
-      const costMatch = text.match(/[\(~]*\$(\d+(?:\.\d+)?)\)?/);
-      if (costMatch) cost = parseFloat(costMatch[1]);
-      const itemType = guessItemType(text);
-      activities.push({ time: undefined, title: text, itemType, estimatedCost: cost });
-    }
-    days.push({ dayNumber: matches[i].dayNum, title: matches[i].title, activities });
-  }
-  return days;
-}
-
-/** Extract a place name from a descriptive activity title. */
-function extractPlaceName(title: string): string {
-  let q = title.replace(/\.\s*$/, '').trim();
-  // Strip costs: (~$15/person), ($20), ~$30
-  q = q.replace(/\(?\~?\$[\d,.]+[^)]*\)?/g, '').trim();
-  // Strip parentheticals: (free), (optional)
-  q = q.replace(/\([^)]*\)/g, '').trim();
-  // Take text before first descriptive comma
-  q = q.split(/,\s+(?:an?\s|offering|enjoying|featuring|where|with|for|located|which|this)/i)[0].trim();
-  // Extract place name after preposition
-  const m = q.match(/\b(?:at|to|into)\s+(?:the\s+)?(?!your\b|a\s|an\s)(.+)/i);
-  if (m) q = m[1].trim();
-  // Strip leading action verbs
-  q = q.replace(/^(?:Visit|Attend|Explore|Enjoy|Head|Return|Go|Walk|Drive|Take|Spend|Have|Grab)\s+(?:to\s+)?(?:the\s+)?/i, '').trim();
-  // Strip trailing filler
-  q = q.split(/\s+(?:again\b|to\s+relax|to\s+freshen|for\s+a\s|for\s+the\s)/i)[0].trim();
-  return q.length >= 3 ? q : title;
-}
-
-function guessItemType(text: string): ParsedActivity['itemType'] {
-  const lower = text.toLowerCase();
-  if (/\b(flight|fly|airport|depart|land|board)\b/.test(lower)) return 'flight';
-  if (/\b(check.?in|check.?out|hotel|hostel|airbnb|accommodation|lodge|resort)\b/.test(lower)) return 'hotel';
-  if (/\b(breakfast|lunch|dinner|brunch|restaurant|cafe|eat|dine|dining|food|meal|cuisine)\b/.test(lower)) return 'restaurant';
-  if (/\b(museum|monument|palace|cathedral|tower|temple|castle|gallery|park|garden|landmark|visit|tour|sightsee|explore|attraction)\b/.test(lower)) return 'attraction';
-  if (/\b(taxi|uber|metro|subway|bus|train|tram|drive|car|transfer|commute|ride|transit)\b/.test(lower)) return 'transport';
-  return 'activity';
-}
+// Parser/saver helpers (parseItineraryNarrative, extractPlaceName, guessItemType,
+// saveAiPlanAsItinerary) live in @/utils/aiItinerarySaver so the Collaborate
+// page can produce the same rich itinerary for shared trips.
 
 const ITEM_TYPE_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
   flight: { icon: '✈️', color: 'text-blue-700 dark:text-blue-300', bg: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800' },
@@ -259,115 +178,20 @@ const AIPlannerPage = () => {
 
     setSaving(true);
     try {
-      const start = departureDate;
-      const end = returnDate || departureDate;
-      const totalCost = result.recommendation?.total_estimated_cost;
-      const rec = result.recommendation;
-      const parsedDays = parseItineraryNarrative(result.itinerary_text || '');
-      const startD = new Date(start);
-      const endD = new Date(end);
-      const totalDays = Math.max(1, Math.ceil((endD.getTime() - startD.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-      const itinerary = await createItinerary({
-        title: `AI Trip: ${originLabel} to ${destinationLabel}`,
-        destination: destinationLabel,
+      const itinerary = await saveAiPlanAsItinerary(result, {
         origin_city: originCity,
         origin_country: originCountry || '',
         destination_city: destinationCity,
         destination_country: destinationCountry || '',
-        start_date: start,
-        end_date: end,
-        status: 'planned',
-        number_of_travelers: passengers,
-        estimated_budget: totalCost ? String(totalCost) : (budget ? budget : undefined),
-        currency: 'USD',
-        description: `AI-planned trip from ${originLabel} to ${destinationLabel}. ${passengers} passenger(s).`,
-        ai_narrative: result.itinerary_text || '',
+        departure_date: departureDate,
+        return_date: returnDate || departureDate,
+        passengers,
+        budget: budget || undefined,
+        cuisine: cuisine || undefined,
+        travel_style: travelStyle || undefined,
+        interests: interests || undefined,
+        accommodation_preference: accommodationPref || undefined,
       });
-      const itineraryId = Number(itinerary.id);
-      for (let d = 1; d <= totalDays; d++) {
-        const dayDate = new Date(startD);
-        dayDate.setDate(dayDate.getDate() + d - 1);
-        const dateStr = dayDate.toISOString().split('T')[0];
-        const parsedDay = parsedDays.find(p => p.dayNumber === d);
-        const isFirstDay = d === 1;
-        const isLastDay = d === totalDays;
-        let dayTitle = parsedDay?.title
-          || (isFirstDay ? `Arrival in ${destinationLabel}` : isLastDay ? 'Departure Day' : `Explore ${destinationLabel}`);
-        const day = await createItineraryDay({
-          itinerary: itineraryId,
-          day_number: d,
-          date: dateStr,
-          title: dayTitle,
-        });
-        const dayId = day.id!;
-        let itemOrder = 0;
-        if (isFirstDay) {
-          if (rec?.recommended_flight) {
-            const flight = rec.recommended_flight;
-            await createItineraryItem({
-              day: dayId, item_type: 'flight', order: itemOrder++,
-              title: `${flight.airline} ${flight.flight_number || ''} - ${flight.departure_airport_code || originLabel} to ${flight.arrival_airport_code || destinationLabel}`,
-              description: `${flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop(s)`}${flight.duration ? ` · ${Math.floor(flight.duration / 60)}h ${flight.duration % 60}m` : ''}`,
-              start_time: flight.departure_time?.split(' ')[1]?.slice(0, 5) || undefined,
-              estimated_cost: flight.price || undefined,
-              location_name: flight.departure_airport || originLabel,
-            });
-          }
-          if (rec?.recommended_hotel) {
-            const hotel = rec.recommended_hotel;
-            await createItineraryItem({
-              day: dayId, item_type: 'hotel', order: itemOrder++,
-              title: `Check in: ${hotel.name || hotel.hotel_name}`,
-              description: `${hotel.stars || hotel.star_rating || 0} stars`,
-              start_time: '15:00',
-              estimated_cost: hotel.price || hotel.price_per_night || undefined,
-              location_name: hotel.address || destinationLabel,
-            });
-          }
-        }
-        if (isLastDay && totalDays > 1) {
-          if (rec?.recommended_hotel) {
-            const hotel = rec.recommended_hotel;
-            await createItineraryItem({
-              day: dayId, item_type: 'hotel', order: itemOrder++,
-              title: `Check out: ${hotel.name || hotel.hotel_name}`,
-              start_time: '10:00',
-              location_name: hotel.address || destinationLabel,
-            });
-          }
-        }
-        if (parsedDay && parsedDay.activities.length > 0) {
-          for (const activity of parsedDay.activities) {
-            const lowerTitle = activity.title.toLowerCase();
-            if (isFirstDay && activity.itemType === 'flight' && itemOrder > 0) continue;
-            if (isFirstDay && lowerTitle.includes('check') && lowerTitle.includes('in') && activity.itemType === 'hotel') continue;
-            if (isLastDay && lowerTitle.includes('check') && lowerTitle.includes('out') && activity.itemType === 'hotel') continue;
-            let timeHHMM: string | undefined;
-            if (activity.time) {
-              const tMatch = activity.time.match(/(\d{1,2}):(\d{2})\s*([AaPp][Mm]?)/);
-              if (tMatch) {
-                let hour = parseInt(tMatch[1]);
-                const min = tMatch[2];
-                const ampm = tMatch[3].toUpperCase();
-                if (ampm.startsWith('P') && hour !== 12) hour += 12;
-                if (ampm.startsWith('A') && hour === 12) hour = 0;
-                timeHHMM = `${hour.toString().padStart(2, '0')}:${min}`;
-              }
-            }
-            await createItineraryItem({
-              day: dayId, item_type: activity.itemType, order: itemOrder++,
-              title: activity.title, start_time: timeHHMM, estimated_cost: activity.estimatedCost,
-              location_name: extractPlaceName(activity.title),
-            });
-          }
-        } else if (!isFirstDay && !isLastDay) {
-          await createItineraryItem({
-            day: dayId, item_type: 'activity', order: 0,
-            title: `Explore ${destinationLabel}`,
-            description: 'Add your planned activities for this day',
-          });
-        }
-      }
       showSuccess('Itinerary saved! Redirecting...');
       setTimeout(() => navigate(`/itineraries/${itinerary.id}`), 500);
     } catch (err: any) {
