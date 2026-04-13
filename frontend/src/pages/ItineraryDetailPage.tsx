@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useRequireAuth } from '@/hooks/useAuth';
 import { Card, Button } from '@/components/common';
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { createItinerary, getItinerary, updateItinerary, deleteItinerary } from '@/services/itineraryService';
+import { createItinerary, getItinerary, updateItinerary, deleteItinerary, confirmTrip } from '@/services/itineraryService';
+import type { ConfirmationSummary } from '@/services/itineraryService';
 import { ItineraryPDFViewer } from '@/components/ItineraryPDFViewer';
 import DayByDayPlan from '@/components/DayByDayPlan';
 import TripFeedbackModal from '@/components/TripFeedbackModal';
@@ -52,6 +53,15 @@ const ItineraryDetailPage = () => {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
+  // Collaboration state
+  const [ownerId, setOwnerId] = useState<number | string | null>(null);
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
+  const [isShared, setIsShared] = useState(false);
+  const [confirmationSummary, setConfirmationSummary] = useState<ConfirmationSummary | null>(null);
+  const [confirmingTrip, setConfirmingTrip] = useState(false);
+
+  const isOwner = ownerId != null && String(ownerId) === String(user?.id);
+
   const loadItinerary = useCallback(async (itineraryId: string) => {
     try {
       setLoading(true);
@@ -68,6 +78,11 @@ const ItineraryDetailPage = () => {
       });
       setDays(data.days || []);
       setItineraryStatus(data.status);
+      // Collaboration fields
+      setOwnerId((data as any).user ?? null);
+      setSharedWith(((data as any).shared_with as string[]) || []);
+      setIsShared(Boolean((data as any).is_shared));
+      setConfirmationSummary(((data as any).confirmation_summary as ConfirmationSummary) || null);
     } catch (err) {
       console.error('Failed to load itinerary:', err);
       toast.error('Failed to load itinerary');
@@ -85,6 +100,26 @@ const ItineraryDetailPage = () => {
   const handleDaysUpdate = () => {
     if (id && !isNewItinerary) {
       loadItinerary(id);
+    }
+  };
+
+  const handleTripConfirm = async (next: 'in' | 'out' | 'pending') => {
+    if (!id) return;
+    setConfirmingTrip(true);
+    try {
+      const updated = await confirmTrip(id, next);
+      setConfirmationSummary(((updated as any).confirmation_summary as ConfirmationSummary) || null);
+      toast.success(
+        next === 'in'
+          ? 'Marked as IN — see you there!'
+          : next === 'out'
+          ? "Marked as OUT — you can change this anytime."
+          : 'Confirmation cleared.',
+      );
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Could not update your confirmation');
+    } finally {
+      setConfirmingTrip(false);
     }
   };
 
@@ -583,6 +618,90 @@ const ItineraryDetailPage = () => {
         />
       )}
 
+      {/* Collaborator Sign-off Banner — only on shared trips */}
+      {!isNewItinerary && isShared && sharedWith.length > 0 && confirmationSummary && (
+        <div className="mb-6 rounded-2xl border border-teal-200 dark:border-teal-800 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 p-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                👥 Trip Sign-off
+                {confirmationSummary.all_in && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-600 text-white">
+                    Everyone's In
+                  </span>
+                )}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                  {confirmationSummary.in} in
+                </span>
+                {' · '}
+                <span className="font-semibold text-rose-700 dark:text-rose-300">
+                  {confirmationSummary.out} out
+                </span>
+                {' · '}
+                <span className="font-semibold text-gray-600 dark:text-gray-400">
+                  {confirmationSummary.pending} pending
+                </span>
+                <span className="text-gray-400 dark:text-gray-500"> of {confirmationSummary.total} collaborators</span>
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Your status:{' '}
+                <span
+                  className={`font-semibold ${
+                    confirmationSummary.my_status === 'in'
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : confirmationSummary.my_status === 'out'
+                      ? 'text-rose-700 dark:text-rose-300'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                >
+                  {confirmationSummary.my_status === 'in'
+                    ? "✓ I'm In"
+                    : confirmationSummary.my_status === 'out'
+                    ? "✗ I'm Out"
+                    : 'Awaiting your response'}
+                </span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => handleTripConfirm('in')}
+                disabled={confirmingTrip || confirmationSummary.my_status === 'in'}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  confirmationSummary.my_status === 'in'
+                    ? 'bg-emerald-600 text-white border-emerald-600 cursor-default'
+                    : 'bg-white dark:bg-gray-800 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/30'
+                } disabled:opacity-70`}
+              >
+                I'm In
+              </button>
+              <button
+                onClick={() => handleTripConfirm('out')}
+                disabled={confirmingTrip || confirmationSummary.my_status === 'out'}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${
+                  confirmationSummary.my_status === 'out'
+                    ? 'bg-rose-600 text-white border-rose-600 cursor-default'
+                    : 'bg-white dark:bg-gray-800 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/30'
+                } disabled:opacity-70`}
+              >
+                I'm Out
+              </button>
+              {confirmationSummary.my_status !== 'pending' && (
+                <button
+                  onClick={() => handleTripConfirm('pending')}
+                  disabled={confirmingTrip}
+                  className="px-3 py-2 rounded-xl text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-white dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
+                  title="Clear my response"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Day-by-Day Plan */}
       {!isNewItinerary && id && formData.start_date && formData.end_date && (
         <div className="mb-6">
@@ -592,6 +711,8 @@ const ItineraryDetailPage = () => {
             startDate={formData.start_date}
             endDate={formData.end_date}
             onUpdate={handleDaysUpdate}
+            isShared={isShared && (sharedWith?.length || 0) > 0}
+            isOwner={isOwner}
           />
         </div>
       )}

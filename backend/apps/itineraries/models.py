@@ -56,6 +56,10 @@ class Itinerary(models.Model):
     is_public = models.BooleanField(default=False)
     is_shared = models.BooleanField(default=False)
     shared_with = models.JSONField(default=list, blank=True)
+    # Per-collaborator trip-level sign-off:
+    #   { "owner@example.com": "in", "alice@x.com": "in", "bob@y.com": "out" }
+    # Statuses: "in" | "out" | "pending" (anyone not in the dict is pending).
+    confirmations = models.JSONField(default=dict, blank=True)
 
     # Cover image
     cover_image = models.URLField(blank=True)
@@ -163,6 +167,12 @@ class ItineraryItem(models.Model):
     notes = models.TextField(blank=True)
     url = models.URLField(blank=True)
     images = models.JSONField(default=list, blank=True)
+
+    # Collaboration: per-item votes from collaborators.
+    #   { "alice@x.com": 1, "bob@y.com": -1 }   (1 = thumbs-up, -1 = thumbs-down)
+    votes = models.JSONField(default=dict, blank=True)
+    # Owner can flip this once the team is happy with this item.
+    owner_approved = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
