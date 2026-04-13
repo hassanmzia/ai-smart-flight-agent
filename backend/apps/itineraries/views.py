@@ -1397,6 +1397,48 @@ class ItineraryViewSet(viewsets.ModelViewSet):
             'itinerary': self.get_serializer(itinerary).data,
         })
 
+    @action(detail=True, methods=['post'], url_path='confirm')
+    def confirm_trip(self, request, pk=None):
+        """
+        Trip-level "I'm In / I'm Out" sign-off for the requesting user.
+
+        Body: { "status": "in" | "out" | "pending" }
+
+        Anyone listed as the owner OR in ``shared_with`` may submit. The
+        result is stored in ``Itinerary.confirmations`` keyed by email.
+        """
+        itinerary = self.get_object()
+        # Membership check: owner or invited collaborator.
+        owner_email = (itinerary.user.email or '').lower() if itinerary.user else ''
+        my_email = (request.user.email or '').lower()
+        if not my_email:
+            return Response(
+                {'error': 'Account email required to confirm.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        shared_emails = [str(e).lower() for e in (itinerary.shared_with or [])]
+        if my_email != owner_email and my_email not in shared_emails:
+            return Response(
+                {'error': 'You are not a collaborator on this trip.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        new_status = (request.data.get('status') or '').strip().lower()
+        if new_status not in ('in', 'out', 'pending'):
+            return Response(
+                {'error': 'status must be "in", "out", or "pending".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        confs = dict(itinerary.confirmations or {})
+        if new_status == 'pending':
+            confs.pop(my_email, None)
+        else:
+            confs[my_email] = new_status
+        itinerary.confirmations = confs
+        itinerary.save(update_fields=['confirmations', 'updated_at'])
+        return Response(self.get_serializer(itinerary).data)
+
 
 class ItineraryDayViewSet(viewsets.ModelViewSet):
     """ViewSet for ItineraryDay model."""
@@ -1410,7 +1452,12 @@ class ItineraryDayViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if self.request.user.is_staff:
             return ItineraryDay.objects.all()
-        return ItineraryDay.objects.filter(itinerary__user=self.request.user)
+        from django.db.models import Q
+        email = (self.request.user.email or '').lower()
+        return ItineraryDay.objects.filter(
+            Q(itinerary__user=self.request.user)
+            | Q(itinerary__shared_with__icontains=email)
+        ).distinct()
 
 
 class ItineraryItemViewSet(viewsets.ModelViewSet):
@@ -1425,7 +1472,80 @@ class ItineraryItemViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if self.request.user.is_staff:
             return ItineraryItem.objects.all()
-        return ItineraryItem.objects.filter(day__itinerary__user=self.request.user)
+        from django.db.models import Q
+        email = (self.request.user.email or '').lower()
+        return ItineraryItem.objects.filter(
+            Q(day__itinerary__user=self.request.user)
+            | Q(day__itinerary__shared_with__icontains=email)
+        ).distinct()
+
+    def _user_can_collaborate(self, item):
+        """User must be the trip owner or in the shared_with list."""
+        itinerary = item.day.itinerary
+        if itinerary.user_id == self.request.user.id:
+            return True
+        email = (self.request.user.email or '').lower()
+        if not email:
+            return False
+        shared = [str(e).lower() for e in (itinerary.shared_with or [])]
+        return email in shared
+
+    @action(detail=True, methods=['post'], url_path='vote')
+    def vote(self, request, pk=None):
+        """
+        Record / update / clear the requesting user's vote on this item.
+
+        Body: { "vote": 1 | -1 | 0 }   (0 clears the vote)
+        """
+        item = self.get_object()
+        if not self._user_can_collaborate(item):
+            return Response(
+                {'error': 'You are not a collaborator on this trip.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            value = int(request.data.get('vote', 0))
+        except (TypeError, ValueError):
+            value = 0
+        if value not in (-1, 0, 1):
+            return Response(
+                {'error': 'vote must be 1, -1, or 0.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        email = (request.user.email or '').lower()
+        if not email:
+            return Response(
+                {'error': 'Account email required to vote.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        votes = dict(item.votes or {})
+        if value == 0:
+            votes.pop(email, None)
+        else:
+            votes[email] = value
+        item.votes = votes
+        item.save(update_fields=['votes', 'updated_at'])
+        # Return the refreshed item so the UI can update tallies in place.
+        serializer = self.get_serializer(item)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='approve')
+    def approve(self, request, pk=None):
+        """
+        Owner-only: flip ``owner_approved`` (defaults to True). Body may
+        include ``{"approved": false}`` to un-approve.
+        """
+        item = self.get_object()
+        if item.day.itinerary.user_id != request.user.id:
+            return Response(
+                {'error': 'Only the trip owner can approve items.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        approved = request.data.get('approved', True)
+        item.owner_approved = bool(approved)
+        item.save(update_fields=['owner_approved', 'updated_at'])
+        serializer = self.get_serializer(item)
+        return Response(serializer.data)
 
 
 class WeatherViewSet(viewsets.ReadOnlyModelViewSet):

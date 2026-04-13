@@ -12,12 +12,22 @@ import {
   CurrencyDollarIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  HandThumbUpIcon,
+  HandThumbDownIcon,
+  CheckBadgeIcon,
 } from '@heroicons/react/24/outline';
+import {
+  HandThumbUpIcon as HandThumbUpSolid,
+  HandThumbDownIcon as HandThumbDownSolid,
+  CheckBadgeIcon as CheckBadgeSolid,
+} from '@heroicons/react/24/solid';
 import {
   createItineraryDay,
   createItineraryItem,
   deleteItineraryDay,
   deleteItineraryItem,
+  voteOnItem,
+  approveItem,
 } from '@/services/itineraryService';
 import type { ItineraryDayData, ItineraryItemData } from '@/services/itineraryService';
 import toast from 'react-hot-toast';
@@ -28,6 +38,10 @@ interface DayByDayPlanProps {
   startDate: string;
   endDate: string;
   onUpdate: () => void;
+  /** True when the trip is shared with collaborators — enables vote UI. */
+  isShared?: boolean;
+  /** True when the current user owns the trip — enables Approve button. */
+  isOwner?: boolean;
 }
 
 const ITEM_TYPE_ICONS: Record<string, string> = {
@@ -56,7 +70,42 @@ const DayByDayPlan: React.FC<DayByDayPlanProps> = ({
   startDate,
   endDate,
   onUpdate,
+  isShared = false,
+  isOwner = true,
 }) => {
+  // Track which item is mid-vote so we can disable the buttons.
+  const [busyItemId, setBusyItemId] = useState<number | null>(null);
+
+  const handleVote = async (item: ItineraryItemData, value: 1 | -1) => {
+    if (!item.id) return;
+    setBusyItemId(item.id);
+    // If the user clicks their current vote, treat it as "clear vote".
+    const current = item.vote_summary?.my_vote ?? 0;
+    const next: 1 | -1 | 0 = current === value ? 0 : value;
+    try {
+      await voteOnItem(item.id, next);
+      onUpdate();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to record your vote');
+    } finally {
+      setBusyItemId(null);
+    }
+  };
+
+  const handleApprove = async (item: ItineraryItemData) => {
+    if (!item.id) return;
+    setBusyItemId(item.id);
+    try {
+      await approveItem(item.id, !item.owner_approved);
+      toast.success(item.owner_approved ? 'Approval removed' : 'Item approved');
+      onUpdate();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to update approval');
+    } finally {
+      setBusyItemId(null);
+    }
+  };
+
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set(days.map(d => d.id!)));
   const [addingItemForDay, setAddingItemForDay] = useState<number | null>(null);
   const [addingDay, setAddingDay] = useState(false);
@@ -288,7 +337,68 @@ const DayByDayPlan: React.FC<DayByDayPlanProps> = ({
                             ${Number(item.estimated_cost).toFixed(0)}
                           </span>
                         )}
+                        {item.owner_approved && (
+                          <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300 font-medium">
+                            <CheckBadgeSolid className="h-3.5 w-3.5" />
+                            Approved
+                          </span>
+                        )}
                       </div>
+
+                      {/* Collaboration row: vote thumbs + owner approval. */}
+                      {isShared && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <button
+                            onClick={() => handleVote(item, 1)}
+                            disabled={busyItemId === item.id}
+                            title="Thumbs up"
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-colors ${
+                              (item.vote_summary?.my_vote ?? 0) === 1
+                                ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                            } disabled:opacity-50`}
+                          >
+                            {(item.vote_summary?.my_vote ?? 0) === 1 ? (
+                              <HandThumbUpSolid className="h-3.5 w-3.5" />
+                            ) : (
+                              <HandThumbUpIcon className="h-3.5 w-3.5" />
+                            )}
+                            {item.vote_summary?.up ?? 0}
+                          </button>
+                          <button
+                            onClick={() => handleVote(item, -1)}
+                            disabled={busyItemId === item.id}
+                            title="Thumbs down"
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-colors ${
+                              (item.vote_summary?.my_vote ?? 0) === -1
+                                ? 'bg-rose-50 dark:bg-rose-900/30 border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-300'
+                                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+                            } disabled:opacity-50`}
+                          >
+                            {(item.vote_summary?.my_vote ?? 0) === -1 ? (
+                              <HandThumbDownSolid className="h-3.5 w-3.5" />
+                            ) : (
+                              <HandThumbDownIcon className="h-3.5 w-3.5" />
+                            )}
+                            {item.vote_summary?.down ?? 0}
+                          </button>
+                          {isOwner && (
+                            <button
+                              onClick={() => handleApprove(item)}
+                              disabled={busyItemId === item.id}
+                              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs border transition-colors ${
+                                item.owner_approved
+                                  ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700'
+                                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                              } disabled:opacity-50`}
+                              title={item.owner_approved ? 'Click to un-approve' : 'Approve as owner'}
+                            >
+                              <CheckBadgeIcon className="h-3.5 w-3.5" />
+                              {item.owner_approved ? 'Approved' : 'Approve'}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -235,6 +235,10 @@ export interface ItineraryItemData {
   estimated_cost?: number;
   notes?: string;
   url?: string;
+  // Collaboration (shared trips)
+  votes?: Record<string, number>;
+  owner_approved?: boolean;
+  vote_summary?: { up: number; down: number; my_vote: number };
 }
 
 /**
@@ -282,5 +286,68 @@ export const updateItineraryItem = async (itemId: number, data: Partial<Itinerar
  */
 export const deleteItineraryItem = async (itemId: number): Promise<void> => {
   const response = await api.delete(`${API_ENDPOINTS.ITINERARY.ITEMS}/${itemId}/`);
+  return handleApiResponse(response);
+};
+
+// ==================== Collaboration: votes & sign-off ====================
+
+export interface VoteSummary {
+  up: number;
+  down: number;
+  /** -1, 0, or 1 — the requesting user's vote on this item. */
+  my_vote: number;
+}
+
+export interface ConfirmationSummary {
+  in: number;
+  out: number;
+  pending: number;
+  total: number;
+  my_status: 'in' | 'out' | 'pending';
+  all_in: boolean;
+}
+
+/**
+ * Cast / change / clear the current user's vote on an itinerary item.
+ *  vote =  1  → thumbs up
+ *  vote = -1  → thumbs down
+ *  vote =  0  → clear vote
+ */
+export const voteOnItem = async (
+  itemId: number,
+  vote: 1 | -1 | 0,
+): Promise<ItineraryItemData & { vote_summary: VoteSummary }> => {
+  const response = await api.post(
+    `${API_ENDPOINTS.ITINERARY.ITEMS}/${itemId}/vote/`,
+    { vote },
+  );
+  return handleApiResponse(response);
+};
+
+/**
+ * Owner-only: mark (or un-mark) an item as approved.
+ */
+export const approveItem = async (
+  itemId: number,
+  approved: boolean = true,
+): Promise<ItineraryItemData> => {
+  const response = await api.post(
+    `${API_ENDPOINTS.ITINERARY.ITEMS}/${itemId}/approve/`,
+    { approved },
+  );
+  return handleApiResponse(response);
+};
+
+/**
+ * Submit / change the current user's trip-level "I'm In / I'm Out" status.
+ */
+export const confirmTrip = async (
+  itineraryId: string | number,
+  trip_status: 'in' | 'out' | 'pending',
+): Promise<Itinerary> => {
+  const response = await api.post(
+    `${API_ENDPOINTS.ITINERARY.LIST}/${itineraryId}/confirm/`,
+    { status: trip_status },
+  );
   return handleApiResponse(response);
 };
