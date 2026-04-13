@@ -22,7 +22,7 @@ export const getBookings = async (
  * Get booking details by ID
  */
 export const getBookingDetails = async (bookingId: string): Promise<Booking> => {
-  const response = await api.get(`${API_ENDPOINTS.BOOKINGS.DETAILS}/${bookingId}`);
+  const response = await api.get(`${API_ENDPOINTS.BOOKINGS.DETAILS}/${bookingId}/`);
   return handleApiResponse(response);
 };
 
@@ -33,7 +33,7 @@ export const updateBooking = async (
   bookingId: string,
   data: Partial<Booking>
 ): Promise<Booking> => {
-  const response = await api.put(`${API_ENDPOINTS.BOOKINGS.UPDATE}/${bookingId}`, data);
+  const response = await api.put(`${API_ENDPOINTS.BOOKINGS.UPDATE}/${bookingId}/`, data);
   return handleApiResponse(response);
 };
 
@@ -44,7 +44,7 @@ export const cancelBooking = async (
   bookingId: string,
   reason?: string
 ): Promise<{ success: boolean; refundAmount?: number }> => {
-  const response = await api.post(`${API_ENDPOINTS.BOOKINGS.CANCEL}/${bookingId}/cancel`, {
+  const response = await api.post(`${API_ENDPOINTS.BOOKINGS.CANCEL}/${bookingId}/cancel/`, {
     reason,
   });
   return handleApiResponse(response);
