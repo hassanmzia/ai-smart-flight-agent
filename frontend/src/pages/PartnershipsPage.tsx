@@ -1,23 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
-
-interface Coupon {
-  id: number;
-  code: string;
-  title: string;
-  description: string;
-  discount_type: string;
-  discount_value: number;
-  min_spend: number;
-  partner_name: string;
-  partner_category: string;
-  partner_destination: string;
-  valid_until: string | null;
-  qr_data: string;
-}
+import { ROUTES } from '@/utils/constants';
 
 interface ReferralStats {
   code: string;
@@ -42,59 +28,19 @@ const CATEGORIES = [
   { value: 'spa', label: 'Spa & Wellness' },
 ];
 
-const DISCOUNT_LABELS: Record<string, string> = {
-  percentage: '% OFF',
-  fixed: '$ OFF',
-  bogo: 'BOGO',
-  freebie: 'FREE',
-};
-
-type Tab = 'coupons' | 'referrals' | 'partner';
+type Tab = 'referrals' | 'partner';
 
 export default function PartnershipsPage() {
-  const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
-  const [tab, setTab] = useState<Tab>('coupons');
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [tab, setTab] = useState<Tab>('referrals');
   const [referralStats, setReferralStats] = useState<ReferralStats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [destination, setDestination] = useState('');
-  const [category, setCategory] = useState('');
-
-  useEffect(() => {
-    const dest = searchParams.get('destination');
-    if (dest) setDestination(dest);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
   const [referralEmail, setReferralEmail] = useState('');
-  const [copiedCode, setCopiedCode] = useState('');
   // Partner registration
   const [partnerForm, setPartnerForm] = useState({
     name: '', category: 'restaurant', destination: '', description: '',
     contact_email: '', website: '',
   });
-
-  const fetchCoupons = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = {};
-      if (destination) params.destination = destination;
-      if (category) params.category = category;
-      const res = await api.get('/api/agents/coupons', { params });
-      // Handle both direct array and nested {coupons: [...]} responses
-      const data = res.data;
-      const items = Array.isArray(data) ? data
-        : Array.isArray(data?.coupons) ? data.coupons
-        : Array.isArray(data?.items) ? data.items
-        : Array.isArray(data?.results) ? data.results
-        : [];
-      setCoupons(items);
-    } catch {
-      setCoupons([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [destination, category]);
 
   const fetchReferral = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -121,16 +67,8 @@ export default function PartnershipsPage() {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (tab === 'coupons') fetchCoupons();
-    else if (tab === 'referrals') fetchReferral();
-  }, [tab, fetchCoupons, fetchReferral]);
-
-  const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    toast.success('Coupon code copied!');
-    setTimeout(() => setCopiedCode(''), 2000);
-  };
+    if (tab === 'referrals') fetchReferral();
+  }, [tab, fetchReferral]);
 
   const sendReferral = async () => {
     if (!referralEmail || !referralStats?.code) return;
@@ -162,7 +100,6 @@ export default function PartnershipsPage() {
   };
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'coupons', label: 'Deals & Coupons', icon: '🏷️' },
     { id: 'referrals', label: 'Referral Program', icon: '🎁' },
     { id: 'partner', label: 'Become a Partner', icon: '🤝' },
   ];
@@ -173,7 +110,7 @@ export default function PartnershipsPage() {
       <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 dark:from-emerald-800 dark:via-teal-800 dark:to-cyan-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-            Deals, Coupons & Referrals
+            Referrals & Partnerships
           </h1>
           <p className="text-teal-100 text-lg">Save money on every trip with exclusive partner deals</p>
         </div>
@@ -197,84 +134,27 @@ export default function PartnershipsPage() {
           ))}
         </div>
 
-        {/* Coupons Tab */}
-        {tab === 'coupons' && (
-          <div>
-            {/* Filters */}
-            <div className="flex flex-wrap gap-3 mb-6">
-              <input
-                type="text"
-                placeholder="Filter by destination..."
-                value={destination}
-                onChange={e => setDestination(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && fetchCoupons()}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500"
-              />
-              <select
-                value={category}
-                onChange={e => setCategory(e.target.value)}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-teal-500"
-              >
-                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-              <button onClick={fetchCoupons} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700">
-                Search
-              </button>
+        {/* Pointer to the dedicated Deals page (used to live as a tab here) */}
+        <div className="mb-6 rounded-2xl border border-teal-200 dark:border-teal-800 bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-900/30 dark:to-emerald-900/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🏷️</span>
+            <div>
+              <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                Looking for deals & coupons?
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                We moved them to a dedicated page with destination filters,
+                a saveable travel wallet, and a printable PDF.
+              </p>
             </div>
-
-            {loading ? (
-              <div className="text-center py-12 text-gray-500">Loading deals...</div>
-            ) : coupons.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="text-5xl mb-4">🏷️</div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No coupons found</h3>
-                <p className="text-gray-500">Try adjusting your filters or check back later for new deals</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {coupons.map(coupon => (
-                  <div key={coupon.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-shadow">
-                    <div className="bg-gradient-to-r from-teal-500 to-emerald-500 px-5 py-3 flex items-center justify-between">
-                      <span className="text-white font-bold text-lg">
-                        {coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : `$${coupon.discount_value}`}
-                        {' '}{DISCOUNT_LABELS[coupon.discount_type] || 'OFF'}
-                      </span>
-                      <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">{coupon.partner_category}</span>
-                    </div>
-                    <div className="p-5">
-                      <h3 className="font-bold text-gray-900 dark:text-white text-lg">{coupon.title}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{coupon.partner_name} - {coupon.partner_destination}</p>
-                      {coupon.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{coupon.description}</p>
-                      )}
-                      {coupon.min_spend > 0 && (
-                        <p className="text-xs text-gray-400 mt-2">Min. spend: ${coupon.min_spend}</p>
-                      )}
-                      {coupon.valid_until && (
-                        <p className="text-xs text-gray-400 mt-1">Expires: {new Date(coupon.valid_until).toLocaleDateString()}</p>
-                      )}
-                      <div className="mt-4 flex items-center gap-2">
-                        <div className="flex-1 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 font-mono text-sm text-gray-800 dark:text-gray-200 border-2 border-dashed border-gray-300 dark:border-gray-600 text-center">
-                          {coupon.code}
-                        </div>
-                        <button
-                          onClick={() => copyCode(coupon.code)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            copiedCode === coupon.code
-                              ? 'bg-green-500 text-white'
-                              : 'bg-teal-600 text-white hover:bg-teal-700'
-                          }`}
-                        >
-                          {copiedCode === coupon.code ? 'Copied!' : 'Copy'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-        )}
+          <Link
+            to={ROUTES.DEALS}
+            className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold whitespace-nowrap"
+          >
+            Open Deals & Coupons →
+          </Link>
+        </div>
 
         {/* Referrals Tab */}
         {tab === 'referrals' && (

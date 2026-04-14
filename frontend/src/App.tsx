@@ -59,6 +59,7 @@ const DestinationGuidePage = lazy(() => import('./pages/DestinationGuidePage'));
 const AgentHubPage = lazy(() => import('./pages/AgentHubPage'));
 const TripMemoryPage = lazy(() => import('./pages/TripMemoryPage'));
 const PartnershipsPage = lazy(() => import('./pages/PartnershipsPage'));
+const DealsPage = lazy(() => import('./pages/DealsPage'));
 const DestinationKBPage = lazy(() => import('./pages/DestinationKBPage'));
 const TravelStoriesPage = lazy(() => import('./pages/TravelStoriesPage'));
 const TripGalleryPage = lazy(() => import('./pages/TripGalleryPage'));
@@ -151,6 +152,7 @@ function App() {
                 <Route path={ROUTES.AGENT_HUB} element={<RequireAuth><AgentHubPage /></RequireAuth>} />
                 <Route path={ROUTES.TRIP_MEMORY} element={<RequireAuth><TripMemoryPage /></RequireAuth>} />
                 <Route path={ROUTES.PARTNERSHIPS} element={<PartnershipsPage />} />
+                <Route path={ROUTES.DEALS} element={<DealsPage />} />
                 <Route path={ROUTES.DESTINATION_KB} element={<DestinationKBPage />} />
                 <Route path={ROUTES.TRAVEL_STORIES} element={<TravelStoriesPage />} />
                 <Route path={ROUTES.TRIP_GALLERY} element={<TripGalleryPage />} />
