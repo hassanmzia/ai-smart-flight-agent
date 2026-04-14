@@ -54,38 +54,33 @@ const AIPlannerPage = () => {
   const [activeTab, setActiveTab] = useState<ResultTab>('itinerary');
   const [expandedDay, setExpandedDay] = useState<number | null>(1);
 
-  // Form state — persisted to localStorage so entries survive if the user
-  // opens a Trip Intelligence Hub card (even same-tab) and comes back.
-  const LS_KEY = 'aiPlannerFormV1';
-  const saved = (() => {
-    try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; }
-  })();
-  const [originCity, setOriginCity] = useState<string>(saved.originCity || '');
-  const [originCountry, setOriginCountry] = useState<string>(saved.originCountry || '');
-  const [destinationCity, setDestinationCity] = useState<string>(saved.destinationCity || '');
-  const [destinationCountry, setDestinationCountry] = useState<string>(saved.destinationCountry || '');
-  const [departureDate, setDepartureDate] = useState<string>(saved.departureDate || '');
-  const [returnDate, setReturnDate] = useState<string>(saved.returnDate || '');
-  const [passengers, setPassengers] = useState<number>(typeof saved.passengers === 'number' ? saved.passengers : 1);
-  const [budget, setBudget] = useState<string>(saved.budget || '');
-  const [cuisine, setCuisine] = useState<string>(saved.cuisine || '');
-  const [travelStyle, setTravelStyle] = useState<string>(saved.travelStyle || '');
-  const [interests, setInterests] = useState<string>(saved.interests || '');
-  const [accommodationPref, setAccommodationPref] = useState<string>(saved.accommodationPref || '');
-  const [chatParams, setChatParams] = useState<any>({});
-
-  // Persist form entries on every change.
+  // Form state — kept blank on every fresh navigation to the AI Travel
+  // Planner page so the user always starts from a clean slate. Within a
+  // single visit, React state alone is enough to survive tab switches
+  // inside the page; we deliberately do NOT persist to localStorage so
+  // last-week's "Washington DC → Jessore" search isn't pre-filled when
+  // the user comes back tomorrow.
+  //
+  // Historical note: an earlier version stored these under
+  // ``aiPlannerFormV1``. Wipe that key on mount so existing users with a
+  // stale value also see an empty form.
   useEffect(() => {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify({
-        originCity, originCountry, destinationCity, destinationCountry,
-        departureDate, returnDate, passengers, budget, cuisine,
-        travelStyle, interests, accommodationPref,
-      }));
-    } catch { /* ignore quota errors */ }
-  }, [originCity, originCountry, destinationCity, destinationCountry,
-      departureDate, returnDate, passengers, budget, cuisine,
-      travelStyle, interests, accommodationPref]);
+    try { localStorage.removeItem('aiPlannerFormV1'); } catch { /* ignore */ }
+  }, []);
+
+  const [originCity, setOriginCity] = useState<string>('');
+  const [originCountry, setOriginCountry] = useState<string>('');
+  const [destinationCity, setDestinationCity] = useState<string>('');
+  const [destinationCountry, setDestinationCountry] = useState<string>('');
+  const [departureDate, setDepartureDate] = useState<string>('');
+  const [returnDate, setReturnDate] = useState<string>('');
+  const [passengers, setPassengers] = useState<number>(1);
+  const [budget, setBudget] = useState<string>('');
+  const [cuisine, setCuisine] = useState<string>('');
+  const [travelStyle, setTravelStyle] = useState<string>('');
+  const [interests, setInterests] = useState<string>('');
+  const [accommodationPref, setAccommodationPref] = useState<string>('');
+  const [chatParams, setChatParams] = useState<any>({});
 
   // Compose display labels from city/country
   const originLabel = originCountry ? `${originCity}, ${originCountry}` : originCity;

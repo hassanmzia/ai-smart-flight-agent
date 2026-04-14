@@ -653,7 +653,7 @@ const DashboardPage = () => {
               { icon: '🔮', label: 'Predictions', to: ROUTES.PREDICTIONS },
               { icon: '🛡️', label: 'Safety', to: ROUTES.SAFETY_DASHBOARD },
               { icon: '🧬', label: 'Travel DNA', to: ROUTES.TRAVEL_PROFILE },
-              { icon: '🏷️', label: 'Deals', to: ROUTES.PARTNERSHIPS },
+              { icon: '🏷️', label: 'Deals', to: ROUTES.DEALS },
               { icon: '👥', label: 'Community', to: ROUTES.COMMUNITY },
             ].map((t) => (
               <button

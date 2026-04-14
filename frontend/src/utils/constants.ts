@@ -37,6 +37,7 @@ export const ROUTES = {
   AGENT_HUB: '/agent-hub',
   TRIP_MEMORY: '/trip-memory',
   PARTNERSHIPS: '/partnerships',
+  DEALS: '/deals',
   DESTINATION_KB: '/destination-kb',
   TRAVEL_STORIES: '/travel-stories',
   TRIP_GALLERY: '/trip-gallery',
