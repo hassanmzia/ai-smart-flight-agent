@@ -105,6 +105,7 @@ export interface Flight {
   carbonEmissions?: CarbonEmissions;
   oftenDelayedBy?: number;
   bookingToken?: string;
+  bookingUrl?: string;
   goalEvaluation?: GoalEvaluation;
 }
 
@@ -205,6 +206,8 @@ export interface Hotel {
   check_in_time?: string;
   check_out_time?: string;
   link?: string;
+  booking_url?: string;
+  website_url?: string;
   property_token?: string;
   roomTypes?: RoomType[];
   distanceFromCenter?: number; // in km

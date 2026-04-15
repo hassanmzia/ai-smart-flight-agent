@@ -586,6 +586,7 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             dur_str = f"{dur // 60}h {dur % 60}m" if dur else 'N/A'
         except (TypeError, ValueError):
             dur_str = str(dur) if dur else 'N/A'
+        flight_url = f.get('bookingUrl') or f.get('booking_url') or f.get('link') or ''
         flight_summary = (
             f"BOOKED FLIGHT:\n"
             f"  Airline: {f.get('airline', 'Unknown')}\n"
@@ -598,6 +599,7 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             f"  Stops: {f.get('stops', 0)} {'(Nonstop)' if f.get('stops', 0) == 0 else ''}\n"
             f"  Class: {f.get('travel_class', 'Economy')}\n"
             f"  Price: ${f.get('price', 'N/A')} per person"
+            f"{f'{chr(10)}  Booking URL: {flight_url}' if flight_url else ''}"
         )
 
     # Initialize hub city names (used in f-strings in prompt template)
@@ -662,6 +664,7 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
         hotel_amenities = h.get('amenities', [])
         hotel_distance = h.get('distance_from_center', '')
         hotel_total = h.get('total_rate', '')
+        hotel_url = h.get('booking_url') or h.get('link') or h.get('website_url') or ''
         hotel_summary = (
             f"BOOKED HOTEL:\n"
             f"  Name: {hotel_name}\n"
@@ -673,6 +676,7 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             f"  Check-out: {hotel_checkout}\n"
             f"  Distance from center: {hotel_distance}\n"
             f"  Key amenities: {', '.join(hotel_amenities[:8]) if hotel_amenities else 'N/A'}"
+            f"{f'{chr(10)}  Booking URL: {hotel_url}' if hotel_url else ''}"
         )
 
     # --- Restaurant details (rich, all top 5) ---
@@ -687,6 +691,14 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
         r_hours = r.get('hours', '')
         r_price_range = r.get('price_range', '')
         r_phone = r.get('phone', '')
+        r_url = (
+            r.get('website')
+            or r.get('website_url')
+            or r.get('booking_url')
+            or r.get('url')
+            or r.get('link')
+            or ''
+        )
         restaurant_lines.append(
             f"  RESTAURANT #{idx}: {r_name}\n"
             f"    Cuisine: {r_cuisine}\n"
@@ -695,6 +707,7 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             f"    Address: {r_address}\n"
             f"    Hours: {r_hours}\n"
             f"    Phone: {r_phone}"
+            f"{f'{chr(10)}    Website/Booking URL: {r_url}' if r_url else ''}"
         )
     restaurant_summary = '\n'.join(restaurant_lines) if restaurant_lines else 'No restaurant data from search agent.'
 
@@ -1004,6 +1017,8 @@ If the above attractions data is limited, use your knowledge to add the top 8-10
 15. **LOCAL CUSTOMS DRIVE RECOMMENDATIONS**: If `local_customs.dress_code` notes a specific rule (e.g., "cover shoulders in temples"), add it to "Good to Know" AND remind the traveler to dress appropriately on days that include religious/faith sites. Reflect `local_customs.dining_etiquette` in the tone of restaurant notes (e.g., "remove shoes at entry", "tipping ~10% is expected").
 
 16. **TRANSPORT DECISION IS BINDING**: The "Getting Around" section MUST adopt whatever `best_transport.recommendation` says (public_transit / car_rental / mixed). Do NOT contradict it elsewhere in the plan — if it says public_transit, every transport line should be metro/bus/walk/rideshare, not rentals.
+
+17. **EMBED BOOKING / REFERENCE URLS AS MARKDOWN LINKS (IMPORTANT)**: Whenever a place you reference has a known URL (flight "Booking URL", hotel "Booking URL", restaurant "Website/Booking URL", vacation rental, car rental, a ticket/event link, an official site, etc.), write the place name as a clickable markdown link: `[Place Name](https://url...)`. Use the EXACT URL from the data above — do NOT invent URLs. For attractions, museums, tourist sites, shopping markets, and local events where the data sources above don't include a URL, you MAY fall back to a Google search link of the form `https://www.google.com/search?q=<URL-encoded place name + destination>` so the traveler can still click through. Every timed line in the day-by-day plan SHOULD have at least one markdown link to the place being visited, booked, or eaten at. Do not emit bare "https://..." strings on their own — always wrap them with the place name.
 
 ---
 

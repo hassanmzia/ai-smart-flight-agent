@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { MapPinIcon, StarIcon } from '@heroicons/react/24/solid';
+import { MapPinIcon, StarIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/solid';
 import { Card } from '@/components/common';
 import Button from '@/components/common/Button';
 import { formatCurrency } from '@/utils/formatters';
@@ -35,6 +35,9 @@ interface RentalCardProps {
     is_superhost: boolean;
     host_name?: string;
     cancellation_policy?: string;
+    link?: string;
+    booking_url?: string;
+    website_url?: string;
   };
   nights?: number;
   guests?: number;
@@ -225,12 +228,26 @@ const RentalCard = ({ rental, nights, guests, onBook }: RentalCardProps) => {
                   </div>
                 )}
 
-                <Button
-                  onClick={() => onBook?.(rental.id)}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30"
-                >
-                  Book Rental
-                </Button>
+                <div className="flex flex-col gap-2 items-stretch w-full sm:w-auto">
+                  <Button
+                    onClick={() => onBook?.(rental.id)}
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/25 hover:shadow-xl hover:shadow-indigo-500/30"
+                  >
+                    Book Rental
+                  </Button>
+                  {(rental.booking_url || rental.link || rental.website_url) && (
+                    <a
+                      href={rental.booking_url || rental.link || rental.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-indigo-500 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-xs font-semibold transition-colors whitespace-nowrap"
+                      title="Opens on the partner site in a new tab"
+                    >
+                      <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                      View Listing
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           </div>

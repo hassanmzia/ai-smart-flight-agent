@@ -4,7 +4,8 @@ import {
   MapPinIcon,
   ClockIcon,
   BuildingOfficeIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/solid';
 import { Card } from '@/components/common';
 import Button from '@/components/common/Button';
@@ -205,7 +206,21 @@ const HotelCard = ({ hotel, onSelect }: HotelCardProps) => {
                 {formatCurrency(hotel.pricePerNight, hotel.currency)}
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">per night</p>
-              <Button onClick={handleBookClick}>Book Now</Button>
+              <div className="flex flex-col gap-2 items-stretch w-full sm:w-auto">
+                <Button onClick={handleBookClick}>Book Now</Button>
+                {(hotel.booking_url || hotel.link || hotel.website_url) && (
+                  <a
+                    href={hotel.booking_url || hotel.link || hotel.website_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs font-semibold transition-colors whitespace-nowrap"
+                    title="Opens on the partner site in a new tab"
+                  >
+                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                    Visit / Book Direct
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>

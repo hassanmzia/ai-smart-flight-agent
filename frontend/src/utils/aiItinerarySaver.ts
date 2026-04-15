@@ -30,6 +30,34 @@ export interface ParsedActivity {
   title: string;
   itemType: ItemType;
   estimatedCost: number | undefined;
+  url?: string;
+}
+
+/**
+ * Pull the first http(s) URL out of a chunk of markdown — either from a
+ * `[text](url)` link or a bare URL. Returns the URL (without surrounding
+ * punctuation) or undefined.
+ */
+function extractUrl(text: string): string | undefined {
+  const mdMatch = text.match(/\[[^\]]+\]\((https?:\/\/[^\s)]+)\)/);
+  if (mdMatch) return mdMatch[1];
+  const bareMatch = text.match(/(https?:\/\/[^\s)<>]+)/);
+  if (bareMatch) return bareMatch[1].replace(/[.,;:!?]+$/, '');
+  return undefined;
+}
+
+/**
+ * Strip markdown link syntax (`[text](url)`) down to just the `text`, and
+ * remove bare URLs, so the resulting string reads cleanly as an activity
+ * title.
+ */
+function stripMarkdownLinks(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\((?:https?:\/\/[^\s)]+)\)/g, '$1')
+    .replace(/\((?:https?:\/\/[^\s)]+)\)/g, '')
+    .replace(/https?:\/\/[^\s)<>]+/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 export interface ParsedDay {
@@ -88,7 +116,9 @@ export function parseItineraryNarrative(text: string): ParsedDay[] {
     let timeMatch;
     while ((timeMatch = timePattern.exec(section)) !== null) {
       const timeStr = timeMatch[1].trim();
-      const activityText = timeMatch[2].trim().replace(/\*\*/g, '').replace(/\*/g, '');
+      const rawText = timeMatch[2].trim().replace(/\*\*/g, '').replace(/\*/g, '');
+      const url = extractUrl(rawText);
+      const activityText = stripMarkdownLinks(rawText);
       let cost: number | undefined;
       const costMatch = activityText.match(/[\(~]*\$(\d+(?:\.\d+)?)\)?/);
       if (costMatch) cost = parseFloat(costMatch[1]);
@@ -97,14 +127,17 @@ export function parseItineraryNarrative(text: string): ParsedDay[] {
         title: activityText,
         itemType: guessItemType(activityText),
         estimatedCost: cost,
+        url,
       });
     }
     const bulletPattern = /^[-*•]\s+(?!\d{1,2}:\d{2})(.+)/gm;
     let bulletMatch;
     while ((bulletMatch = bulletPattern.exec(section)) !== null) {
-      const bText = bulletMatch[1].trim().replace(/\*\*/g, '').replace(/\*/g, '');
+      const rawText = bulletMatch[1].trim().replace(/\*\*/g, '').replace(/\*/g, '');
+      const bText = stripMarkdownLinks(rawText);
       if (activities.some((a) => bText.includes(a.title.slice(0, 20)))) continue;
       if (bText.startsWith('#') || bText.startsWith('---')) continue;
+      const url = extractUrl(rawText);
       let cost: number | undefined;
       const costMatch = bText.match(/[\(~]*\$(\d+(?:\.\d+)?)\)?/);
       if (costMatch) cost = parseFloat(costMatch[1]);
@@ -113,6 +146,7 @@ export function parseItineraryNarrative(text: string): ParsedDay[] {
         title: bText,
         itemType: guessItemType(bText),
         estimatedCost: cost,
+        url,
       });
     }
     days.push({ dayNumber: matches[i].dayNum, title: matches[i].title, activities });
@@ -274,6 +308,11 @@ export async function saveAiPlanAsItinerary(
     if (isFirstDay) {
       if (rec?.recommended_flight) {
         const flight = rec.recommended_flight;
+        const flightUrl =
+          flight.bookingUrl ||
+          flight.booking_url ||
+          flight.link ||
+          undefined;
         await createItineraryItem({
           day: dayId,
           item_type: 'flight',
@@ -283,10 +322,16 @@ export async function saveAiPlanAsItinerary(
           start_time: flight.departure_time?.split(' ')[1]?.slice(0, 5) || undefined,
           estimated_cost: flight.price || undefined,
           location_name: flight.departure_airport || originLabel,
+          url: flightUrl,
         });
       }
       if (rec?.recommended_hotel) {
         const hotel = rec.recommended_hotel;
+        const hotelUrl =
+          hotel.booking_url ||
+          hotel.link ||
+          hotel.website_url ||
+          undefined;
         await createItineraryItem({
           day: dayId,
           item_type: 'hotel',
@@ -296,6 +341,7 @@ export async function saveAiPlanAsItinerary(
           start_time: '15:00',
           estimated_cost: hotel.price || hotel.price_per_night || undefined,
           location_name: hotel.address || destinationLabel,
+          url: hotelUrl,
         });
       }
     }
@@ -303,6 +349,11 @@ export async function saveAiPlanAsItinerary(
     if (isLastDay && totalDays > 1) {
       if (rec?.recommended_hotel) {
         const hotel = rec.recommended_hotel;
+        const hotelUrl =
+          hotel.booking_url ||
+          hotel.link ||
+          hotel.website_url ||
+          undefined;
         await createItineraryItem({
           day: dayId,
           item_type: 'hotel',
@@ -310,6 +361,7 @@ export async function saveAiPlanAsItinerary(
           title: `Check out: ${hotel.name || hotel.hotel_name}`,
           start_time: '10:00',
           location_name: hotel.address || destinationLabel,
+          url: hotelUrl,
         });
       }
     }
@@ -352,6 +404,7 @@ export async function saveAiPlanAsItinerary(
           start_time: timeHHMM,
           estimated_cost: activity.estimatedCost,
           location_name: extractPlaceName(activity.title),
+          url: activity.url,
         });
       }
     } else if (!isFirstDay && !isLastDay) {

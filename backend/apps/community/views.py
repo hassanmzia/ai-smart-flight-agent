@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -40,12 +41,20 @@ class DestinationMediaViewSet(viewsets.ModelViewSet):
         qs = DestinationMedia.objects.all()
         if self.request.user.is_staff:
             return qs
-        if self.request.user.is_authenticated and self.action in ['update', 'partial_update', 'destroy']:
-            return qs.filter(user=self.request.user)
+        if self.request.user.is_authenticated:
+            if self.action in ['update', 'partial_update', 'destroy']:
+                return qs.filter(user=self.request.user)
+            # Signed-in users see approved content PLUS their own uploads
+            # (even if still pending moderation) so they can see what they
+            # just submitted.
+            return qs.filter(Q(is_approved=True) | Q(user=self.request.user))
         return qs.filter(is_approved=True)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        # Auto-approve the user's own upload so they can see it immediately.
+        # Admins can still unapprove/flag content later; the default-approved
+        # behavior keeps the UX usable without a moderation queue.
+        serializer.save(user=self.request.user, is_approved=True)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def upvote(self, request, pk=None):
@@ -79,12 +88,14 @@ class TravelStoryViewSet(viewsets.ModelViewSet):
         qs = TravelStory.objects.all()
         if self.request.user.is_staff:
             return qs
-        if self.request.user.is_authenticated and self.action in ['update', 'partial_update', 'destroy']:
-            return qs.filter(user=self.request.user)
+        if self.request.user.is_authenticated:
+            if self.action in ['update', 'partial_update', 'destroy']:
+                return qs.filter(user=self.request.user)
+            return qs.filter(Q(is_approved=True) | Q(user=self.request.user))
         return qs.filter(is_approved=True)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, is_approved=True)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def upvote(self, request, pk=None):
@@ -118,12 +129,14 @@ class TravelTipViewSet(viewsets.ModelViewSet):
         qs = TravelTip.objects.all()
         if self.request.user.is_staff:
             return qs
-        if self.request.user.is_authenticated and self.action in ['update', 'partial_update', 'destroy']:
-            return qs.filter(user=self.request.user)
+        if self.request.user.is_authenticated:
+            if self.action in ['update', 'partial_update', 'destroy']:
+                return qs.filter(user=self.request.user)
+            return qs.filter(Q(is_approved=True) | Q(user=self.request.user))
         return qs.filter(is_approved=True)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        serializer.save(user=self.request.user, is_approved=True)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def upvote(self, request, pk=None):

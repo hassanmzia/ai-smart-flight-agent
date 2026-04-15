@@ -342,6 +342,28 @@ def search_hotels(request):
                             'townhouse', 'farmhouse',
                         ) else ('vacation_rental' if is_rental_prop else 'hotel')
 
+                        # Resolve the external booking URL. SerpAPI provides a
+                        # ``link`` for most properties, but sometimes it's empty
+                        # — fall back to a Google Hotels search URL built from
+                        # the property name + destination so the user always
+                        # has a place they can click through to book.
+                        raw_link = hotel_data.get('link', '')
+                        if isinstance(raw_link, dict):
+                            raw_link = (
+                                raw_link.get('url')
+                                or raw_link.get('href')
+                                or raw_link.get('link')
+                                or ''
+                            )
+                        if not raw_link:
+                            from urllib.parse import quote_plus
+                            query = quote_plus(
+                                f"{hotel_data.get('name', '')} {destination}".strip()
+                            )
+                            raw_link = (
+                                f"https://www.google.com/travel/hotels?q={query}"
+                            )
+
                         # Build hotel object with maximum details
                         hotel = {
                             'id': f"serp_{idx}",
@@ -374,7 +396,8 @@ def search_hotels(request):
                             'check_out_time': check_out_time,
                             'hotel_class': hotel_data.get('hotel_class', ''),
                             'gps_coordinates': hotel_data.get('gps_coordinates', {}),
-                            'link': hotel_data.get('link', ''),
+                            'link': raw_link,
+                            'booking_url': raw_link,
                             'property_token': hotel_data.get('property_token', ''),
                             # Vacation rental fields
                             'is_rental': is_rental_prop,
