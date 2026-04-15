@@ -4,6 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
 
+interface TemplateComment {
+  id: number;
+  user: string;
+  user_id?: number | string;
+  content: string;
+  created_at: string;
+}
+
 interface TripTemplate {
   id: number;
   title: string;
@@ -22,9 +30,12 @@ interface TripTemplate {
   is_verified: boolean;
   clone_count: number;
   likes_count: number;
+  dislikes_count?: number;
+  comments_count?: number;
   views_count: number;
   rating: number;
   rating_count: number;
+  my_reaction?: 'like' | 'dislike' | null;
   creator_name?: string;
   created_at: string;
 }
@@ -54,13 +65,16 @@ type Tab = 'browse' | 'create' | 'my-templates';
 
 export default function TripGalleryPage() {
   const [searchParams] = useSearchParams();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const currentUserId = user?.id;
   const [tab, setTab] = useState<Tab>('browse');
   const [templates, setTemplates] = useState<TripTemplate[]>([]);
   const [featured, setFeatured] = useState<TripTemplate[]>([]);
   const [myTemplates, setMyTemplates] = useState<TripTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<TripTemplate | null>(null);
+  const [comments, setComments] = useState<TemplateComment[]>([]);
+  const [commentText, setCommentText] = useState('');
   const [destination, setDestination] = useState('');
   const [style, setStyle] = useState('');
   const [sortBy, setSortBy] = useState('popular');
@@ -111,10 +125,20 @@ export default function TripGalleryPage() {
     else if (tab === 'my-templates') fetchMyTemplates();
   }, [tab, fetchTemplates, fetchFeatured, fetchMyTemplates]);
 
+  const loadComments = useCallback(async (templateId: number) => {
+    try {
+      const res = await api.get('/api/agents/templates/comments', { params: { template_id: templateId } });
+      const items = res.data?.comments;
+      setComments(Array.isArray(items) ? items : []);
+    } catch { setComments([]); }
+  }, []);
+
   const viewTemplate = async (id: number) => {
     try {
       const res = await api.get(`/api/agents/templates/${id}`);
-      setDetail(res.data || null);
+      const t: TripTemplate | null = res.data?.template || null;
+      setDetail(t);
+      if (t) loadComments(t.id);
     } catch { toast.error('Template not found'); }
   };
 
@@ -125,12 +149,111 @@ export default function TripGalleryPage() {
     } catch { toast.error('Sign in to clone trips'); }
   };
 
-  const likeTemplate = async (id: number) => {
+  const applyReactionT = (t: TripTemplate, reaction: 'like' | 'dislike'): TripTemplate => {
+    const current = t.my_reaction;
+    let likes = t.likes_count;
+    let dislikes = t.dislikes_count ?? 0;
+    let next: 'like' | 'dislike' | null = reaction;
+    if (current === reaction) {
+      next = null;
+      if (reaction === 'like') likes -= 1; else dislikes -= 1;
+    } else {
+      if (current === 'like') likes -= 1;
+      if (current === 'dislike') dislikes -= 1;
+      if (reaction === 'like') likes += 1; else dislikes += 1;
+    }
+    return {
+      ...t,
+      my_reaction: next,
+      likes_count: Math.max(0, likes),
+      dislikes_count: Math.max(0, dislikes),
+    };
+  };
+
+  const reactTemplate = async (t: TripTemplate, reaction: 'like' | 'dislike') => {
+    if (!isAuthenticated) { toast.error('Sign in to react'); return; }
+    const updated = applyReactionT(t, reaction);
+    setTemplates(prev => prev.map(x => x.id === t.id ? { ...x, ...updated } : x));
+    setFeatured(prev => prev.map(x => x.id === t.id ? { ...x, ...updated } : x));
+    setMyTemplates(prev => prev.map(x => x.id === t.id ? { ...x, ...updated } : x));
+    if (detail?.id === t.id) setDetail({ ...detail, ...updated });
     try {
-      await api.post('/api/agents/templates/like', { template_id: id });
-      toast.success('Liked!');
-      if (detail) viewTemplate(detail.id);
-    } catch { toast.error('Sign in to like'); }
+      const res = await api.post('/api/agents/templates/react', {
+        template_id: t.id, reaction,
+      });
+      if (res.data?.success) {
+        const patched = {
+          my_reaction: res.data.my_reaction ?? null,
+          likes_count: res.data.likes_count,
+          dislikes_count: res.data.dislikes_count,
+        };
+        setTemplates(prev => prev.map(x => x.id === t.id ? { ...x, ...patched } : x));
+        setFeatured(prev => prev.map(x => x.id === t.id ? { ...x, ...patched } : x));
+        setMyTemplates(prev => prev.map(x => x.id === t.id ? { ...x, ...patched } : x));
+        if (detail?.id === t.id) setDetail(d => d ? { ...d, ...patched } : d);
+      }
+    } catch {
+      // Rollback
+      setTemplates(prev => prev.map(x => x.id === t.id ? t : x));
+      setFeatured(prev => prev.map(x => x.id === t.id ? t : x));
+      setMyTemplates(prev => prev.map(x => x.id === t.id ? t : x));
+      if (detail?.id === t.id) setDetail(t);
+      toast.error('Failed to react');
+    }
+  };
+
+  const addTemplateComment = async () => {
+    if (!detail || !commentText.trim()) return;
+    if (!isAuthenticated) { toast.error('Sign in to comment'); return; }
+    try {
+      const res = await api.post('/api/agents/templates/comments', {
+        template_id: detail.id, content: commentText,
+      });
+      if (res.data?.success) {
+        setComments(prev => [res.data.comment, ...prev]);
+        setDetail(d => d ? { ...d, comments_count: res.data.comments_count ?? (d.comments_count ?? 0) + 1 } : d);
+        setCommentText('');
+        toast.success('Comment posted');
+      } else {
+        toast.error(res.data?.error || 'Comment failed');
+      }
+    } catch { toast.error('Failed to add comment'); }
+  };
+
+  const deleteTemplateComment = async (commentId: number) => {
+    if (!detail) return;
+    try {
+      const res = await api.delete(`/api/agents/templates/comments/${commentId}`);
+      if (res.data?.success) {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        setDetail(d => d ? {
+          ...d,
+          comments_count: res.data.comments_count ?? Math.max(0, (d.comments_count ?? 1) - 1),
+        } : d);
+        toast.success('Comment deleted');
+      } else {
+        toast.error(res.data?.error || 'Delete failed');
+      }
+    } catch { toast.error('Failed to delete'); }
+  };
+
+  const shareTemplate = async (t: TripTemplate) => {
+    const url = `${window.location.origin}/gallery?template=${t.id}`;
+    const shareData = { title: t.title, text: `${t.title} – a trip template on AI Smart Trip Planner`, url };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Share link copied!');
+      }
+    } catch (err) {
+      if ((err as { name?: string })?.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(url);
+          toast.success('Share link copied!');
+        } catch { toast.error('Failed to share'); }
+      }
+    }
   };
 
   const generateTemplate = async () => {
@@ -206,15 +329,81 @@ export default function TripGalleryPage() {
               )}
 
               {/* Actions */}
-              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 flex-wrap">
                 <button onClick={() => cloneTemplate(detail.id)} className="px-5 py-2 bg-violet-600 text-white rounded-lg font-medium text-sm hover:bg-violet-700">
                   Clone This Trip ({detail.clone_count})
                 </button>
-                <button onClick={() => likeTemplate(detail.id)} className="px-4 py-2 bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-lg text-sm hover:bg-pink-200">
-                  &#10084; {detail.likes_count}
+                <button
+                  onClick={() => reactTemplate(detail, 'like')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    detail.my_reaction === 'like'
+                      ? 'bg-pink-500 text-white'
+                      : 'bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 hover:bg-pink-200'
+                  }`}
+                  aria-pressed={detail.my_reaction === 'like'}
+                >
+                  <span>👍</span><span>{detail.likes_count}</span>
                 </button>
-                <span className="text-sm text-yellow-500">{renderStars(detail.rating)} ({detail.rating_count})</span>
+                <button
+                  onClick={() => reactTemplate(detail, 'dislike')}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    detail.my_reaction === 'dislike'
+                      ? 'bg-gray-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                  aria-pressed={detail.my_reaction === 'dislike'}
+                >
+                  <span>👎</span><span>{detail.dislikes_count ?? 0}</span>
+                </button>
+                <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-gray-100 dark:bg-gray-700 text-gray-500">
+                  💬 {detail.comments_count ?? comments.length}
+                </span>
+                <button
+                  onClick={() => shareTemplate(detail)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200"
+                >
+                  🔗 Share
+                </button>
+                <span className="text-sm text-yellow-500 ml-2">{renderStars(detail.rating)} ({detail.rating_count})</span>
                 <span className="text-xs text-gray-400 ml-auto">by {detail.creator_name || 'Traveler'}</span>
+              </div>
+
+              {/* Comments */}
+              <div className="mt-6">
+                <h3 className="font-bold text-gray-900 dark:text-white mb-3">Comments</h3>
+                {comments.length === 0 && (
+                  <p className="text-sm text-gray-400">No comments yet — be the first to discuss this trip!</p>
+                )}
+                {comments.map(c => {
+                  const isOwn = currentUserId != null && String(c.user_id) === String(currentUserId);
+                  return (
+                    <div key={c.id} className="py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{c.user}</span>
+                        <span>{new Date(c.created_at).toLocaleDateString()}</span>
+                        {isOwn && (
+                          <button
+                            onClick={() => deleteTemplateComment(c.id)}
+                            className="ml-auto text-red-400 hover:text-red-600"
+                          >Delete</button>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{c.content}</p>
+                    </div>
+                  );
+                })}
+                {isAuthenticated && (
+                  <div className="flex gap-2 mt-3">
+                    <input
+                      value={commentText}
+                      onChange={e => setCommentText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') addTemplateComment(); }}
+                      placeholder="Share your thoughts on this trip..."
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    />
+                    <button onClick={addTemplateComment} className="px-4 py-2 bg-violet-500 text-white rounded-lg text-sm hover:bg-violet-600">Post</button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -297,8 +486,8 @@ export default function TripGalleryPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {templates.map(t => (
-                  <button key={t.id} onClick={() => viewTemplate(t.id)} className="text-left bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-shadow">
-                    <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                  <div key={t.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-shadow flex flex-col">
+                    <button onClick={() => viewTemplate(t.id)} className="text-left px-5 py-4 border-b border-gray-100 dark:border-gray-700 w-full">
                       <div className="flex items-center gap-2 mb-1">
                         <span>{STYLE_EMOJIS[t.style] || '✈️'}</span>
                         <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">{t.style}</span>
@@ -306,13 +495,45 @@ export default function TripGalleryPage() {
                       </div>
                       <h3 className="font-bold text-gray-900 dark:text-white line-clamp-1">{t.title}</h3>
                       <p className="text-sm text-gray-500 mt-0.5">{t.destination} &middot; {t.duration_days} days &middot; ${t.estimated_budget}</p>
+                    </button>
+                    <div className="px-5 py-3 flex items-center gap-1.5 text-xs border-b border-gray-100 dark:border-gray-700 flex-wrap">
+                      <button
+                        onClick={e => { e.stopPropagation(); reactTemplate(t, 'like'); }}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md transition ${
+                          t.my_reaction === 'like'
+                            ? 'bg-pink-500 text-white'
+                            : 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 hover:bg-pink-100'
+                        }`}
+                        aria-pressed={t.my_reaction === 'like'}
+                        aria-label="Like"
+                      >👍 {t.likes_count}</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); reactTemplate(t, 'dislike'); }}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md transition ${
+                          t.my_reaction === 'dislike'
+                            ? 'bg-gray-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+                        }`}
+                        aria-pressed={t.my_reaction === 'dislike'}
+                        aria-label="Dislike"
+                      >👎 {t.dislikes_count ?? 0}</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); viewTemplate(t.id); }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200"
+                        aria-label="Comments"
+                      >💬 {t.comments_count ?? 0}</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); shareTemplate(t); }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100"
+                        aria-label="Share"
+                      >🔗</button>
+                      <span className="text-yellow-500 ml-auto">{renderStars(t.rating)}</span>
                     </div>
-                    <div className="px-5 py-3 flex items-center justify-between text-xs text-gray-400">
+                    <div className="px-5 py-2 flex items-center justify-between text-xs text-gray-400">
                       <span>{t.clone_count} clones</span>
-                      <span>&#10084; {t.likes_count}</span>
-                      <span className="text-yellow-500">{renderStars(t.rating)}</span>
+                      <span>{t.views_count ?? 0} views</span>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -375,14 +596,42 @@ export default function TripGalleryPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {myTemplates.map(t => (
-                <button key={t.id} onClick={() => viewTemplate(t.id)} className="text-left bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow">
-                  <span className="text-2xl">{STYLE_EMOJIS[t.style] || '✈️'}</span>
-                  <h3 className="font-bold text-gray-900 dark:text-white mt-2">{t.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">{t.destination} &middot; {t.duration_days} days</p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                    <span>{t.clone_count} clones</span><span>&#10084; {t.likes_count}</span>
+                <div key={t.id} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow">
+                  <button onClick={() => viewTemplate(t.id)} className="text-left w-full">
+                    <span className="text-2xl">{STYLE_EMOJIS[t.style] || '✈️'}</span>
+                    <h3 className="font-bold text-gray-900 dark:text-white mt-2">{t.title}</h3>
+                    <p className="text-sm text-gray-500 mt-1">{t.destination} &middot; {t.duration_days} days</p>
+                  </button>
+                  <div className="flex items-center gap-1.5 mt-3 text-xs flex-wrap">
+                    <button
+                      onClick={e => { e.stopPropagation(); reactTemplate(t, 'like'); }}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md transition ${
+                        t.my_reaction === 'like'
+                          ? 'bg-pink-500 text-white'
+                          : 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 hover:bg-pink-100'
+                      }`}
+                      aria-pressed={t.my_reaction === 'like'}
+                    >👍 {t.likes_count}</button>
+                    <button
+                      onClick={e => { e.stopPropagation(); reactTemplate(t, 'dislike'); }}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-md transition ${
+                        t.my_reaction === 'dislike'
+                          ? 'bg-gray-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+                      }`}
+                      aria-pressed={t.my_reaction === 'dislike'}
+                    >👎 {t.dislikes_count ?? 0}</button>
+                    <button
+                      onClick={e => { e.stopPropagation(); viewTemplate(t.id); }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200"
+                    >💬 {t.comments_count ?? 0}</button>
+                    <button
+                      onClick={e => { e.stopPropagation(); shareTemplate(t); }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100"
+                    >🔗</button>
+                    <span className="text-gray-400 ml-auto">{t.clone_count} clones</span>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )

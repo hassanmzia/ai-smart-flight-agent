@@ -117,6 +117,7 @@ class ContentHubService:
         content_type: str = None,
         sort_by: str = 'popular',
         limit: int = 20,
+        user=None,
     ) -> Dict[str, Any]:
         """
         Retrieve approved content for a destination.
@@ -157,7 +158,7 @@ class ContentHubService:
 
             items = []
             for item in qs:
-                item_dict = ContentHubService._content_to_dict(item)
+                item_dict = ContentHubService._content_to_dict(item, user=user)
                 item_dict['user_name'] = (
                     item.user.get_full_name() or item.user.username
                     if item.user else 'Anonymous'
@@ -187,30 +188,24 @@ class ContentHubService:
     @staticmethod
     def vote_content(user, content_id: int, vote: str) -> Dict[str, Any]:
         """
-        Upvote or downvote a content item using atomic F() increment.
+        Cast or toggle a per-user vote on a content item.
 
-        Parameters
-        ----------
-        user : User
-            The user casting the vote.
-        content_id : int
-            ID of the ContentItem.
-        vote : str
-            Either 'upvote' or 'downvote'.
-
-        Returns
-        -------
-        dict with 'success' key and updated vote counts.
+        Accepts 'up'/'down' (UI style) or 'upvote'/'downvote' (legacy).
+        If the user has already cast the same vote, it is cleared. If they have
+        the opposite vote, it is switched. Counters are maintained atomically.
         """
-        from apps.agents.models import ContentItem
+        from apps.agents.models import ContentItem, ContentVote
+
+        # Normalize vote alias
+        vote_map = {'up': 'up', 'down': 'down', 'upvote': 'up', 'downvote': 'down'}
+        vote_norm = vote_map.get(vote)
+        if vote_norm is None:
+            return {
+                'success': False,
+                'error': "Vote must be 'up'/'down' (or 'upvote'/'downvote').",
+            }
 
         try:
-            if vote not in ('upvote', 'downvote'):
-                return {
-                    'success': False,
-                    'error': "Vote must be 'upvote' or 'downvote'.",
-                }
-
             try:
                 content = ContentItem.objects.get(id=content_id)
             except ContentItem.DoesNotExist:
@@ -219,25 +214,58 @@ class ContentHubService:
                     'error': f'Content item with id {content_id} not found.',
                 }
 
-            if vote == 'upvote':
-                ContentItem.objects.filter(id=content_id).update(
-                    upvotes=F('upvotes') + 1,
-                )
-            else:
-                ContentItem.objects.filter(id=content_id).update(
-                    downvotes=F('downvotes') + 1,
-                )
+            existing = ContentVote.objects.filter(user=user, content_item=content).first()
 
-            content.refresh_from_db()
+            upvotes_delta = 0
+            downvotes_delta = 0
+            new_vote = vote_norm
+
+            if existing and existing.vote == vote_norm:
+                # Same vote pressed again → clear
+                existing.delete()
+                if vote_norm == 'up':
+                    upvotes_delta -= 1
+                else:
+                    downvotes_delta -= 1
+                new_vote = None
+            elif existing and existing.vote != vote_norm:
+                # Switching sides
+                if existing.vote == 'up':
+                    upvotes_delta -= 1
+                else:
+                    downvotes_delta -= 1
+                existing.vote = vote_norm
+                existing.save(update_fields=['vote'])
+                if vote_norm == 'up':
+                    upvotes_delta += 1
+                else:
+                    downvotes_delta += 1
+            else:
+                # New vote
+                ContentVote.objects.create(user=user, content_item=content, vote=vote_norm)
+                if vote_norm == 'up':
+                    upvotes_delta += 1
+                else:
+                    downvotes_delta += 1
+
+            if upvotes_delta or downvotes_delta:
+                ContentItem.objects.filter(id=content_id).update(
+                    upvotes=F('upvotes') + upvotes_delta,
+                    downvotes=F('downvotes') + downvotes_delta,
+                )
+                content.refresh_from_db()
+
+            my_reaction = 'like' if new_vote == 'up' else ('dislike' if new_vote == 'down' else None)
 
             logger.info(
-                "User %s cast %s on content id=%s", user, vote, content_id,
+                "User %s set vote=%s on content id=%s", user, new_vote, content_id,
             )
 
             return {
                 'success': True,
                 'content_id': content_id,
-                'vote': vote,
+                'vote': new_vote,
+                'my_reaction': my_reaction,
                 'upvotes': content.upvotes,
                 'downvotes': content.downvotes,
             }
@@ -246,11 +274,118 @@ class ContentHubService:
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------ #
+    #  3b. Comments
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def add_comment(user, content_id: int, content: str) -> Dict[str, Any]:
+        """Add a comment to a content item (max 1000 chars)."""
+        from apps.agents.models import ContentItem, ContentComment
+
+        if not content or not content.strip():
+            return {'success': False, 'error': 'Comment cannot be empty'}
+        if len(content) > 1000:
+            return {'success': False, 'error': 'Comment exceeds 1000 character limit'}
+
+        try:
+            try:
+                item = ContentItem.objects.get(id=content_id)
+            except ContentItem.DoesNotExist:
+                return {
+                    'success': False,
+                    'error': f'Content item with id {content_id} not found.',
+                }
+
+            comment = ContentComment.objects.create(
+                user=user, content_item=item, content=content.strip(),
+            )
+            ContentItem.objects.filter(id=content_id).update(
+                comments_count=F('comments_count') + 1,
+            )
+            item.refresh_from_db()
+
+            user_name = (
+                user.get_full_name() or getattr(user, 'username', '') or 'Anonymous'
+            )
+            return {
+                'success': True,
+                'comments_count': item.comments_count,
+                'comment': {
+                    'id': comment.id,
+                    'user': user_name,
+                    'user_id': getattr(user, 'id', None),
+                    'content_id': content_id,
+                    'content': comment.content,
+                    'created_at': comment.created_at.isoformat() if comment.created_at else None,
+                },
+            }
+        except Exception as e:
+            logger.error("Failed to add comment to content %s: %s", content_id, e)
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def list_comments(content_id: int) -> Dict[str, Any]:
+        """List comments for a content item, newest first."""
+        from apps.agents.models import ContentItem
+
+        try:
+            try:
+                item = ContentItem.objects.get(id=content_id)
+            except ContentItem.DoesNotExist:
+                return {
+                    'success': False,
+                    'error': f'Content item with id {content_id} not found.',
+                }
+
+            comments = [
+                {
+                    'id': c.id,
+                    'user': (c.user.get_full_name() or c.user.username) if c.user else 'Anonymous',
+                    'user_id': c.user_id,
+                    'content': c.content,
+                    'created_at': c.created_at.isoformat() if c.created_at else None,
+                }
+                for c in item.comments.select_related('user').order_by('-created_at')
+            ]
+            return {'success': True, 'comments': comments, 'count': len(comments)}
+        except Exception as e:
+            logger.error("Failed to list comments for content %s: %s", content_id, e)
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def delete_comment(user, comment_id: int) -> Dict[str, Any]:
+        """Delete a content comment (author only)."""
+        from apps.agents.models import ContentComment, ContentItem
+
+        try:
+            try:
+                comment = ContentComment.objects.select_related('content_item').get(id=comment_id)
+            except ContentComment.DoesNotExist:
+                return {'success': False, 'error': 'Comment not found'}
+
+            if comment.user_id != getattr(user, 'id', None):
+                return {'success': False, 'error': 'Not authorized to delete this comment'}
+
+            item_pk = comment.content_item_id
+            comment.delete()
+            ContentItem.objects.filter(pk=item_pk).update(
+                comments_count=F('comments_count') - 1,
+            )
+            item = ContentItem.objects.filter(pk=item_pk).first()
+            return {
+                'success': True,
+                'comments_count': item.comments_count if item else 0,
+            }
+        except Exception as e:
+            logger.error("Failed to delete content comment %s: %s", comment_id, e)
+            return {'success': False, 'error': str(e)}
+
+    # ------------------------------------------------------------------ #
     #  4. Get Content Detail
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def get_content_detail(content_id: int) -> Dict[str, Any]:
+    def get_content_detail(content_id: int, user=None) -> Dict[str, Any]:
         """
         Retrieve a single content item and increment its view count atomically.
 
@@ -280,7 +415,7 @@ class ContentHubService:
             )
             content.refresh_from_db()
 
-            content_dict = ContentHubService._content_to_dict(content)
+            content_dict = ContentHubService._content_to_dict(content, user=user)
             content_dict['user_name'] = (
                 content.user.get_full_name() or content.user.username
                 if content.user else 'Anonymous'
@@ -324,7 +459,7 @@ class ContentHubService:
             if status:
                 qs = qs.filter(status=status)
 
-            items = [ContentHubService._content_to_dict(item) for item in qs]
+            items = [ContentHubService._content_to_dict(item, user=user) for item in qs]
 
             logger.info(
                 "Retrieved %d content items for user %s (status=%s)",
@@ -345,7 +480,7 @@ class ContentHubService:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def get_trending_content(limit: int = 10) -> Dict[str, Any]:
+    def get_trending_content(limit: int = 10, user=None) -> Dict[str, Any]:
         """
         Retrieve trending content from the last 7 days ranked by upvotes.
 
@@ -370,7 +505,7 @@ class ContentHubService:
 
             items = []
             for item in qs:
-                item_dict = ContentHubService._content_to_dict(item)
+                item_dict = ContentHubService._content_to_dict(item, user=user)
                 item_dict['user_name'] = (
                     item.user.get_full_name() or item.user.username
                     if item.user else 'Anonymous'
@@ -641,8 +776,21 @@ Return a single JSON object:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def _content_to_dict(item) -> Dict[str, Any]:
-        """Serialise a ContentItem model instance to a plain dict."""
+    def _content_to_dict(item, user=None) -> Dict[str, Any]:
+        """Serialise a ContentItem model instance to a plain dict.
+
+        If ``user`` is authenticated, includes per-user vote/reaction state.
+        """
+        from apps.agents.models import ContentVote
+
+        my_vote = None
+        my_reaction = None
+        if user is not None and getattr(user, 'is_authenticated', False):
+            vote = ContentVote.objects.filter(user=user, content_item=item).first()
+            if vote:
+                my_vote = vote.vote  # 'up' | 'down'
+                my_reaction = 'like' if vote.vote == 'up' else 'dislike'
+
         return {
             'id': item.id,
             'destination': item.destination,
@@ -656,7 +804,12 @@ Return a single JSON object:
             'ai_moderation_score': item.ai_moderation_score,
             'upvotes': item.upvotes,
             'downvotes': item.downvotes,
+            'likes_count': item.upvotes,
+            'dislikes_count': item.downvotes,
+            'comments_count': getattr(item, 'comments_count', 0),
             'views_count': item.views_count,
+            'my_vote': my_vote,
+            'my_reaction': my_reaction,
             'created_at': item.created_at.isoformat() if item.created_at else None,
             'updated_at': item.updated_at.isoformat() if item.updated_at else None,
             'user_id': item.user_id,

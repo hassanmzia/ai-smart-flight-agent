@@ -304,6 +304,7 @@ class TripTemplateService:
         max_budget: float = None,
         sort_by: str = 'popular',
         limit: int = 20,
+        user=None,
     ) -> Dict[str, Any]:
         """
         Browse and search trip templates with filters and sorting.
@@ -344,7 +345,7 @@ class TripTemplateService:
 
             templates = []
             for t in qs[:limit]:
-                template_dict = TripTemplateService._template_to_dict(t)
+                template_dict = TripTemplateService._template_to_dict(t, user=user)
                 template_dict['creator_name'] = TripTemplateService._get_display_name(t.creator)
                 templates.append(template_dict)
 
@@ -367,7 +368,7 @@ class TripTemplateService:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def get_template(template_id: int) -> Dict[str, Any]:
+    def get_template(template_id: int, user=None) -> Dict[str, Any]:
         """
         Get full template details and increment views_count atomically.
 
@@ -389,7 +390,7 @@ class TripTemplateService:
             )
             template.refresh_from_db()
 
-            template_data = TripTemplateService._template_to_dict(template)
+            template_data = TripTemplateService._template_to_dict(template, user=user)
             template_data['creator_name'] = TripTemplateService._get_display_name(template.creator)
 
             logger.info("Retrieved template '%s' (id=%s)", template.title, template_id)
@@ -463,18 +464,132 @@ class TripTemplateService:
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------ #
-    #  6. Like template
+    #  6. Like / Dislike template (per-user toggle)
     # ------------------------------------------------------------------ #
 
     @staticmethod
     def like_template(user, template_id: int) -> Dict[str, Any]:
-        """
-        Increment likes_count atomically for a template.
+        """Backward-compatible wrapper around set_reaction('like')."""
+        return TripTemplateService.set_reaction(user, template_id, 'like')
 
-        Returns
-        -------
-        dict with 'success' key and updated likes count.
+    @staticmethod
+    def set_reaction(user, template_id: int, reaction: str) -> Dict[str, Any]:
         """
+        Toggle a like or dislike on a template for this user.
+
+        ``reaction`` is one of 'like' or 'dislike'. If the user already has that
+        reaction, it is cleared. If they have the opposite reaction, it is
+        switched. Counters maintained atomically with F() updates.
+        """
+        from apps.agents.models import (
+            TemplateLike, TemplateDislike, TripTemplate,
+        )
+
+        if reaction not in ('like', 'dislike'):
+            return {'success': False, 'error': "reaction must be 'like' or 'dislike'"}
+
+        try:
+            try:
+                template = TripTemplate.objects.get(id=template_id)
+            except TripTemplate.DoesNotExist:
+                return {'success': False, 'error': f'Template with id {template_id} not found'}
+
+            has_like = TemplateLike.objects.filter(user=user, template=template).exists()
+            has_dislike = TemplateDislike.objects.filter(user=user, template=template).exists()
+
+            likes_delta = 0
+            dislikes_delta = 0
+            new_reaction = reaction
+
+            if reaction == 'like':
+                if has_like:
+                    TemplateLike.objects.filter(user=user, template=template).delete()
+                    likes_delta -= 1
+                    new_reaction = None
+                else:
+                    if has_dislike:
+                        TemplateDislike.objects.filter(user=user, template=template).delete()
+                        dislikes_delta -= 1
+                    TemplateLike.objects.create(user=user, template=template)
+                    likes_delta += 1
+            else:
+                if has_dislike:
+                    TemplateDislike.objects.filter(user=user, template=template).delete()
+                    dislikes_delta -= 1
+                    new_reaction = None
+                else:
+                    if has_like:
+                        TemplateLike.objects.filter(user=user, template=template).delete()
+                        likes_delta -= 1
+                    TemplateDislike.objects.create(user=user, template=template)
+                    dislikes_delta += 1
+
+            if likes_delta or dislikes_delta:
+                TripTemplate.objects.filter(pk=template.pk).update(
+                    likes_count=F('likes_count') + likes_delta,
+                    dislikes_count=F('dislikes_count') + dislikes_delta,
+                )
+                template.refresh_from_db()
+
+            return {
+                'success': True,
+                'template_id': template.id,
+                'my_reaction': new_reaction,
+                'liked': new_reaction == 'like',
+                'likes_count': template.likes_count,
+                'dislikes_count': template.dislikes_count,
+            }
+        except Exception as e:
+            logger.error("Failed to set reaction for template %s: %s", template_id, e)
+            return {'success': False, 'error': str(e)}
+
+    # ------------------------------------------------------------------ #
+    #  6b. Comments
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def add_comment(user, template_id: int, content: str) -> Dict[str, Any]:
+        """Add a comment to a template (max 1000 chars). Increments comments_count."""
+        from apps.agents.models import TemplateComment, TripTemplate
+
+        if not content or not content.strip():
+            return {'success': False, 'error': 'Comment content cannot be empty'}
+        if len(content) > 1000:
+            return {'success': False, 'error': 'Comment exceeds 1000 character limit'}
+
+        try:
+            try:
+                template = TripTemplate.objects.get(id=template_id)
+            except TripTemplate.DoesNotExist:
+                return {'success': False, 'error': f'Template with id {template_id} not found'}
+
+            comment = TemplateComment.objects.create(
+                user=user, template=template, content=content.strip(),
+            )
+            TripTemplate.objects.filter(pk=template.pk).update(
+                comments_count=F('comments_count') + 1,
+            )
+            template.refresh_from_db()
+
+            return {
+                'success': True,
+                'comments_count': template.comments_count,
+                'comment': {
+                    'id': comment.id,
+                    'user': TripTemplateService._get_display_name(user),
+                    'user_id': getattr(user, 'id', None),
+                    'template_id': template_id,
+                    'content': comment.content,
+                    'created_at': comment.created_at.isoformat() if comment.created_at else None,
+                },
+            }
+        except Exception as e:
+            logger.error("Failed to add comment to template %s: %s", template_id, e)
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def list_comments(template_id: int) -> Dict[str, Any]:
+        """List comments for a template, newest first."""
         from apps.agents.models import TripTemplate
 
         try:
@@ -483,23 +598,47 @@ class TripTemplateService:
             except TripTemplate.DoesNotExist:
                 return {'success': False, 'error': f'Template with id {template_id} not found'}
 
-            TripTemplate.objects.filter(pk=template.pk).update(
-                likes_count=F('likes_count') + 1,
-            )
-            template.refresh_from_db()
+            comments = [
+                {
+                    'id': c.id,
+                    'user': TripTemplateService._get_display_name(c.user),
+                    'user_id': c.user_id,
+                    'content': c.content,
+                    'created_at': c.created_at.isoformat() if c.created_at else None,
+                }
+                for c in template.comments.select_related('user').order_by('-created_at')
+            ]
+            return {'success': True, 'comments': comments, 'count': len(comments)}
+        except Exception as e:
+            logger.error("Failed to list comments for template %s: %s", template_id, e)
+            return {'success': False, 'error': str(e)}
 
-            logger.info(
-                "User %s liked template '%s' (id=%s, likes=%d)",
-                user, template.title, template_id, template.likes_count,
-            )
+    @staticmethod
+    def delete_comment(user, comment_id: int) -> Dict[str, Any]:
+        """Delete a template comment (author only)."""
+        from apps.agents.models import TemplateComment, TripTemplate
 
+        try:
+            try:
+                comment = TemplateComment.objects.select_related('template').get(id=comment_id)
+            except TemplateComment.DoesNotExist:
+                return {'success': False, 'error': 'Comment not found'}
+
+            if comment.user_id != getattr(user, 'id', None):
+                return {'success': False, 'error': 'Not authorized to delete this comment'}
+
+            template_pk = comment.template_id
+            comment.delete()
+            TripTemplate.objects.filter(pk=template_pk).update(
+                comments_count=F('comments_count') - 1,
+            )
+            template = TripTemplate.objects.filter(pk=template_pk).first()
             return {
                 'success': True,
-                'template_id': template.id,
-                'likes_count': template.likes_count,
+                'comments_count': template.comments_count if template else 0,
             }
         except Exception as e:
-            logger.error("Failed to like template %s: %s", template_id, e)
+            logger.error("Failed to delete template comment %s: %s", comment_id, e)
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------ #
@@ -560,7 +699,7 @@ class TripTemplateService:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def get_featured_templates(limit: int = 6) -> Dict[str, Any]:
+    def get_featured_templates(limit: int = 6, user=None) -> Dict[str, Any]:
         """
         Return featured and verified templates.
 
@@ -578,7 +717,7 @@ class TripTemplateService:
 
             templates = []
             for t in qs:
-                template_dict = TripTemplateService._template_to_dict(t)
+                template_dict = TripTemplateService._template_to_dict(t, user=user)
                 template_dict['creator_name'] = TripTemplateService._get_display_name(t.creator)
                 templates.append(template_dict)
 
@@ -612,7 +751,7 @@ class TripTemplateService:
             qs = TripTemplate.objects.filter(creator=user).order_by('-created_at')
 
             templates = [
-                TripTemplateService._template_to_dict(t) for t in qs
+                TripTemplateService._template_to_dict(t, user=user) for t in qs
             ]
 
             logger.info("Retrieved %d templates for creator %s", len(templates), user)
@@ -631,8 +770,20 @@ class TripTemplateService:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def _template_to_dict(template) -> Dict[str, Any]:
-        """Serialize a TripTemplate instance to a dict."""
+    def _template_to_dict(template, user=None) -> Dict[str, Any]:
+        """Serialize a TripTemplate instance to a dict.
+
+        If ``user`` is authenticated, includes per-user reaction state.
+        """
+        from apps.agents.models import TemplateLike, TemplateDislike
+
+        my_reaction = None
+        if user is not None and getattr(user, 'is_authenticated', False):
+            if TemplateLike.objects.filter(user=user, template=template).exists():
+                my_reaction = 'like'
+            elif TemplateDislike.objects.filter(user=user, template=template).exists():
+                my_reaction = 'dislike'
+
         return {
             'id': template.id,
             'title': template.title,
@@ -651,10 +802,13 @@ class TripTemplateService:
             'is_verified': template.is_verified,
             'clone_count': template.clone_count,
             'likes_count': template.likes_count,
+            'dislikes_count': getattr(template, 'dislikes_count', 0),
+            'comments_count': getattr(template, 'comments_count', 0),
             'views_count': template.views_count,
             'rating': float(template.rating),
             'rating_count': template.rating_count,
             'creator_id': template.creator_id,
+            'my_reaction': my_reaction,
             'created_at': template.created_at.isoformat() if template.created_at else None,
             'updated_at': template.updated_at.isoformat() if template.updated_at else None,
         }
