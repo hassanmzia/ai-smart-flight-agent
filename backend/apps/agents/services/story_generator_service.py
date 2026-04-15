@@ -160,12 +160,15 @@ class StoryGeneratorService:
 
         try:
             try:
-                story = TravelStoryGenerated.objects.get(
-                    share_token=share_token,
-                    status='published',
-                )
+                story = TravelStoryGenerated.objects.get(share_token=share_token)
             except TravelStoryGenerated.DoesNotExist:
-                return {'success': False, 'error': 'Story not found or not published'}
+                return {'success': False, 'error': 'Story not found'}
+
+            # Non-published stories are only visible to their author
+            if story.status != 'published':
+                is_owner = user is not None and getattr(user, 'is_authenticated', False) and story.user_id == user.id
+                if not is_owner:
+                    return {'success': False, 'error': 'Story not found or not published'}
 
             # Increment views atomically
             TravelStoryGenerated.objects.filter(pk=story.pk).update(
