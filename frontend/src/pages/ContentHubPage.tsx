@@ -136,7 +136,13 @@ export default function ContentHubPage() {
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       });
       if (res.data?.success) {
-        const statusMsg = res.data.status === 'approved' ? 'Content published!' : 'Content submitted for review!';
+        const submittedStatus =
+          res.data.moderation?.status ?? res.data.content?.status ?? res.data.status;
+        const statusMsg = submittedStatus === 'approved'
+          ? 'Content published!'
+          : submittedStatus === 'rejected'
+            ? 'Content rejected by moderation.'
+            : 'Content submitted for review!';
         toast.success(statusMsg);
         setForm({ destination: '', content_type: 'tip', title: '', description: '', body: '', media_url: '', tags: '' });
         setTab('my-content');
