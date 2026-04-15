@@ -3,7 +3,8 @@ import {
   ClockIcon,
   MapPinIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import { Card } from '@/components/common';
 import Button from '@/components/common/Button';
@@ -181,12 +182,24 @@ const FlightCard = ({ flight, onSelect }: FlightCardProps) => {
         </div>
 
         {/* Price and Book */}
-        <div className="ml-6 text-right">
-          <p className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+        <div className="ml-6 text-right flex flex-col items-end gap-2">
+          <p className="text-3xl font-bold text-gray-900 dark:text-white mb-0">
             {formatCurrency(flight.price, flight.currency)}
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{flight.class}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{flight.class}</p>
           <Button onClick={handleBookClick}>Book Now</Button>
+          {flight.bookingUrl && (
+            <a
+              href={flight.bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-xs font-semibold transition-colors whitespace-nowrap"
+              title="Opens the airline / Google Flights partner site in a new tab"
+            >
+              <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+              Book on Partner Site
+            </a>
+          )}
         </div>
       </div>
     </Card>

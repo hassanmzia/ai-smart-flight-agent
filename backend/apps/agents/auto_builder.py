@@ -421,7 +421,8 @@ Return a JSON object with this structure (no markdown, raw JSON only):
           "estimated_cost": number,
           "duration_hours": number,
           "tips": "Helpful tip",
-          "personalization_notes": "Short note on how this honors the Traveler Profile — e.g. 'Halal-certified', 'Wheelchair-accessible entrance', 'Vegan menu available', 'Near mosque', 'Quiet pace'. Include whenever a profile dimension applies. Use empty string if no profile dimension applies."
+          "personalization_notes": "Short note on how this honors the Traveler Profile — e.g. 'Halal-certified', 'Wheelchair-accessible entrance', 'Vegan menu available', 'Near mosque', 'Quiet pace'. Include whenever a profile dimension applies. Use empty string if no profile dimension applies.",
+          "url": "Optional booking / reservation / ticket purchase URL. For restaurants include OpenTable / Resy / restaurant site; for attractions include the official site, Viator, or GetYourGuide; for shopping include the store website; for events include the ticketing page; for transport include the operator's booking page. Omit or use empty string if unknown — do not invent fake URLs. When a real URL is unknown but the place exists, you may fall back to a Google search URL: https://www.google.com/search?q=<url-encoded-place-and-destination>."
         }
       ]
     }

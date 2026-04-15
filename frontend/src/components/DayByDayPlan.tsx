@@ -15,6 +15,7 @@ import {
   HandThumbUpIcon,
   HandThumbDownIcon,
   CheckBadgeIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import {
   HandThumbUpIcon as HandThumbUpSolid,
@@ -62,6 +63,22 @@ const ITEM_TYPE_COLORS: Record<string, string> = {
   activity: 'border-l-purple-500 bg-purple-50 dark:bg-purple-900/10',
   transport: 'border-l-cyan-500 bg-cyan-50 dark:bg-cyan-900/10',
   note: 'border-l-gray-500 bg-gray-50 dark:bg-gray-800',
+};
+
+/**
+ * Human-readable label for the external reference / booking link, picked
+ * based on the item type so the CTA reads naturally on each card.
+ */
+const linkLabelForType = (type: string): string => {
+  switch (type) {
+    case 'flight':      return 'Book flight';
+    case 'hotel':       return 'Book hotel';
+    case 'restaurant':  return 'Reserve / View menu';
+    case 'attraction':  return 'Tickets & info';
+    case 'transport':   return 'Book transport';
+    case 'activity':    return 'Book / View details';
+    default:            return 'View details';
+  }
 };
 
 const DayByDayPlan: React.FC<DayByDayPlanProps> = ({
@@ -117,6 +134,7 @@ const DayByDayPlan: React.FC<DayByDayPlanProps> = ({
     start_time: '',
     location_name: '',
     estimated_cost: undefined,
+    url: '',
   });
 
   const toggleDay = (dayId: number) => {
@@ -187,9 +205,10 @@ const DayByDayPlan: React.FC<DayByDayPlanProps> = ({
         start_time: newItem.start_time || undefined,
         location_name: newItem.location_name || '',
         estimated_cost: newItem.estimated_cost || undefined,
+        url: newItem.url?.trim() || undefined,
       });
       toast.success('Activity added');
-      setNewItem({ item_type: 'activity', title: '', description: '', start_time: '', location_name: '', estimated_cost: undefined });
+      setNewItem({ item_type: 'activity', title: '', description: '', start_time: '', location_name: '', estimated_cost: undefined, url: '' });
       setAddingItemForDay(null);
       onUpdate();
     } catch (err) {
@@ -345,6 +364,25 @@ const DayByDayPlan: React.FC<DayByDayPlanProps> = ({
                         )}
                       </div>
 
+                      {/* External reference / booking link. The AI now emits
+                          a `url` for most places (restaurants, attractions,
+                          shops, events). Render it as an inline CTA so the
+                          traveler can book / read more without leaving the
+                          page unnecessarily. */}
+                      {item.url && (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary-700 dark:text-primary-300 hover:text-primary-900 dark:hover:text-primary-100 hover:underline"
+                          title={`Open: ${item.url}`}
+                        >
+                          <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+                          {linkLabelForType(item.item_type)}
+                        </a>
+                      )}
+
                       {/* Collaboration row: vote thumbs + owner approval. */}
                       {isShared && (
                         <div className="flex items-center gap-2 mt-2">
@@ -461,11 +499,18 @@ const DayByDayPlan: React.FC<DayByDayPlanProps> = ({
                       placeholder="Description (optional)"
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"
                     />
+                    <input
+                      type="url"
+                      value={newItem.url}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, url: e.target.value }))}
+                      placeholder="Reference / booking URL (optional) — e.g. https://..."
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"
+                    />
                     <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => {
                           setAddingItemForDay(null);
-                          setNewItem({ item_type: 'activity', title: '', description: '', start_time: '', location_name: '', estimated_cost: undefined });
+                          setNewItem({ item_type: 'activity', title: '', description: '', start_time: '', location_name: '', estimated_cost: undefined, url: '' });
                         }}
                         className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
                       >

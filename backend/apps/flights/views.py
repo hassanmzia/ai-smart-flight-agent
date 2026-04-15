@@ -154,6 +154,30 @@ def transform_serp_flight(flight_data, idx, departure_date=None):
     # Extract often_delayed_by if available
     often_delayed_by = flight_data.get('often_delayed_by')
 
+    # Build an external booking URL so users can purchase the flight on the
+    # airline/Google Flights partner site even when SerpAPI doesn't surface a
+    # direct booking link. We always have the route + date, so we can build a
+    # deep-link to Google Flights search which routes to airline sites.
+    from urllib.parse import quote_plus
+    origin_code = (first_leg.get('departure_airport', {}) or {}).get('id', '')
+    dest_code = (last_leg.get('arrival_airport', {}) or {}).get('id', '')
+    dep_date_str = (first_leg.get('departure_airport', {}) or {}).get('time', '')[:10]
+    if origin_code and dest_code and dep_date_str:
+        booking_url = (
+            f"https://www.google.com/travel/flights?q="
+            f"{quote_plus(f'Flights from {origin_code} to {dest_code} on {dep_date_str}')}"
+        )
+    elif origin_code and dest_code:
+        booking_url = (
+            f"https://www.google.com/travel/flights?q="
+            f"{quote_plus(f'Flights from {origin_code} to {dest_code}')}"
+        )
+    else:
+        booking_url = (
+            f"https://www.google.com/travel/flights?q="
+            f"{quote_plus(first_leg.get('airline', ''))}"
+        )
+
     return {
         'id': f"SERP_{idx}_{flight_data.get('departure_token', '')}",
         'airline': first_leg.get('airline', 'Unknown'),
@@ -174,7 +198,8 @@ def transform_serp_flight(flight_data, idx, departure_date=None):
         'amenities': amenities,
         'carbonEmissions': carbon_data,
         'oftenDelayedBy': often_delayed_by,
-        'bookingToken': flight_data.get('booking_token', '')
+        'bookingToken': flight_data.get('booking_token', ''),
+        'bookingUrl': booking_url,
     }
 
 
