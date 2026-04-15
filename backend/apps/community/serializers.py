@@ -3,6 +3,28 @@ from rest_framework import serializers
 from .models import DestinationMedia, TravelStory, TravelTip, DestinationInfo, CuratedGuide
 
 
+class RelativeFileField(serializers.FileField):
+    """
+    FileField variant that always serializes to a **relative** URL
+    (e.g. ``/media/community/media/photo.jpg``) instead of building an
+    absolute URL via ``request.build_absolute_uri()``.
+
+    DRF's default FileField.to_representation uses the request host, which
+    in Docker / Vite-proxy / cloud deployments points to a hostname the
+    browser cannot reach, resulting in ``ERR_CONNECTION_REFUSED``. Emitting
+    a relative URL lets the same-origin Vite ``/media`` proxy handle it in
+    dev and the same origin serve it in prod.
+    """
+
+    def to_representation(self, value):
+        if not value:
+            return None
+        try:
+            return value.url
+        except (AttributeError, ValueError):
+            return None
+
+
 class DestinationMediaSerializer(serializers.ModelSerializer):
     """Serializer for DestinationMedia model."""
 
@@ -10,6 +32,7 @@ class DestinationMediaSerializer(serializers.ModelSerializer):
     media_type_display = serializers.CharField(
         source='get_media_type_display', read_only=True,
     )
+    file = RelativeFileField()
 
     class Meta:
         model = DestinationMedia
