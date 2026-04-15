@@ -16,6 +16,7 @@ VALID_AGENT_MIGRATIONS = (
     '0004_commercialization_models',
     '0005_healthinsuranceinfo_userpreference_dietary_allergies_and_more',
     '0006_contentitem_comments_count_and_more',
+    '0007_approve_legacy_content',
 )
 
 # Migrations to fake when their sentinel table already exists in the DB.

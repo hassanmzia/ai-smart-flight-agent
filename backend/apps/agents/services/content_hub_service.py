@@ -67,17 +67,16 @@ class ContentHubService:
                 destination=data['destination'],
             )
 
-            # Approval thresholds:
-            #   score >= 0.5 → approved (default fallback is 0.5, so when
-            #                 no AI key is configured submissions are visible
-            #                 immediately instead of languishing as 'pending').
-            #   score <  0.2 → rejected (clear spam / hostile content).
-            #   else         → pending (low-quality, awaiting review).
+            # Approval thresholds — deliberately lenient for a travel community:
+            #   score >= 0.2 → approved (visible in Explore / Trending).
+            #   score <  0.2 → pending  (admin can promote or remove).
+            #
+            # We never auto-reject. Even a low AI score often just reflects a
+            # short post like "NY is nice" — not something worth hiding. Admins
+            # can still manually reject via the moderation endpoint.
             score = moderation['score']
-            if score >= 0.5:
+            if score >= 0.2:
                 status = 'approved'
-            elif score < 0.2:
-                status = 'rejected'
             else:
                 status = 'pending'
 
