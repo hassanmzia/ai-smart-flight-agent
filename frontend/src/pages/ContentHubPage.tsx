@@ -89,9 +89,17 @@ export default function ContentHubPage() {
       const params: Record<string, string> = { destination, sort_by: sortBy };
       if (contentType) params.type = contentType;
       const res = await api.get('/api/agents/content/destination', { params });
+      if (res.data?.success === false) {
+        toast.error(`Explore failed: ${res.data.error || 'unknown'}`);
+        setContent([]);
+        return;
+      }
       const items = res.data?.content || res.data?.items || res.data;
       setContent(Array.isArray(items) ? items : []);
-    } catch { setContent([]); }
+    } catch (e: any) {
+      toast.error(`Explore failed: ${e?.response?.data?.error || e?.message || 'network error'}`);
+      setContent([]);
+    }
     finally { setLoading(false); }
   }, [destination, contentType, sortBy]);
 
@@ -99,9 +107,17 @@ export default function ContentHubPage() {
     setLoading(true);
     try {
       const res = await api.get('/api/agents/content/trending');
+      if (res.data?.success === false) {
+        toast.error(`Trending failed: ${res.data.error || 'unknown'}`);
+        setTrending([]);
+        return;
+      }
       const items = res.data?.content || res.data?.items || res.data;
       setTrending(Array.isArray(items) ? items : []);
-    } catch { setTrending([]); }
+    } catch (e: any) {
+      toast.error(`Trending failed: ${e?.response?.data?.error || e?.message || 'network error'}`);
+      setTrending([]);
+    }
     finally { setLoading(false); }
   }, []);
 
@@ -110,9 +126,17 @@ export default function ContentHubPage() {
     setLoading(true);
     try {
       const res = await api.get('/api/agents/content/mine');
+      if (res.data?.success === false) {
+        toast.error(`My Content failed: ${res.data.error || 'unknown'}`);
+        setMyContent([]);
+        return;
+      }
       const items = res.data?.content || res.data?.items || res.data;
       setMyContent(Array.isArray(items) ? items : []);
-    } catch { setMyContent([]); }
+    } catch (e: any) {
+      toast.error(`My Content failed: ${e?.response?.data?.error || e?.message || 'network error'}`);
+      setMyContent([]);
+    }
     finally { setLoading(false); }
   }, [isAuthenticated]);
 

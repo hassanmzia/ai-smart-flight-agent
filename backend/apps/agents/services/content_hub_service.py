@@ -184,7 +184,10 @@ class ContentHubService:
                 'sort_by': sort_by,
             }
         except Exception as e:
-            logger.error("Failed to get destination content for %s: %s", destination, e)
+            logger.error(
+                "Failed to get destination content for %s: %s", destination, e,
+                exc_info=True,
+            )
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------ #
@@ -478,7 +481,9 @@ class ContentHubService:
                 'count': len(items),
             }
         except Exception as e:
-            logger.error("Failed to get content for user %s: %s", user, e)
+            logger.error(
+                "Failed to get content for user %s: %s", user, e, exc_info=True,
+            )
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------ #
@@ -533,7 +538,7 @@ class ContentHubService:
                 'period_days': period_days,
             }
         except Exception as e:
-            logger.error("Failed to get trending content: %s", e)
+            logger.error("Failed to get trending content: %s", e, exc_info=True)
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------ #
