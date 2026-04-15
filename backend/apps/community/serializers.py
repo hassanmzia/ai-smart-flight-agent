@@ -25,7 +25,23 @@ class RelativeFileField(serializers.FileField):
             return None
 
 
-class DestinationMediaSerializer(serializers.ModelSerializer):
+class OwnerFlagMixin:
+    """
+    Adds an ``is_owner`` boolean to the serialized output based on
+    whether the requesting user created the object. Lets the frontend
+    decide whether to render "Delete" / "Edit" controls without the
+    serializer ever leaking raw user IDs.
+    """
+
+    def get_is_owner(self, obj):
+        request = self.context.get('request') if hasattr(self, 'context') else None
+        user = getattr(request, 'user', None)
+        if not user or not getattr(user, 'is_authenticated', False):
+            return False
+        return getattr(obj, 'user_id', None) == user.id
+
+
+class DestinationMediaSerializer(OwnerFlagMixin, serializers.ModelSerializer):
     """Serializer for DestinationMedia model."""
 
     user = serializers.StringRelatedField(read_only=True)
@@ -33,53 +49,57 @@ class DestinationMediaSerializer(serializers.ModelSerializer):
         source='get_media_type_display', read_only=True,
     )
     file = RelativeFileField()
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = DestinationMedia
         fields = [
             'id', 'user', 'destination', 'media_type', 'media_type_display',
             'file', 'title', 'description', 'latitude', 'longitude',
-            'tags', 'is_approved', 'upvotes', 'created_at',
+            'tags', 'is_approved', 'upvotes', 'created_at', 'is_owner',
         ]
         read_only_fields = [
-            'id', 'user', 'is_approved', 'upvotes', 'created_at',
+            'id', 'user', 'is_approved', 'upvotes', 'created_at', 'is_owner',
         ]
 
 
-class TravelStorySerializer(serializers.ModelSerializer):
+class TravelStorySerializer(OwnerFlagMixin, serializers.ModelSerializer):
     """Serializer for TravelStory model."""
 
     user = serializers.StringRelatedField(read_only=True)
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = TravelStory
         fields = [
             'id', 'user', 'destination', 'title', 'content', 'language',
             'translated_content', 'cover_image', 'rating', 'is_approved',
-            'upvotes', 'created_at', 'updated_at',
+            'upvotes', 'created_at', 'updated_at', 'is_owner',
         ]
         read_only_fields = [
             'id', 'user', 'is_approved', 'upvotes', 'translated_content',
-            'created_at', 'updated_at',
+            'created_at', 'updated_at', 'is_owner',
         ]
 
 
-class TravelTipSerializer(serializers.ModelSerializer):
+class TravelTipSerializer(OwnerFlagMixin, serializers.ModelSerializer):
     """Serializer for TravelTip model."""
 
     user = serializers.StringRelatedField(read_only=True)
     category_display = serializers.CharField(
         source='get_category_display', read_only=True,
     )
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = TravelTip
         fields = [
             'id', 'user', 'destination', 'category', 'category_display',
             'title', 'content', 'is_approved', 'upvotes', 'created_at',
+            'is_owner',
         ]
         read_only_fields = [
-            'id', 'user', 'is_approved', 'upvotes', 'created_at',
+            'id', 'user', 'is_approved', 'upvotes', 'created_at', 'is_owner',
         ]
 
 

@@ -20,6 +20,7 @@ interface MediaItem {
   tags: string[];
   upvotes: number;
   created_at: string;
+  is_owner?: boolean;
 }
 
 interface TravelStory {
@@ -33,6 +34,7 @@ interface TravelStory {
   rating: number | null;
   upvotes: number;
   created_at: string;
+  is_owner?: boolean;
 }
 
 interface TravelTip {
@@ -45,6 +47,7 @@ interface TravelTip {
   content: string;
   upvotes: number;
   created_at: string;
+  is_owner?: boolean;
 }
 
 type TabKey = 'media' | 'stories' | 'tips';
@@ -132,6 +135,18 @@ export default function CommunityPage() {
       fetchData();
     } catch {
       // silently fail
+    }
+  };
+
+  const handleDelete = async (type: 'media' | 'stories' | 'tips', id: number, label: string) => {
+    if (!window.confirm(`Delete this ${label}? This action cannot be undone.`)) return;
+    try {
+      await api.delete(`/api/community/${type}/${id}/`);
+      // Close the lightbox if the deleted item was open.
+      setSelectedMedia(current => (current && current.id === id && type === 'media' ? null : current));
+      fetchData();
+    } catch {
+      window.alert(`Could not delete this ${label}. Please try again.`);
     }
   };
 
@@ -239,6 +254,17 @@ export default function CommunityPage() {
                   className="group relative bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-lg transition-all"
                   onClick={() => setSelectedMedia(item)}
                 >
+                  {item.is_owner && (
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); handleDelete('media', item.id, 'upload'); }}
+                      aria-label="Delete this upload"
+                      title="Delete this upload"
+                      className="absolute top-2 right-2 z-10 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/90 dark:bg-gray-900/90 text-gray-600 dark:text-gray-300 hover:bg-red-500 hover:text-white shadow-md opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                    >
+                      {'\uD83D\uDDD1\uFE0F'}
+                    </button>
+                  )}
                   {item.media_type === 'photo' ? (
                     <div className="aspect-square bg-gray-100 dark:bg-gray-700">
                       <img
@@ -310,12 +336,25 @@ export default function CommunityPage() {
                     <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed">{story.content}</p>
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                       <span className="text-xs text-gray-500">{story.user}</span>
-                      <button
-                        onClick={() => handleUpvote('stories', story.id)}
-                        className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
-                      >
-                        {'\u2764\uFE0F'} {story.upvotes}
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleUpvote('stories', story.id)}
+                          className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                        >
+                          {'\u2764\uFE0F'} {story.upvotes}
+                        </button>
+                        {story.is_owner && (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete('stories', story.id, 'story')}
+                            aria-label="Delete this story"
+                            title="Delete this story"
+                            className="text-xs text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1"
+                          >
+                            {'\uD83D\uDDD1\uFE0F'} Delete
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -360,12 +399,25 @@ export default function CommunityPage() {
                         <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{tip.content}</p>
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-xs text-gray-500">{tip.user}</span>
-                          <button
-                            onClick={() => handleUpvote('tips', tip.id)}
-                            className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
-                          >
-                            {'\u2764\uFE0F'} {tip.upvotes}
-                          </button>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleUpvote('tips', tip.id)}
+                              className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                            >
+                              {'\u2764\uFE0F'} {tip.upvotes}
+                            </button>
+                            {tip.is_owner && (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete('tips', tip.id, 'tip')}
+                                aria-label="Delete this tip"
+                                title="Delete this tip"
+                                className="text-xs text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1"
+                              >
+                                {'\uD83D\uDDD1\uFE0F'} Delete
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -401,7 +453,11 @@ export default function CommunityPage() {
       {/* Media Lightbox */}
       <AnimatePresence>
         {selectedMedia && (
-          <MediaLightbox media={selectedMedia} onClose={() => setSelectedMedia(null)} />
+          <MediaLightbox
+            media={selectedMedia}
+            onClose={() => setSelectedMedia(null)}
+            onDelete={id => handleDelete('media', id, 'upload')}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -763,7 +819,15 @@ function ModalWrapper({ children, onClose, title }: { children: React.ReactNode;
 // Media Lightbox
 // ---------------------------------------------------------------------------
 
-function MediaLightbox({ media, onClose }: { media: MediaItem; onClose: () => void }) {
+function MediaLightbox({
+  media,
+  onClose,
+  onDelete,
+}: {
+  media: MediaItem;
+  onClose: () => void;
+  onDelete?: (id: number) => void;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -804,6 +868,17 @@ function MediaLightbox({ media, onClose }: { media: MediaItem; onClose: () => vo
             <span>{media.user}</span>
             <span>{'\u2764\uFE0F'} {media.upvotes}</span>
           </div>
+          {media.is_owner && onDelete && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => onDelete(media.id)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+              >
+                {'\uD83D\uDDD1\uFE0F'} Delete this upload
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>
