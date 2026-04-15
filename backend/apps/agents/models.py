@@ -1323,6 +1323,8 @@ class TravelStoryGenerated(models.Model):
     share_token = models.CharField(max_length=32, unique=True, db_index=True)
     views_count = models.IntegerField(default=0)
     likes_count = models.IntegerField(default=0)
+    dislikes_count = models.IntegerField(default=0)
+    comments_count = models.IntegerField(default=0)
     shares_count = models.IntegerField(default=0)
     is_public = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1352,6 +1354,20 @@ class StoryLike(models.Model):
 
     class Meta:
         db_table = 'story_likes'
+        unique_together = ('user', 'story')
+
+
+class StoryDislike(models.Model):
+    """Track individual dislikes on generated stories."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='story_dislikes')
+    story = models.ForeignKey(TravelStoryGenerated, on_delete=models.CASCADE,
+                               related_name='dislikes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'story_dislikes'
         unique_together = ('user', 'story')
 
 
@@ -1408,6 +1424,8 @@ class TripTemplate(models.Model):
     is_verified = models.BooleanField(default=False, help_text='Verified influencer template')
     clone_count = models.IntegerField(default=0)
     likes_count = models.IntegerField(default=0)
+    dislikes_count = models.IntegerField(default=0)
+    comments_count = models.IntegerField(default=0)
     views_count = models.IntegerField(default=0)
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=0)
     rating_count = models.IntegerField(default=0)
@@ -1449,6 +1467,52 @@ class TemplateClone(models.Model):
         return f"{self.user} cloned {self.template.title}"
 
 
+class TemplateLike(models.Model):
+    """Track individual likes on trip templates (per-user)."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='template_likes')
+    template = models.ForeignKey(TripTemplate, on_delete=models.CASCADE,
+                                  related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'template_likes'
+        unique_together = ('user', 'template')
+
+
+class TemplateDislike(models.Model):
+    """Track individual dislikes on trip templates (per-user)."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='template_dislikes')
+    template = models.ForeignKey(TripTemplate, on_delete=models.CASCADE,
+                                  related_name='dislikes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'template_dislikes'
+        unique_together = ('user', 'template')
+
+
+class TemplateComment(models.Model):
+    """Comments on trip templates."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='template_comments')
+    template = models.ForeignKey(TripTemplate, on_delete=models.CASCADE,
+                                  related_name='comments')
+    content = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'template_comments'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} on {self.template.title}"
+
+
 class ContentItem(models.Model):
     """Unified content hub item — photos, stories, tips from community."""
 
@@ -1480,6 +1544,7 @@ class ContentItem(models.Model):
     ai_moderation_score = models.FloatField(default=0)
     upvotes = models.IntegerField(default=0)
     downvotes = models.IntegerField(default=0)
+    comments_count = models.IntegerField(default=0)
     views_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1494,6 +1559,44 @@ class ContentItem(models.Model):
 
     def __str__(self):
         return f"{self.content_type}: {self.title} ({self.destination})"
+
+
+class ContentVote(models.Model):
+    """Track individual up/down votes on content items (per-user, mutually exclusive)."""
+
+    VOTE_CHOICES = [
+        ('up', 'Upvote'),
+        ('down', 'Downvote'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='content_votes')
+    content_item = models.ForeignKey(ContentItem, on_delete=models.CASCADE,
+                                      related_name='votes')
+    vote = models.CharField(max_length=4, choices=VOTE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'content_votes'
+        unique_together = ('user', 'content_item')
+
+
+class ContentComment(models.Model):
+    """Comments on content items."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                              related_name='content_comments')
+    content_item = models.ForeignKey(ContentItem, on_delete=models.CASCADE,
+                                      related_name='comments')
+    content = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'content_comments'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} on {self.content_item.title}"
 
 
 # ──────────────────────────────────────────────────────────────────────

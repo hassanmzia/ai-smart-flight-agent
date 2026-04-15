@@ -145,7 +145,7 @@ class StoryGeneratorService:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def get_story(share_token: str) -> Dict[str, Any]:
+    def get_story(share_token: str, user=None) -> Dict[str, Any]:
         """
         Retrieve a published story by its share_token.
 
@@ -178,13 +178,14 @@ class StoryGeneratorService:
                 {
                     'id': c.id,
                     'user': str(c.user),
+                    'user_id': c.user_id,
                     'content': c.content,
                     'created_at': c.created_at.isoformat() if c.created_at else None,
                 }
                 for c in story.comments.select_related('user').order_by('-created_at')
             ]
 
-            story_data = StoryGeneratorService._serialize_story(story)
+            story_data = StoryGeneratorService._serialize_story(story, user=user)
             story_data['comments'] = comments
 
             logger.info("Retrieved story '%s' via share_token (views=%d)", story.title, story.views_count)
@@ -215,7 +216,7 @@ class StoryGeneratorService:
             ).order_by('-created_at')
 
             results = [
-                StoryGeneratorService._serialize_story(s) for s in stories
+                StoryGeneratorService._serialize_story(s, user=user) for s in stories
             ]
 
             logger.info("Listed %d stories for user %s", len(results), user)
@@ -234,6 +235,7 @@ class StoryGeneratorService:
         destination: str = None,
         format: str = None,
         limit: int = 20,
+        user=None,
     ) -> Dict[str, Any]:
         """
         List public published stories with optional filters.
@@ -268,7 +270,7 @@ class StoryGeneratorService:
             stories = qs[:limit]
 
             results = [
-                StoryGeneratorService._serialize_story(s) for s in stories
+                StoryGeneratorService._serialize_story(s, user=user) for s in stories
             ]
 
             logger.info(
@@ -282,22 +284,30 @@ class StoryGeneratorService:
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------ #
-    #  6. Toggle Like
+    #  6. Toggle Like (legacy wrapper) / Set Reaction
     # ------------------------------------------------------------------ #
 
     @staticmethod
     def toggle_like(user, story_id: int) -> Dict[str, Any]:
-        """
-        Toggle a like on a story.
+        """Backward-compatible wrapper around set_reaction('like')."""
+        return StoryGeneratorService.set_reaction(user, story_id, 'like')
 
-        If the user already liked the story, remove the like and decrement
-        likes_count. Otherwise create the like and increment likes_count.
-
-        Returns
-        -------
-        dict with 'success', 'liked' (bool), and 'likes_count'.
+    @staticmethod
+    def set_reaction(user, story_id: int, reaction: str) -> Dict[str, Any]:
         """
-        from apps.agents.models import StoryLike, TravelStoryGenerated
+        Toggle a like or dislike on a story.
+
+        ``reaction`` is one of 'like' or 'dislike'. If the user already has that
+        same reaction, it is cleared. If the user has the opposite reaction, it
+        is switched. Counters are maintained atomically with F() updates.
+
+        Returns dict with success, my_reaction ('like'|'dislike'|None),
+        likes_count, dislikes_count.
+        """
+        from apps.agents.models import StoryLike, StoryDislike, TravelStoryGenerated
+
+        if reaction not in ('like', 'dislike'):
+            return {'success': False, 'error': "reaction must be 'like' or 'dislike'"}
 
         try:
             try:
@@ -305,34 +315,52 @@ class StoryGeneratorService:
             except TravelStoryGenerated.DoesNotExist:
                 return {'success': False, 'error': f'Story with id {story_id} not found'}
 
-            existing_like = StoryLike.objects.filter(user=user, story=story).first()
+            has_like = StoryLike.objects.filter(user=user, story=story).exists()
+            has_dislike = StoryDislike.objects.filter(user=user, story=story).exists()
 
-            if existing_like:
-                existing_like.delete()
+            likes_delta = 0
+            dislikes_delta = 0
+            new_reaction = reaction
+
+            if reaction == 'like':
+                if has_like:
+                    StoryLike.objects.filter(user=user, story=story).delete()
+                    likes_delta -= 1
+                    new_reaction = None
+                else:
+                    if has_dislike:
+                        StoryDislike.objects.filter(user=user, story=story).delete()
+                        dislikes_delta -= 1
+                    StoryLike.objects.create(user=user, story=story)
+                    likes_delta += 1
+            else:  # dislike
+                if has_dislike:
+                    StoryDislike.objects.filter(user=user, story=story).delete()
+                    dislikes_delta -= 1
+                    new_reaction = None
+                else:
+                    if has_like:
+                        StoryLike.objects.filter(user=user, story=story).delete()
+                        likes_delta -= 1
+                    StoryDislike.objects.create(user=user, story=story)
+                    dislikes_delta += 1
+
+            if likes_delta or dislikes_delta:
                 TravelStoryGenerated.objects.filter(pk=story.pk).update(
-                    likes_count=F('likes_count') - 1,
+                    likes_count=F('likes_count') + likes_delta,
+                    dislikes_count=F('dislikes_count') + dislikes_delta,
                 )
                 story.refresh_from_db()
-                logger.info("User %s unliked story %s", user, story_id)
-                return {
-                    'success': True,
-                    'liked': False,
-                    'likes_count': story.likes_count,
-                }
-            else:
-                StoryLike.objects.create(user=user, story=story)
-                TravelStoryGenerated.objects.filter(pk=story.pk).update(
-                    likes_count=F('likes_count') + 1,
-                )
-                story.refresh_from_db()
-                logger.info("User %s liked story %s", user, story_id)
-                return {
-                    'success': True,
-                    'liked': True,
-                    'likes_count': story.likes_count,
-                }
+
+            return {
+                'success': True,
+                'my_reaction': new_reaction,
+                'liked': new_reaction == 'like',
+                'likes_count': story.likes_count,
+                'dislikes_count': story.dislikes_count,
+            }
         except Exception as e:
-            logger.error("Failed to toggle like for story %s: %s", story_id, e)
+            logger.error("Failed to set reaction for story %s: %s", story_id, e)
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------ #
@@ -372,14 +400,20 @@ class StoryGeneratorService:
                 story=story,
                 content=content.strip(),
             )
+            TravelStoryGenerated.objects.filter(pk=story.pk).update(
+                comments_count=F('comments_count') + 1,
+            )
+            story.refresh_from_db()
 
             logger.info("User %s commented on story %s", user, story_id)
 
             return {
                 'success': True,
+                'comments_count': story.comments_count,
                 'comment': {
                     'id': comment.id,
                     'user': str(user),
+                    'user_id': getattr(user, 'id', None),
                     'story_id': story_id,
                     'content': comment.content,
                     'created_at': comment.created_at.isoformat() if comment.created_at else None,
@@ -387,6 +421,34 @@ class StoryGeneratorService:
             }
         except Exception as e:
             logger.error("Failed to add comment to story %s: %s", story_id, e)
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def delete_comment(user, comment_id: int) -> Dict[str, Any]:
+        """Delete a comment (only its author can delete). Decrements comments_count."""
+        from apps.agents.models import StoryComment, TravelStoryGenerated
+
+        try:
+            try:
+                comment = StoryComment.objects.select_related('story').get(id=comment_id)
+            except StoryComment.DoesNotExist:
+                return {'success': False, 'error': 'Comment not found'}
+
+            if comment.user_id != getattr(user, 'id', None):
+                return {'success': False, 'error': 'Not authorized to delete this comment'}
+
+            story_pk = comment.story_id
+            comment.delete()
+            TravelStoryGenerated.objects.filter(pk=story_pk).update(
+                comments_count=F('comments_count') - 1,
+            )
+            story = TravelStoryGenerated.objects.filter(pk=story_pk).first()
+            return {
+                'success': True,
+                'comments_count': story.comments_count if story else 0,
+            }
+        except Exception as e:
+            logger.error("Failed to delete story comment %s: %s", comment_id, e)
             return {'success': False, 'error': str(e)}
 
     # ------------------------------------------------------------------ #
@@ -697,8 +759,20 @@ class StoryGeneratorService:
     # ------------------------------------------------------------------ #
 
     @staticmethod
-    def _serialize_story(story) -> Dict[str, Any]:
-        """Convert a TravelStoryGenerated instance to a dict."""
+    def _serialize_story(story, user=None) -> Dict[str, Any]:
+        """Convert a TravelStoryGenerated instance to a dict.
+
+        If ``user`` is given and authenticated, includes per-user reaction state.
+        """
+        from apps.agents.models import StoryLike, StoryDislike
+
+        my_reaction = None
+        if user is not None and getattr(user, 'is_authenticated', False):
+            if StoryLike.objects.filter(user=user, story=story).exists():
+                my_reaction = 'like'
+            elif StoryDislike.objects.filter(user=user, story=story).exists():
+                my_reaction = 'dislike'
+
         return {
             'id': story.id,
             'user': str(story.user),
@@ -714,8 +788,11 @@ class StoryGeneratorService:
             'share_token': story.share_token,
             'views_count': story.views_count,
             'likes_count': story.likes_count,
+            'dislikes_count': getattr(story, 'dislikes_count', 0),
+            'comments_count': getattr(story, 'comments_count', 0),
             'shares_count': story.shares_count,
             'is_public': story.is_public,
+            'my_reaction': my_reaction,
             'created_at': story.created_at.isoformat() if story.created_at else None,
             'updated_at': story.updated_at.isoformat() if story.updated_at else None,
         }

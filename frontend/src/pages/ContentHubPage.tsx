@@ -4,6 +4,14 @@ import { useAuth } from '@/hooks/useAuth';
 import api from '@/services/api';
 import toast from 'react-hot-toast';
 
+interface ContentComment {
+  id: number;
+  user: string;
+  user_id?: number | string;
+  content: string;
+  created_at: string;
+}
+
 interface ContentItemData {
   id: number;
   title: string;
@@ -16,8 +24,14 @@ interface ContentItemData {
   status: string;
   upvotes: number;
   downvotes: number;
+  likes_count?: number;
+  dislikes_count?: number;
+  comments_count?: number;
   views_count: number;
   user_name?: string;
+  user_id?: number | string;
+  my_vote?: 'up' | 'down' | null;
+  my_reaction?: 'like' | 'dislike' | null;
   created_at: string;
 }
 
@@ -42,7 +56,8 @@ type Tab = 'explore' | 'submit' | 'my-content' | 'trending';
 
 export default function ContentHubPage() {
   const [searchParams] = useSearchParams();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const currentUserId = user?.id;
   const [tab, setTab] = useState<Tab>('explore');
   const [content, setContent] = useState<ContentItemData[]>([]);
   const [myContent, setMyContent] = useState<ContentItemData[]>([]);
@@ -51,6 +66,9 @@ export default function ContentHubPage() {
   const [destination, setDestination] = useState('');
   const [contentType, setContentType] = useState('');
   const [sortBy, setSortBy] = useState('popular');
+  const [activeComments, setActiveComments] = useState<number | null>(null);
+  const [comments, setComments] = useState<ContentComment[]>([]);
+  const [commentText, setCommentText] = useState('');
 
   const [form, setForm] = useState({
     destination: '', content_type: 'tip', title: '', description: '', body: '', media_url: '',
@@ -122,54 +140,250 @@ export default function ContentHubPage() {
     finally { setSubmitting(false); }
   };
 
-  const voteContent = async (id: number, vote: 'up' | 'down') => {
-    try {
-      await api.post('/api/agents/content/vote', { content_id: id, vote });
-      toast.success(vote === 'up' ? 'Upvoted!' : 'Downvoted');
-      if (tab === 'explore') fetchContent();
-      else if (tab === 'trending') fetchTrending();
-    } catch { toast.error('Sign in to vote'); }
+  const applyReactionC = (it: ContentItemData, reaction: 'like' | 'dislike'): ContentItemData => {
+    const current = it.my_reaction ?? (it.my_vote === 'up' ? 'like' : it.my_vote === 'down' ? 'dislike' : null);
+    let likes = it.likes_count ?? it.upvotes ?? 0;
+    let dislikes = it.dislikes_count ?? it.downvotes ?? 0;
+    let next: 'like' | 'dislike' | null = reaction;
+    if (current === reaction) {
+      next = null;
+      if (reaction === 'like') likes -= 1; else dislikes -= 1;
+    } else {
+      if (current === 'like') likes -= 1;
+      if (current === 'dislike') dislikes -= 1;
+      if (reaction === 'like') likes += 1; else dislikes += 1;
+    }
+    return {
+      ...it,
+      my_reaction: next,
+      my_vote: next === 'like' ? 'up' : next === 'dislike' ? 'down' : null,
+      likes_count: Math.max(0, likes),
+      dislikes_count: Math.max(0, dislikes),
+      upvotes: Math.max(0, likes),
+      downvotes: Math.max(0, dislikes),
+    };
   };
 
-  const renderCard = (item: ContentItemData) => (
-    <div key={item.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="p-5">
-        <div className="flex items-center gap-2 mb-2">
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[item.content_type] || 'bg-gray-100 text-gray-600'}`}>
-            {item.content_type}
-          </span>
-          <span className="text-xs text-gray-400">{item.destination}</span>
-        </div>
-        <h3 className="font-bold text-gray-900 dark:text-white">{item.title}</h3>
-        {item.description && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{item.description}</p>}
-        {item.body && <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 line-clamp-3">{item.body}</p>}
-        {item.media_url && (
-          <div className="mt-3 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 text-xs text-gray-500 truncate">{item.media_url}</div>
-        )}
-        {item.tags?.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-3">
-            {item.tags.slice(0, 5).map((tag, i) => (
-              <span key={i} className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-full">#{tag}</span>
-            ))}
+  const patchLists = (id: number, patch: Partial<ContentItemData>) => {
+    setContent(prev => prev.map(x => x.id === id ? { ...x, ...patch } : x));
+    setTrending(prev => prev.map(x => x.id === id ? { ...x, ...patch } : x));
+    setMyContent(prev => prev.map(x => x.id === id ? { ...x, ...patch } : x));
+  };
+
+  const reactContent = async (item: ContentItemData, reaction: 'like' | 'dislike') => {
+    if (!isAuthenticated) { toast.error('Sign in to react'); return; }
+    const updated = applyReactionC(item, reaction);
+    patchLists(item.id, updated);
+    try {
+      const res = await api.post('/api/agents/content/vote', {
+        content_id: item.id, reaction,
+      });
+      if (res.data?.success) {
+        const likes = res.data.likes_count ?? res.data.upvotes;
+        const dislikes = res.data.dislikes_count ?? res.data.downvotes;
+        patchLists(item.id, {
+          my_reaction: res.data.my_reaction ?? null,
+          my_vote: res.data.my_vote ?? null,
+          likes_count: likes,
+          dislikes_count: dislikes,
+          upvotes: likes,
+          downvotes: dislikes,
+        });
+      }
+    } catch {
+      patchLists(item.id, item);
+      toast.error('Failed to react');
+    }
+  };
+
+  const loadComments = useCallback(async (contentId: number) => {
+    try {
+      const res = await api.get('/api/agents/content/comments', { params: { content_id: contentId } });
+      const items = res.data?.comments;
+      setComments(Array.isArray(items) ? items : []);
+    } catch { setComments([]); }
+  }, []);
+
+  const toggleComments = (item: ContentItemData) => {
+    if (activeComments === item.id) {
+      setActiveComments(null);
+      setComments([]);
+    } else {
+      setActiveComments(item.id);
+      loadComments(item.id);
+    }
+  };
+
+  const addContentComment = async (item: ContentItemData) => {
+    if (!commentText.trim()) return;
+    if (!isAuthenticated) { toast.error('Sign in to comment'); return; }
+    try {
+      const res = await api.post('/api/agents/content/comments', {
+        content_id: item.id, content: commentText,
+      });
+      if (res.data?.success) {
+        setComments(prev => [res.data.comment, ...prev]);
+        patchLists(item.id, {
+          comments_count: res.data.comments_count ?? ((item.comments_count ?? 0) + 1),
+        });
+        setCommentText('');
+        toast.success('Comment posted');
+      } else {
+        toast.error(res.data?.error || 'Comment failed');
+      }
+    } catch { toast.error('Failed to add comment'); }
+  };
+
+  const deleteContentComment = async (commentId: number, item: ContentItemData) => {
+    try {
+      const res = await api.delete(`/api/agents/content/comments/${commentId}`);
+      if (res.data?.success) {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        patchLists(item.id, {
+          comments_count: res.data.comments_count ?? Math.max(0, (item.comments_count ?? 1) - 1),
+        });
+        toast.success('Comment deleted');
+      } else {
+        toast.error(res.data?.error || 'Delete failed');
+      }
+    } catch { toast.error('Failed to delete'); }
+  };
+
+  const shareContent = async (item: ContentItemData) => {
+    const url = `${window.location.origin}/content-hub?destination=${encodeURIComponent(item.destination)}&item=${item.id}`;
+    const shareData = {
+      title: item.title,
+      text: `${item.title} – ${item.destination}`,
+      url,
+    };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Share link copied!');
+      }
+    } catch (err) {
+      if ((err as { name?: string })?.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(url);
+          toast.success('Share link copied!');
+        } catch { toast.error('Failed to share'); }
+      }
+    }
+  };
+
+  const renderCard = (item: ContentItemData) => {
+    const likes = item.likes_count ?? item.upvotes ?? 0;
+    const dislikes = item.dislikes_count ?? item.downvotes ?? 0;
+    const commentsCount = item.comments_count ?? 0;
+    const myReaction = item.my_reaction ?? (item.my_vote === 'up' ? 'like' : item.my_vote === 'down' ? 'dislike' : null);
+    const isOpen = activeComments === item.id;
+    return (
+      <div key={item.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TYPE_COLORS[item.content_type] || 'bg-gray-100 text-gray-600'}`}>
+              {item.content_type}
+            </span>
+            <span className="text-xs text-gray-400">{item.destination}</span>
           </div>
-        )}
-        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <button onClick={() => voteContent(item.id, 'up')} className="flex items-center gap-1 text-sm text-green-500 hover:text-green-700">
-              &#9650; {item.upvotes}
-            </button>
-            <button onClick={() => voteContent(item.id, 'down')} className="flex items-center gap-1 text-sm text-red-400 hover:text-red-600">
-              &#9660; {item.downvotes}
-            </button>
+          <h3 className="font-bold text-gray-900 dark:text-white">{item.title}</h3>
+          {item.description && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{item.description}</p>}
+          {item.body && <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 line-clamp-3">{item.body}</p>}
+          {item.media_url && (
+            <div className="mt-3 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2 text-xs text-gray-500 truncate">{item.media_url}</div>
+          )}
+          {item.tags?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-3">
+              {item.tags.slice(0, 5).map((tag, i) => (
+                <span key={i} className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-full">#{tag}</span>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex-wrap">
+            <button
+              onClick={() => reactContent(item, 'like')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-sm transition ${
+                myReaction === 'like'
+                  ? 'bg-pink-500 text-white'
+                  : 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 hover:bg-pink-100'
+              }`}
+              aria-pressed={myReaction === 'like'}
+              aria-label="Like"
+            >👍 {likes}</button>
+            <button
+              onClick={() => reactContent(item, 'dislike')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-sm transition ${
+                myReaction === 'dislike'
+                  ? 'bg-gray-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+              }`}
+              aria-pressed={myReaction === 'dislike'}
+              aria-label="Dislike"
+            >👎 {dislikes}</button>
+            <button
+              onClick={() => toggleComments(item)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-sm transition ${
+                isOpen
+                  ? 'bg-teal-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200'
+              }`}
+              aria-label="Comments"
+            >💬 {commentsCount}</button>
+            <button
+              onClick={() => shareContent(item)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100"
+              aria-label="Share"
+            >🔗</button>
+            <div className="ml-auto text-xs text-gray-400">
+              <span>{item.views_count} views</span>
+              {item.user_name && <span className="ml-2">by {item.user_name}</span>}
+            </div>
           </div>
-          <div className="text-xs text-gray-400">
-            <span>{item.views_count} views</span>
-            {item.user_name && <span className="ml-2">by {item.user_name}</span>}
-          </div>
+          {isOpen && (
+            <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+              {comments.length === 0 && (
+                <p className="text-xs text-gray-400">No comments yet — be the first!</p>
+              )}
+              {comments.map(c => {
+                const isOwn = currentUserId != null && String(c.user_id) === String(currentUserId);
+                return (
+                  <div key={c.id} className="py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-0.5">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">{c.user}</span>
+                      <span>{new Date(c.created_at).toLocaleDateString()}</span>
+                      {isOwn && (
+                        <button
+                          onClick={() => deleteContentComment(c.id, item)}
+                          className="ml-auto text-red-400 hover:text-red-600"
+                        >Delete</button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{c.content}</p>
+                  </div>
+                );
+              })}
+              {isAuthenticated && (
+                <div className="flex gap-2 mt-3">
+                  <input
+                    value={commentText}
+                    onChange={e => setCommentText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') addContentComment(item); }}
+                    placeholder="Add a comment..."
+                    className="flex-1 px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  />
+                  <button
+                    onClick={() => addContentComment(item)}
+                    className="px-3 py-1.5 bg-teal-500 text-white rounded-md text-sm hover:bg-teal-600"
+                  >Post</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'explore', label: 'Explore', icon: '🔍' },
@@ -331,23 +545,40 @@ export default function ContentHubPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {myContent.map(item => (
-                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${TYPE_COLORS[item.content_type] || ''}`}>{item.content_type}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        item.status === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        item.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                        'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                      }`}>{item.status}</span>
+              {myContent.map(item => {
+                const likes = item.likes_count ?? item.upvotes ?? 0;
+                const dislikes = item.dislikes_count ?? item.downvotes ?? 0;
+                const commentsCount = item.comments_count ?? 0;
+                return (
+                  <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${TYPE_COLORS[item.content_type] || ''}`}>{item.content_type}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            item.status === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                            item.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                            'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                          }`}>{item.status}</span>
+                        </div>
+                        <h3 className="font-bold text-gray-900 dark:text-white">{item.title}</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">{item.destination}</p>
+                      </div>
+                      <span className="text-xs text-gray-400 flex-shrink-0">{new Date(item.created_at).toLocaleDateString()}</span>
                     </div>
-                    <h3 className="font-bold text-gray-900 dark:text-white">{item.title}</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">{item.destination} &middot; &#9650; {item.upvotes} &middot; {item.views_count} views</p>
+                    <div className="flex items-center gap-2 mt-3 text-xs flex-wrap">
+                      <span className="px-2 py-1 rounded-md bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400">👍 {likes}</span>
+                      <span className="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">👎 {dislikes}</span>
+                      <span className="px-2 py-1 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">💬 {commentsCount}</span>
+                      <button
+                        onClick={() => shareContent(item)}
+                        className="px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100"
+                      >🔗 Share</button>
+                      <span className="text-gray-400 ml-auto">{item.views_count} views</span>
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-400">{new Date(item.created_at).toLocaleDateString()}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )
         )}

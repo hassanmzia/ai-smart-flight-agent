@@ -3786,7 +3786,8 @@ def get_story(request, share_token):
     """Get a published story by share token."""
     try:
         from .services.story_generator_service import StoryGeneratorService
-        result = StoryGeneratorService.get_story(share_token=share_token)
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
+        result = StoryGeneratorService.get_story(share_token=share_token, user=user)
         if not result.get('success'):
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         return Response(result)
@@ -3802,7 +3803,7 @@ def my_stories(request):
     try:
         from .services.story_generator_service import StoryGeneratorService
         result = StoryGeneratorService.list_user_stories(user=request.user)
-        return Response({'success': True, 'stories': result})
+        return Response(result)
     except Exception as e:
         logger.error(f"List stories failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -3814,12 +3815,14 @@ def public_stories(request):
     """List public published stories."""
     try:
         from .services.story_generator_service import StoryGeneratorService
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
         result = StoryGeneratorService.list_public_stories(
             destination=request.query_params.get('destination'),
             format=request.query_params.get('format'),
             limit=int(request.query_params.get('limit', 20)),
+            user=user,
         )
-        return Response({'success': True, 'stories': result})
+        return Response(result)
     except Exception as e:
         logger.error(f"Public stories failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -3828,16 +3831,41 @@ def public_stories(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def toggle_story_like(request):
-    """Toggle like on a story."""
+    """Toggle like on a story (accepts optional 'reaction' = 'like'|'dislike')."""
     try:
         from .services.story_generator_service import StoryGeneratorService
         story_id = request.data.get('story_id')
+        reaction = request.data.get('reaction', 'like')
         if not story_id:
             return Response({'error': 'story_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-        result = StoryGeneratorService.toggle_like(user=request.user, story_id=int(story_id))
+        result = StoryGeneratorService.set_reaction(
+            user=request.user, story_id=int(story_id), reaction=reaction,
+        )
         return Response(result)
     except Exception as e:
         logger.error(f"Toggle like failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def react_story(request):
+    """Set a like or dislike reaction on a story."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        story_id = request.data.get('story_id')
+        reaction = request.data.get('reaction')
+        if not story_id or reaction not in ('like', 'dislike'):
+            return Response(
+                {'error': "story_id and reaction ('like'|'dislike') are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        result = StoryGeneratorService.set_reaction(
+            user=request.user, story_id=int(story_id), reaction=reaction,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"React story failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -3855,6 +3883,26 @@ def add_story_comment(request):
         return Response(result, status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Add comment failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_story_comment(request, comment_id):
+    """Delete a story comment (author only)."""
+    try:
+        from .services.story_generator_service import StoryGeneratorService
+        result = StoryGeneratorService.delete_comment(user=request.user, comment_id=int(comment_id))
+        if not result.get('success'):
+            code = (
+                status.HTTP_404_NOT_FOUND
+                if 'not found' in (result.get('error') or '').lower()
+                else status.HTTP_403_FORBIDDEN
+            )
+            return Response(result, status=code)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Delete story comment failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -3917,6 +3965,7 @@ def browse_templates(request):
     """Browse community trip templates."""
     try:
         from .services.trip_template_service import TripTemplateService
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
         result = TripTemplateService.browse_templates(
             destination=request.query_params.get('destination'),
             style=request.query_params.get('style'),
@@ -3924,8 +3973,9 @@ def browse_templates(request):
             max_budget=float(request.query_params['max_budget']) if request.query_params.get('max_budget') else None,
             sort_by=request.query_params.get('sort_by', 'popular'),
             limit=int(request.query_params.get('limit', 20)),
+            user=user,
         )
-        return Response({'success': True, 'templates': result})
+        return Response(result)
     except Exception as e:
         logger.error(f"Browse templates failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -3937,7 +3987,8 @@ def get_template_detail(request, template_id):
     """Get trip template details."""
     try:
         from .services.trip_template_service import TripTemplateService
-        result = TripTemplateService.get_template(template_id=int(template_id))
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
+        result = TripTemplateService.get_template(template_id=int(template_id), user=user)
         if not result.get('success'):
             return Response(result, status=status.HTTP_404_NOT_FOUND)
         return Response(result)
@@ -3969,16 +4020,92 @@ def clone_template(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def like_template(request):
-    """Like a trip template."""
+    """Toggle a like on a trip template."""
     try:
         from .services.trip_template_service import TripTemplateService
         template_id = request.data.get('template_id')
+        reaction = request.data.get('reaction', 'like')
         if not template_id:
             return Response({'error': 'template_id is required'}, status=status.HTTP_400_BAD_REQUEST)
-        result = TripTemplateService.like_template(user=request.user, template_id=int(template_id))
+        result = TripTemplateService.set_reaction(
+            user=request.user, template_id=int(template_id), reaction=reaction,
+        )
         return Response(result)
     except Exception as e:
         logger.error(f"Like template failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def react_template(request):
+    """Toggle like/dislike on a trip template."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        template_id = request.data.get('template_id')
+        reaction = request.data.get('reaction')
+        if not template_id or reaction not in ('like', 'dislike'):
+            return Response(
+                {'error': "template_id and reaction ('like'|'dislike') are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        result = TripTemplateService.set_reaction(
+            user=request.user, template_id=int(template_id), reaction=reaction,
+        )
+        return Response(result)
+    except Exception as e:
+        logger.error(f"React template failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def template_comments(request):
+    """GET list_comments or POST add_comment for a template."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        if request.method == 'GET':
+            template_id = request.query_params.get('template_id')
+            if not template_id:
+                return Response({'error': 'template_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            result = TripTemplateService.list_comments(template_id=int(template_id))
+            return Response(result)
+        # POST
+        if not getattr(request.user, 'is_authenticated', False):
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        template_id = request.data.get('template_id')
+        content = (request.data.get('content') or '').strip()
+        if not template_id or not content:
+            return Response({'error': 'template_id and content are required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = TripTemplateService.add_comment(
+            user=request.user, template_id=int(template_id), content=content,
+        )
+        return Response(
+            result,
+            status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        logger.error(f"Template comments failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_template_comment(request, comment_id):
+    """Delete a template comment (author only)."""
+    try:
+        from .services.trip_template_service import TripTemplateService
+        result = TripTemplateService.delete_comment(user=request.user, comment_id=int(comment_id))
+        if not result.get('success'):
+            code = (
+                status.HTTP_404_NOT_FOUND
+                if 'not found' in (result.get('error') or '').lower()
+                else status.HTTP_403_FORBIDDEN
+            )
+            return Response(result, status=code)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Delete template comment failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -4005,8 +4132,12 @@ def featured_templates(request):
     """Get featured trip templates."""
     try:
         from .services.trip_template_service import TripTemplateService
-        result = TripTemplateService.get_featured_templates(limit=int(request.query_params.get('limit', 6)))
-        return Response({'success': True, 'templates': result})
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
+        result = TripTemplateService.get_featured_templates(
+            limit=int(request.query_params.get('limit', 6)),
+            user=user,
+        )
+        return Response(result)
     except Exception as e:
         logger.error(f"Featured templates failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -4019,7 +4150,7 @@ def my_templates(request):
     try:
         from .services.trip_template_service import TripTemplateService
         result = TripTemplateService.get_creator_templates(user=request.user)
-        return Response({'success': True, 'templates': result})
+        return Response(result)
     except Exception as e:
         logger.error(f"My templates failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -4049,13 +4180,15 @@ def destination_content(request):
         destination = request.query_params.get('destination')
         if not destination:
             return Response({'error': 'destination parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
         result = ContentHubService.get_destination_content(
             destination=destination,
             content_type=request.query_params.get('type'),
             sort_by=request.query_params.get('sort_by', 'popular'),
             limit=int(request.query_params.get('limit', 20)),
+            user=user,
         )
-        return Response({'success': True, 'content': result})
+        return Response(result)
     except Exception as e:
         logger.error(f"Destination content failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -4064,17 +4197,73 @@ def destination_content(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def vote_content(request):
-    """Upvote or downvote content."""
+    """Cast or toggle a vote on content. Accepts vote='up'|'down' or reaction='like'|'dislike'."""
     try:
         from .services.content_hub_service import ContentHubService
         content_id = request.data.get('content_id')
         vote = request.data.get('vote')
-        if not content_id or vote not in ('up', 'down'):
-            return Response({'error': 'content_id and vote (up/down) are required'}, status=status.HTTP_400_BAD_REQUEST)
+        reaction = request.data.get('reaction')
+        if reaction in ('like', 'dislike'):
+            vote = 'up' if reaction == 'like' else 'down'
+        if not content_id or vote not in ('up', 'down', 'upvote', 'downvote'):
+            return Response(
+                {'error': "content_id and vote ('up'|'down') or reaction ('like'|'dislike') are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         result = ContentHubService.vote_content(user=request.user, content_id=int(content_id), vote=vote)
         return Response(result)
     except Exception as e:
         logger.error(f"Vote content failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def content_comments(request):
+    """GET list_comments or POST add_comment for a content item."""
+    try:
+        from .services.content_hub_service import ContentHubService
+        if request.method == 'GET':
+            content_id = request.query_params.get('content_id')
+            if not content_id:
+                return Response({'error': 'content_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            result = ContentHubService.list_comments(content_id=int(content_id))
+            return Response(result)
+        if not getattr(request.user, 'is_authenticated', False):
+            return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        content_id = request.data.get('content_id')
+        content = (request.data.get('content') or '').strip()
+        if not content_id or not content:
+            return Response({'error': 'content_id and content are required'}, status=status.HTTP_400_BAD_REQUEST)
+        result = ContentHubService.add_comment(
+            user=request.user, content_id=int(content_id), content=content,
+        )
+        return Response(
+            result,
+            status=status.HTTP_201_CREATED if result.get('success') else status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        logger.error(f"Content comments failed: {e}", exc_info=True)
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_content_comment(request, comment_id):
+    """Delete a content comment (author only)."""
+    try:
+        from .services.content_hub_service import ContentHubService
+        result = ContentHubService.delete_comment(user=request.user, comment_id=int(comment_id))
+        if not result.get('success'):
+            code = (
+                status.HTTP_404_NOT_FOUND
+                if 'not found' in (result.get('error') or '').lower()
+                else status.HTTP_403_FORBIDDEN
+            )
+            return Response(result, status=code)
+        return Response(result)
+    except Exception as e:
+        logger.error(f"Delete content comment failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -4084,8 +4273,12 @@ def trending_content(request):
     """Get trending content from the past week."""
     try:
         from .services.content_hub_service import ContentHubService
-        result = ContentHubService.get_trending_content(limit=int(request.query_params.get('limit', 10)))
-        return Response({'success': True, 'content': result})
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
+        result = ContentHubService.get_trending_content(
+            limit=int(request.query_params.get('limit', 10)),
+            user=user,
+        )
+        return Response(result)
     except Exception as e:
         logger.error(f"Trending content failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -4101,7 +4294,7 @@ def my_content(request):
             user=request.user,
             status=request.query_params.get('status'),
         )
-        return Response({'success': True, 'content': result})
+        return Response(result)
     except Exception as e:
         logger.error(f"My content failed: {e}", exc_info=True)
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
