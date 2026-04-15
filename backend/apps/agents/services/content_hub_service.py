@@ -141,7 +141,7 @@ class ContentHubService:
 
         try:
             qs = ContentItem.objects.filter(
-                destination__iexact=destination.strip(),
+                destination__icontains=destination.strip(),
                 status='approved',
             ).select_related('user')
 
@@ -482,26 +482,32 @@ class ContentHubService:
     @staticmethod
     def get_trending_content(limit: int = 10, user=None) -> Dict[str, Any]:
         """
-        Retrieve trending content from the last 7 days ranked by upvotes.
+        Retrieve trending content ranked by upvotes + views.
 
-        Parameters
-        ----------
-        limit : int
-            Maximum number of items to return.
-
-        Returns
-        -------
-        dict with 'success' key and list of trending content dicts.
+        Prefers content from the last 7 days; falls back to all-time
+        trending if the recent window is empty so the tab is never blank.
         """
         from apps.agents.models import ContentItem
 
         try:
             cutoff = timezone.now() - timedelta(days=7)
 
-            qs = ContentItem.objects.filter(
+            base_qs = ContentItem.objects.filter(
                 status='approved',
-                created_at__gte=cutoff,
-            ).select_related('user').order_by('-upvotes')[:limit]
+            ).select_related('user')
+
+            recent_qs = base_qs.filter(created_at__gte=cutoff).order_by(
+                '-upvotes', '-views_count', '-created_at',
+            )[:limit]
+
+            qs = list(recent_qs)
+            period_days: int | None = 7
+
+            # Fall back to all-time trending so the tab isn't empty when
+            # there's no activity this week.
+            if not qs:
+                qs = list(base_qs.order_by('-upvotes', '-views_count', '-created_at')[:limit])
+                period_days = None
 
             items = []
             for item in qs:
@@ -512,13 +518,13 @@ class ContentHubService:
                 )
                 items.append(item_dict)
 
-            logger.info("Retrieved %d trending content items", len(items))
+            logger.info("Retrieved %d trending content items (period=%s)", len(items), period_days)
 
             return {
                 'success': True,
                 'content': items,
                 'count': len(items),
-                'period_days': 7,
+                'period_days': period_days,
             }
         except Exception as e:
             logger.error("Failed to get trending content: %s", e)

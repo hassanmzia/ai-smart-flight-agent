@@ -119,7 +119,13 @@ export default function ContentHubPage() {
   useEffect(() => {
     if (tab === 'trending') fetchTrending();
     else if (tab === 'my-content') fetchMyContent();
-  }, [tab, fetchTrending, fetchMyContent]);
+    else if (tab === 'explore') {
+      if (destination.trim()) fetchContent();
+      // Pre-populate trending so Explore has something to show before
+      // a destination is entered.
+      if (trending.length === 0) fetchTrending();
+    }
+  }, [tab, fetchTrending, fetchMyContent, fetchContent, destination, trending.length]);
 
   const submitContent = async () => {
     if (!form.destination || !form.title) { toast.error('Destination and title are required'); return; }
@@ -437,10 +443,19 @@ export default function ContentHubPage() {
 
             {loading ? <div className="text-center py-12 text-gray-500">Loading...</div> :
             !destination.trim() ? (
-              <div className="text-center py-16"><div className="text-5xl mb-4">🔍</div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Search a destination</h3>
-                <p className="text-gray-500">Enter a city or country to discover community content</p>
-              </div>
+              trending.length === 0 ? (
+                <div className="text-center py-16"><div className="text-5xl mb-4">🔍</div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Search a destination</h3>
+                  <p className="text-gray-500">Enter a city or country to discover community content, or submit the first one!</p>
+                </div>
+              ) : (
+                <>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">🔥 Popular right now</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {trending.map(renderCard)}
+                  </div>
+                </>
+              )
             ) : content.length === 0 ? (
               <div className="text-center py-16"><div className="text-5xl mb-4">📭</div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No content found</h3>
