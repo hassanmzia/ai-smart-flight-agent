@@ -6,7 +6,16 @@ import api from '@/services/api';
 // Types
 // ---------------------------------------------------------------------------
 
-interface MediaItem {
+type Reaction = 'like' | 'dislike' | null;
+
+interface ReactionFields {
+  like_count?: number;
+  dislike_count?: number;
+  my_reaction?: Reaction;
+  comment_count?: number;
+}
+
+interface MediaItem extends ReactionFields {
   id: number;
   user: string;
   destination: string;
@@ -23,7 +32,7 @@ interface MediaItem {
   is_owner?: boolean;
 }
 
-interface TravelStory {
+interface TravelStory extends ReactionFields {
   id: number;
   user: string;
   destination: string;
@@ -37,7 +46,7 @@ interface TravelStory {
   is_owner?: boolean;
 }
 
-interface TravelTip {
+interface TravelTip extends ReactionFields {
   id: number;
   user: string;
   destination: string;
@@ -50,7 +59,16 @@ interface TravelTip {
   is_owner?: boolean;
 }
 
+interface CommunityComment {
+  id: number;
+  user: string;
+  text: string;
+  created_at: string;
+  is_owner?: boolean;
+}
+
 type TabKey = 'media' | 'stories' | 'tips';
+type CommunityType = 'media' | 'stories' | 'tips';
 
 // ---------------------------------------------------------------------------
 // Tab config
@@ -129,16 +147,7 @@ export default function CommunityPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleUpvote = async (type: string, id: number) => {
-    try {
-      await api.post(`/api/community/${type}/${id}/upvote/`);
-      fetchData();
-    } catch {
-      // silently fail
-    }
-  };
-
-  const handleDelete = async (type: 'media' | 'stories' | 'tips', id: number, label: string) => {
+  const handleDelete = async (type: CommunityType, id: number, label: string) => {
     if (!window.confirm(`Delete this ${label}? This action cannot be undone.`)) return;
     try {
       await api.delete(`/api/community/${type}/${id}/`);
@@ -147,6 +156,119 @@ export default function CommunityPage() {
       fetchData();
     } catch {
       window.alert(`Could not delete this ${label}. Please try again.`);
+    }
+  };
+
+  // Optimistically update a list-item's reaction fields. Keeps the heart /
+  // thumbs-down snappy even while the network call is in flight.
+  const patchItem = <T extends { id: number }>(
+    setter: React.Dispatch<React.SetStateAction<T[]>>,
+    id: number,
+    patch: Partial<T>,
+  ) => {
+    setter(items => items.map(it => (it.id === id ? { ...it, ...patch } : it)));
+  };
+
+  const applyLocalReaction = (
+    type: CommunityType,
+    id: number,
+    nextReaction: Reaction,
+    current: ReactionFields,
+  ): ReactionFields => {
+    const prev = current.my_reaction ?? null;
+    let likeDelta = 0;
+    let dislikeDelta = 0;
+    if (prev === 'like') likeDelta -= 1;
+    if (prev === 'dislike') dislikeDelta -= 1;
+    if (nextReaction === 'like') likeDelta += 1;
+    if (nextReaction === 'dislike') dislikeDelta += 1;
+    const patch: ReactionFields = {
+      my_reaction: nextReaction,
+      like_count: Math.max(0, (current.like_count ?? 0) + likeDelta),
+      dislike_count: Math.max(0, (current.dislike_count ?? 0) + dislikeDelta),
+    };
+    if (type === 'media') patchItem(setMedia, id, patch as Partial<MediaItem>);
+    if (type === 'stories') patchItem(setStories, id, patch as Partial<TravelStory>);
+    if (type === 'tips') patchItem(setTips, id, patch as Partial<TravelTip>);
+    if (type === 'media') {
+      setSelectedMedia(m => (m && m.id === id ? { ...m, ...patch } : m));
+    }
+    return patch;
+  };
+
+  const handleReact = async (
+    type: CommunityType,
+    id: number,
+    clicked: 'like' | 'dislike',
+    current: ReactionFields,
+  ) => {
+    const prev = current.my_reaction ?? null;
+    // Same click toggles off; opposite click switches.
+    const nextReaction: Reaction = prev === clicked ? null : clicked;
+    applyLocalReaction(type, id, nextReaction, current);
+    try {
+      const res = await api.post(`/api/community/${type}/${id}/react/`, {
+        reaction: nextReaction,
+      });
+      const server = res.data as ReactionFields;
+      // Reconcile with authoritative server counts.
+      if (type === 'media') patchItem(setMedia, id, server as Partial<MediaItem>);
+      if (type === 'stories') patchItem(setStories, id, server as Partial<TravelStory>);
+      if (type === 'tips') patchItem(setTips, id, server as Partial<TravelTip>);
+      if (type === 'media') {
+        setSelectedMedia(m => (m && m.id === id ? { ...m, ...server } : m));
+      }
+    } catch {
+      // Rollback optimistic change on failure.
+      applyLocalReaction(type, id, prev, {
+        my_reaction: nextReaction,
+        like_count: current.like_count,
+        dislike_count: current.dislike_count,
+      });
+    }
+  };
+
+  const handleShare = async (
+    type: CommunityType,
+    id: number,
+    title: string,
+    destinationName: string,
+  ) => {
+    const url = `${window.location.origin}/community?type=${type}&id=${id}`;
+    const shareData = {
+      title: `${title} — ${destinationName}`,
+      text: `Check out this ${type === 'media' ? 'post' : type === 'stories' ? 'travel story' : 'travel tip'} on Smart Trip Planner`,
+      url,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+    } catch {
+      // User cancelled share or not supported — fall through to clipboard.
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      window.alert('Link copied to clipboard!');
+    } catch {
+      window.prompt('Copy this link:', url);
+    }
+  };
+
+  const bumpCommentCount = (type: CommunityType, id: number, delta: number) => {
+    const apply = (cur: ReactionFields) => ({
+      comment_count: Math.max(0, (cur.comment_count ?? 0) + delta),
+    });
+    if (type === 'media') {
+      setMedia(items => items.map(it => (it.id === id ? { ...it, ...apply(it) } : it)));
+      setSelectedMedia(m => (m && m.id === id ? { ...m, ...apply(m) } : m));
+    }
+    if (type === 'stories') {
+      setStories(items => items.map(it => (it.id === id ? { ...it, ...apply(it) } : it)));
+    }
+    if (type === 'tips') {
+      setTips(items => items.map(it => (it.id === id ? { ...it, ...apply(it) } : it)));
     }
   };
 
@@ -283,17 +405,21 @@ export default function CommunityPage() {
                       </span>
                     </div>
                   )}
-                  <div className="p-3">
-                    <h4 className="text-xs font-semibold text-gray-900 dark:text-white truncate">{item.title}</h4>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-gray-500 dark:text-gray-400">{item.destination}</span>
-                      <button
-                        onClick={e => { e.stopPropagation(); handleUpvote('media', item.id); }}
-                        className="text-[10px] text-gray-400 hover:text-red-500 transition-colors flex items-center gap-0.5"
-                      >
-                        {'\u2764\uFE0F'} {item.upvotes}
-                      </button>
-                    </div>
+                  <div className="p-3" onClick={e => e.stopPropagation()}>
+                    <h4
+                      className="text-xs font-semibold text-gray-900 dark:text-white truncate cursor-pointer"
+                      onClick={() => setSelectedMedia(item)}
+                    >
+                      {item.title}
+                    </h4>
+                    <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">{item.destination}</div>
+                    <ReactionBar
+                      type="media"
+                      item={item}
+                      onReact={handleReact}
+                      onShare={handleShare}
+                      compact
+                    />
                   </div>
                 </motion.div>
               ))}
@@ -336,26 +462,30 @@ export default function CommunityPage() {
                     <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed">{story.content}</p>
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                       <span className="text-xs text-gray-500">{story.user}</span>
-                      <div className="flex items-center gap-3">
+                      {story.is_owner && (
                         <button
-                          onClick={() => handleUpvote('stories', story.id)}
-                          className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                          type="button"
+                          onClick={() => handleDelete('stories', story.id, 'story')}
+                          aria-label="Delete this story"
+                          title="Delete this story"
+                          className="text-xs text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1"
                         >
-                          {'\u2764\uFE0F'} {story.upvotes}
+                          {'\uD83D\uDDD1\uFE0F'} Delete
                         </button>
-                        {story.is_owner && (
-                          <button
-                            type="button"
-                            onClick={() => handleDelete('stories', story.id, 'story')}
-                            aria-label="Delete this story"
-                            title="Delete this story"
-                            className="text-xs text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1"
-                          >
-                            {'\uD83D\uDDD1\uFE0F'} Delete
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
+                    <ReactionBar
+                      type="stories"
+                      item={story}
+                      onReact={handleReact}
+                      onShare={handleShare}
+                    />
+                    <CommentSection
+                      type="stories"
+                      parentId={story.id}
+                      commentCount={story.comment_count ?? 0}
+                      onCountChange={delta => bumpCommentCount('stories', story.id, delta)}
+                    />
                   </div>
                 </motion.div>
               ))}
@@ -399,26 +529,30 @@ export default function CommunityPage() {
                         <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{tip.content}</p>
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-xs text-gray-500">{tip.user}</span>
-                          <div className="flex items-center gap-3">
+                          {tip.is_owner && (
                             <button
-                              onClick={() => handleUpvote('tips', tip.id)}
-                              className="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1"
+                              type="button"
+                              onClick={() => handleDelete('tips', tip.id, 'tip')}
+                              aria-label="Delete this tip"
+                              title="Delete this tip"
+                              className="text-xs text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1"
                             >
-                              {'\u2764\uFE0F'} {tip.upvotes}
+                              {'\uD83D\uDDD1\uFE0F'} Delete
                             </button>
-                            {tip.is_owner && (
-                              <button
-                                type="button"
-                                onClick={() => handleDelete('tips', tip.id, 'tip')}
-                                aria-label="Delete this tip"
-                                title="Delete this tip"
-                                className="text-xs text-gray-400 hover:text-red-600 transition-colors flex items-center gap-1"
-                              >
-                                {'\uD83D\uDDD1\uFE0F'} Delete
-                              </button>
-                            )}
-                          </div>
+                          )}
                         </div>
+                        <ReactionBar
+                          type="tips"
+                          item={tip}
+                          onReact={handleReact}
+                          onShare={handleShare}
+                        />
+                        <CommentSection
+                          type="tips"
+                          parentId={tip.id}
+                          commentCount={tip.comment_count ?? 0}
+                          onCountChange={delta => bumpCommentCount('tips', tip.id, delta)}
+                        />
                       </div>
                     </div>
                   </motion.div>
@@ -457,6 +591,9 @@ export default function CommunityPage() {
             media={selectedMedia}
             onClose={() => setSelectedMedia(null)}
             onDelete={id => handleDelete('media', id, 'upload')}
+            onReact={handleReact}
+            onShare={handleShare}
+            onCommentCountChange={delta => bumpCommentCount('media', selectedMedia.id, delta)}
           />
         )}
       </AnimatePresence>
@@ -823,24 +960,30 @@ function MediaLightbox({
   media,
   onClose,
   onDelete,
+  onReact,
+  onShare,
+  onCommentCountChange,
 }: {
   media: MediaItem;
   onClose: () => void;
   onDelete?: (id: number) => void;
+  onReact: (type: CommunityType, id: number, clicked: 'like' | 'dislike', current: ReactionFields) => void;
+  onShare: (type: CommunityType, id: number, title: string, destination: string) => void;
+  onCommentCountChange: (delta: number) => void;
 }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.9 }}
         animate={{ scale: 1 }}
         exit={{ scale: 0.9 }}
-        className="max-w-3xl w-full max-h-[90vh] overflow-hidden"
+        className="max-w-3xl w-full my-8"
         onClick={e => e.stopPropagation()}
       >
         {media.media_type === 'photo' ? (
@@ -860,16 +1003,24 @@ function MediaLightbox({
             </a>
           </div>
         )}
-        <div className="mt-4 text-center">
-          <h3 className="text-lg font-bold text-white">{media.title}</h3>
-          {media.description && <p className="text-sm text-gray-300 mt-1">{media.description}</p>}
-          <div className="flex items-center justify-center gap-3 mt-2 text-xs text-gray-400">
+        <div className="mt-4 bg-white dark:bg-gray-800 rounded-2xl p-4">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center">{media.title}</h3>
+          {media.description && (
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 text-center">{media.description}</p>
+          )}
+          <div className="flex items-center justify-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
             <span>{media.destination}</span>
+            <span>·</span>
             <span>{media.user}</span>
-            <span>{'\u2764\uFE0F'} {media.upvotes}</span>
           </div>
+          <ReactionBar
+            type="media"
+            item={media}
+            onReact={onReact}
+            onShare={onShare}
+          />
           {media.is_owner && onDelete && (
-            <div className="mt-4">
+            <div className="mt-4 text-center">
               <button
                 type="button"
                 onClick={() => onDelete(media.id)}
@@ -879,8 +1030,227 @@ function MediaLightbox({
               </button>
             </div>
           )}
+          <CommentSection
+            type="media"
+            parentId={media.id}
+            commentCount={media.comment_count ?? 0}
+            onCountChange={onCommentCountChange}
+            startOpen
+          />
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reaction Bar (like / dislike / comment count / share)
+// ---------------------------------------------------------------------------
+
+function ReactionBar<T extends { id: number; title: string; destination: string } & ReactionFields>({
+  type,
+  item,
+  onReact,
+  onShare,
+  compact = false,
+}: {
+  type: CommunityType;
+  item: T;
+  onReact: (type: CommunityType, id: number, clicked: 'like' | 'dislike', current: ReactionFields) => void;
+  onShare: (type: CommunityType, id: number, title: string, destination: string) => void;
+  compact?: boolean;
+}) {
+  const my = item.my_reaction ?? null;
+  const likeCount = item.like_count ?? 0;
+  const dislikeCount = item.dislike_count ?? 0;
+  const commentCount = item.comment_count ?? 0;
+
+  const base = compact
+    ? 'text-[11px] px-1.5 py-1 gap-1'
+    : 'text-xs px-2 py-1.5 gap-1.5';
+
+  return (
+    <div className={`mt-2 flex items-center ${compact ? 'justify-between' : 'gap-1 flex-wrap'}`}>
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onReact(type, item.id, 'like', item); }}
+        aria-label={my === 'like' ? 'Remove like' : 'Like'}
+        title={my === 'like' ? 'Unlike' : 'Like'}
+        className={`inline-flex items-center rounded-lg transition-colors ${base} ${
+          my === 'like'
+            ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 font-semibold'
+            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+        }`}
+      >
+        <span>{my === 'like' ? '\u2764\uFE0F' : '\uD83E\uDD0D'}</span>
+        <span>{likeCount}</span>
+      </button>
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onReact(type, item.id, 'dislike', item); }}
+        aria-label={my === 'dislike' ? 'Remove dislike' : 'Dislike'}
+        title={my === 'dislike' ? 'Remove dislike' : 'Dislike'}
+        className={`inline-flex items-center rounded-lg transition-colors ${base} ${
+          my === 'dislike'
+            ? 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 font-semibold'
+            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+        }`}
+      >
+        <span>{'\uD83D\uDC4E'}</span>
+        <span>{dislikeCount}</span>
+      </button>
+      <span
+        className={`inline-flex items-center rounded-lg text-gray-500 dark:text-gray-400 ${base}`}
+        title="Comments"
+      >
+        <span>{'\uD83D\uDCAC'}</span>
+        <span>{commentCount}</span>
+      </span>
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onShare(type, item.id, item.title, item.destination); }}
+        aria-label="Share"
+        title="Share"
+        className={`inline-flex items-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-auto ${base}`}
+      >
+        <span>{'\uD83D\uDD17'}</span>
+        {!compact && <span>Share</span>}
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Comment Section
+// ---------------------------------------------------------------------------
+
+function CommentSection({
+  type,
+  parentId,
+  commentCount,
+  onCountChange,
+  startOpen = false,
+}: {
+  type: CommunityType;
+  parentId: number;
+  commentCount: number;
+  onCountChange: (delta: number) => void;
+  startOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(startOpen);
+  const [comments, setComments] = useState<CommunityComment[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [posting, setPosting] = useState(false);
+
+  const loadComments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/api/community/${type}/${parentId}/comments/`);
+      const data = res.data?.results || res.data || [];
+      setComments(Array.isArray(data) ? data : []);
+      setLoaded(true);
+    } catch {
+      setComments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [type, parentId]);
+
+  useEffect(() => {
+    if (open && !loaded) loadComments();
+  }, [open, loaded, loadComments]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = draft.trim();
+    if (!text) return;
+    setPosting(true);
+    try {
+      const res = await api.post(`/api/community/${type}/${parentId}/comments/`, { text });
+      const created = res.data as CommunityComment;
+      setComments(cur => [created, ...cur]);
+      onCountChange(1);
+      setDraft('');
+    } catch {
+      window.alert('Could not post comment. Please sign in and try again.');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const remove = async (id: number) => {
+    if (!window.confirm('Delete this comment?')) return;
+    try {
+      await api.delete(`/api/community/${type}/comments/${id}/`);
+      setComments(cur => cur.filter(c => c.id !== id));
+      onCountChange(-1);
+    } catch {
+      window.alert('Could not delete comment.');
+    }
+  };
+
+  return (
+    <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="text-xs text-gray-500 dark:text-gray-400 hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+      >
+        {open ? 'Hide comments' : `View ${commentCount > 0 ? commentCount : ''} comment${commentCount === 1 ? '' : 's'}`}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          <form onSubmit={submit} className="flex gap-2">
+            <input
+              type="text"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              placeholder="Write a comment..."
+              className="flex-1 rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs px-3 py-1.5"
+            />
+            <button
+              type="submit"
+              disabled={posting || !draft.trim()}
+              className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium disabled:opacity-50"
+            >
+              {posting ? '...' : 'Post'}
+            </button>
+          </form>
+          {loading && <p className="text-xs text-gray-400">Loading...</p>}
+          {!loading && comments.length === 0 && loaded && (
+            <p className="text-xs text-gray-400">No comments yet. Be the first.</p>
+          )}
+          <ul className="space-y-1.5">
+            {comments.map(c => (
+              <li
+                key={c.id}
+                className="rounded-lg bg-gray-50 dark:bg-gray-700/50 px-3 py-2 text-xs text-gray-700 dark:text-gray-200"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">{c.user}</span>
+                  <span className="flex items-center gap-2 text-[10px] text-gray-400">
+                    <time>{new Date(c.created_at).toLocaleDateString()}</time>
+                    {c.is_owner && (
+                      <button
+                        type="button"
+                        onClick={() => remove(c.id)}
+                        className="hover:text-red-500"
+                        aria-label="Delete comment"
+                        title="Delete comment"
+                      >
+                        {'\uD83D\uDDD1\uFE0F'}
+                      </button>
+                    )}
+                  </span>
+                </div>
+                <p className="mt-0.5 whitespace-pre-wrap break-words">{c.text}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }

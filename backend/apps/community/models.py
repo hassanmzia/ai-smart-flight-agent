@@ -32,6 +32,16 @@ class DestinationMedia(models.Model):
     tags = models.JSONField(default=list)
     is_approved = models.BooleanField(default=False)
     upvotes = models.IntegerField(default=0)
+    liked_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='liked_community_media',
+        blank=True,
+    )
+    disliked_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='disliked_community_media',
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -68,6 +78,16 @@ class TravelStory(models.Model):
     )
     is_approved = models.BooleanField(default=False)
     upvotes = models.IntegerField(default=0)
+    liked_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='liked_travel_stories',
+        blank=True,
+    )
+    disliked_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='disliked_travel_stories',
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -109,6 +129,16 @@ class TravelTip(models.Model):
     content = models.TextField()
     is_approved = models.BooleanField(default=False)
     upvotes = models.IntegerField(default=0)
+    liked_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='liked_travel_tips',
+        blank=True,
+    )
+    disliked_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='disliked_travel_tips',
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -191,3 +221,66 @@ class CuratedGuide(models.Model):
 
     def __str__(self):
         return f"{self.get_guide_type_display()} - {self.destination}"
+
+
+class BaseCommunityComment(models.Model):
+    """
+    Abstract base for a user comment attached to a piece of community
+    content (media, story, tip). Subclasses only need to declare the
+    parent FK named ``parent``.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='+',
+    )
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        abstract = True
+        ordering = ['-created_at']
+
+    def __str__(self):
+        preview = (self.text or '')[:40]
+        return f"{self.user} · {preview}"
+
+
+class MediaComment(BaseCommunityComment):
+    parent = models.ForeignKey(
+        DestinationMedia,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+
+    class Meta(BaseCommunityComment.Meta):
+        db_table = 'community_media_comments'
+        verbose_name = 'Media Comment'
+        verbose_name_plural = 'Media Comments'
+
+
+class StoryComment(BaseCommunityComment):
+    parent = models.ForeignKey(
+        TravelStory,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+
+    class Meta(BaseCommunityComment.Meta):
+        db_table = 'community_story_comments'
+        verbose_name = 'Story Comment'
+        verbose_name_plural = 'Story Comments'
+
+
+class TipComment(BaseCommunityComment):
+    parent = models.ForeignKey(
+        TravelTip,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+
+    class Meta(BaseCommunityComment.Meta):
+        db_table = 'community_tip_comments'
+        verbose_name = 'Tip Comment'
+        verbose_name_plural = 'Tip Comments'
