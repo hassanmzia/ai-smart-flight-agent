@@ -67,8 +67,14 @@ class ContentHubService:
                 destination=data['destination'],
             )
 
+            # Approval thresholds:
+            #   score >= 0.5 → approved (default fallback is 0.5, so when
+            #                 no AI key is configured submissions are visible
+            #                 immediately instead of languishing as 'pending').
+            #   score <  0.2 → rejected (clear spam / hostile content).
+            #   else         → pending (low-quality, awaiting review).
             score = moderation['score']
-            if score > 0.7:
+            if score >= 0.5:
                 status = 'approved'
             elif score < 0.2:
                 status = 'rejected'
@@ -787,15 +793,23 @@ Return a single JSON object:
 
         If ``user`` is authenticated, includes per-user vote/reaction state.
         """
-        from apps.agents.models import ContentVote
-
         my_vote = None
         my_reaction = None
         if user is not None and getattr(user, 'is_authenticated', False):
-            vote = ContentVote.objects.filter(user=user, content_item=item).first()
-            if vote:
-                my_vote = vote.vote  # 'up' | 'down'
-                my_reaction = 'like' if vote.vote == 'up' else 'dislike'
+            # Isolate per-user reaction lookup so a DB error (e.g. missing
+            # content_votes table during a partially-applied migration) can't
+            # break the whole list endpoint. The list still renders; the
+            # per-user state just falls back to "no reaction".
+            try:
+                from apps.agents.models import ContentVote
+                vote = ContentVote.objects.filter(user=user, content_item=item).first()
+                if vote:
+                    my_vote = vote.vote  # 'up' | 'down'
+                    my_reaction = 'like' if vote.vote == 'up' else 'dislike'
+            except Exception as e:
+                logger.warning(
+                    "Skipping per-user vote lookup for content %s: %s", item.id, e,
+                )
 
         return {
             'id': item.id,
