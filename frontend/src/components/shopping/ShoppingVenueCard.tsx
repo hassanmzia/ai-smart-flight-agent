@@ -145,6 +145,47 @@ const ShoppingVenueCard = ({ venue }: ShoppingVenueCardProps) => {
             Payment: {venue.payment_methods.join(', ')}
           </div>
         </div>
+
+        {/* Reference / Find-Online Actions.
+            Shopping venues don't ship with a bookable website, so we link
+            users out to Google Search (for the venue's own homepage) and
+            Google Maps (for directions + hours). Matches the pattern used
+            by TouristAttractionCard / EventCard. */}
+        <div className="flex flex-wrap gap-2 pt-3 mt-2 border-t border-gray-200 dark:border-gray-700">
+          {(venue as any).website ? (
+            <a
+              href={(venue as any).website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+              title="Opens the venue's website in a new tab"
+            >
+              🔗 Visit Website
+            </a>
+          ) : (
+            <a
+              href={`https://www.google.com/search?q=${encodeURIComponent(
+                `${venue.name} ${venue.location || ''}`.trim()
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+              title="Search for this venue online"
+            >
+              🔍 Find Online
+            </a>
+          )}
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+              `${venue.name} ${venue.address || venue.location || ''}`.trim()
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
+          >
+            🗺️ View on Map
+          </a>
+        </div>
       </div>
     </div>
   );

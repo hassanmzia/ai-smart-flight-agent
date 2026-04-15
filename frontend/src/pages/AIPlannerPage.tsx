@@ -43,6 +43,70 @@ const TAB_CONFIG: { key: ResultTab; label: string; icon: string }[] = [
   { key: 'intelligence', label: 'Intelligence', icon: '🧠' },
 ];
 
+/**
+ * Pull a booking / partner URL off an item regardless of which field the
+ * upstream provider populated. SerpAPI flights use bookingUrl, hotel
+ * results use link or website_url, rentals use booking_url, restaurants
+ * use website, etc. Returning null lets callers skip rendering cleanly.
+ */
+const getBookingUrl = (item: any): string | null => {
+  if (!item) return null;
+  const url =
+    item.bookingUrl ||
+    item.booking_url ||
+    item.link ||
+    item.website_url ||
+    item.website ||
+    item.url ||
+    item.reservation_url ||
+    item.source_url ||
+    null;
+  return typeof url === 'string' && url.trim() ? url : null;
+};
+
+/**
+ * Renders a small "Book / Visit" external-link button. Used in every
+ * AI Planner result tab so users can jump straight to the partner site
+ * the same way the dedicated search pages already let them.
+ */
+const BookingLinkButton = ({
+  item,
+  label = 'Book on Partner Site',
+  tone = 'blue',
+  size = 'md',
+}: {
+  item: any;
+  label?: string;
+  tone?: 'blue' | 'green' | 'teal' | 'orange' | 'rose' | 'indigo';
+  size?: 'sm' | 'md';
+}) => {
+  const url = getBookingUrl(item);
+  if (!url) return null;
+  const toneClasses: Record<string, string> = {
+    blue: 'border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+    green: 'border-green-500 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20',
+    teal: 'border-teal-500 text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20',
+    orange: 'border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20',
+    rose: 'border-rose-500 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20',
+    indigo: 'border-indigo-500 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20',
+  };
+  const sizeClasses = size === 'sm'
+    ? 'px-2 py-1 text-[11px]'
+    : 'px-3 py-2 text-xs';
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className={`inline-flex items-center gap-1.5 rounded-lg border font-semibold whitespace-nowrap transition-colors ${toneClasses[tone]} ${sizeClasses}`}
+      title="Opens the partner booking site in a new tab"
+    >
+      <span>🔗</span> {label}
+    </a>
+  );
+};
+
 const AIPlannerPage = () => {
   const navigate = useNavigate();
   const { showSuccess, showError } = useToast();
@@ -779,6 +843,20 @@ const AIPlannerPage = () => {
                                             </span>
                                           )}
                                         </div>
+                                        {(activity as any).url && (
+                                          <div className="mt-2">
+                                            <a
+                                              href={(activity as any).url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                                              title="Opens the partner booking site in a new tab"
+                                            >
+                                              🔗 Book / View on Partner Site
+                                            </a>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   );
@@ -955,6 +1033,12 @@ const AIPlannerPage = () => {
                         <span className="ml-3 text-xs opacity-75">Goal Score: {rec.recommended_flight.goal_score > 0 ? '+' : ''}{rec.recommended_flight.goal_score}</span>
                       </div>
                     )}
+                    {/* Partner booking link */}
+                    {getBookingUrl(rec.recommended_flight) && (
+                      <div className="mt-4 flex justify-end">
+                        <BookingLinkButton item={rec.recommended_flight} tone="blue" label="Book on Partner Site" />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -976,6 +1060,7 @@ const AIPlannerPage = () => {
                           <th className="text-center px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Stops</th>
                           <th className="hidden md:table-cell text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Duration</th>
                           <th className="text-right px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price/Person</th>
+                          <th className="text-center px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Book</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -999,6 +1084,9 @@ const AIPlannerPage = () => {
                               {f.duration ? `${Math.floor(f.duration / 60)}h ${f.duration % 60}m` : '-'}
                             </td>
                             <td className="px-3 md:px-4 py-2.5 text-right font-bold text-primary-600 dark:text-primary-400 text-xs md:text-sm">${f.price}</td>
+                            <td className="px-3 md:px-4 py-2.5 text-center">
+                              <BookingLinkButton item={f} tone="blue" label="Book" size="sm" />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1104,6 +1192,11 @@ const AIPlannerPage = () => {
                               {h.recommendation}
                             </div>
                           )}
+                          {getBookingUrl(h) && (
+                            <div className="flex justify-end">
+                              <BookingLinkButton item={h} tone="green" label="Visit / Book Direct" />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1127,6 +1220,7 @@ const AIPlannerPage = () => {
                           <th className="hidden md:table-cell text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
                           <th className="text-right px-2 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price/Nt</th>
                           <th className="text-right px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                          <th className="text-center px-3 md:px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wider">Book</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1154,6 +1248,9 @@ const AIPlannerPage = () => {
                             </td>
                             <td className="px-3 md:px-4 py-2.5 text-right text-gray-600 dark:text-gray-400 text-xs md:text-sm">
                               {(h.price || h.price_per_night) && numNights > 0 ? `$${((h.price || h.price_per_night) * numNights).toFixed(0)}` : '-'}
+                            </td>
+                            <td className="px-3 md:px-4 py-2.5 text-center">
+                              <BookingLinkButton item={h} tone="green" label="Book" size="sm" />
                             </td>
                           </tr>
                         ))}
@@ -1220,6 +1317,11 @@ const AIPlannerPage = () => {
                           ))}
                         </div>
                       )}
+                      {getBookingUrl(r) && (
+                        <div className="flex justify-end mt-4">
+                          <BookingLinkButton item={r} tone="teal" label="View Listing" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1246,6 +1348,11 @@ const AIPlannerPage = () => {
                                 <span className="text-gray-500">{r.guest_rating} rating</span>
                               )}
                             </div>
+                            {getBookingUrl(r) && (
+                              <div className="mt-3">
+                                <BookingLinkButton item={r} tone="teal" label="View Listing" size="sm" />
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1323,6 +1430,11 @@ const AIPlannerPage = () => {
                       {c.recommendation && (
                         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">{c.recommendation}</div>
                       )}
+                      {getBookingUrl(c) && (
+                        <div className="flex justify-end">
+                          <BookingLinkButton item={c} tone="orange" label="Reserve on Partner Site" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1345,6 +1457,7 @@ const AIPlannerPage = () => {
                           <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
                           <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Per Day</th>
                           <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Book</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1363,6 +1476,9 @@ const AIPlannerPage = () => {
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-primary-600 dark:text-primary-400">${c.price_per_day}</td>
                             <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">${c.total_price}</td>
+                            <td className="px-4 py-3 text-center">
+                              <BookingLinkButton item={c} tone="orange" label="Book" size="sm" />
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1435,9 +1551,10 @@ const AIPlannerPage = () => {
                             {r.has_takeout && <span className="text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800">Takeout</span>}
                             {r.has_reservation && <span className="text-xs px-3 py-1.5 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full border border-purple-200 dark:border-purple-800">Reservations</span>}
                           </div>
-                          <div className="flex gap-4 text-sm">
+                          <div className="flex gap-4 text-sm items-center flex-wrap">
                             {r.phone && <a href={`tel:${r.phone}`} className="text-primary-600 dark:text-primary-400 hover:underline">{r.phone}</a>}
                             {r.website && <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline">Website</a>}
+                            <BookingLinkButton item={r} tone="rose" label={r.has_reservation ? 'Reserve Table' : 'Visit / Order'} size="sm" />
                           </div>
                           {r.recommendation && (
                             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">{r.recommendation}</div>
@@ -1465,6 +1582,7 @@ const AIPlannerPage = () => {
                           <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price Range</th>
                           <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Score</th>
                           <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Per Person</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Book</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1489,6 +1607,9 @@ const AIPlannerPage = () => {
                               )}
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-primary-600 dark:text-primary-400">${r.average_cost_per_person}</td>
+                            <td className="px-4 py-3 text-center">
+                              <BookingLinkButton item={r} tone="rose" label="Visit" size="sm" />
+                            </td>
                           </tr>
                         ))}
                       </tbody>

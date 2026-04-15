@@ -169,14 +169,43 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({ restaurant }) => {
                 📞 Call
               </a>
             )}
-            {restaurant.website && (
+          </div>
+
+          {/* Reference / Booking Actions */}
+          <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+            {restaurant.website ? (
               <a
                 href={restaurant.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 dark:text-blue-400 hover:underline"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+                title="Opens the partner site in a new tab"
               >
-                🌐 Website
+                🔗 {restaurant.has_reservation ? 'Reserve / Visit Website' : 'Visit Website'}
+              </a>
+            ) : (
+              <a
+                href={`https://www.google.com/search?q=${encodeURIComponent(
+                  `${restaurant.name} ${restaurant.address || ''}`.trim()
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+                title="Search for this restaurant online"
+              >
+                🔍 Find Online
+              </a>
+            )}
+            {restaurant.address && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                  `${restaurant.name} ${restaurant.address}`.trim()
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
+              >
+                🗺️ View on Map
               </a>
             )}
           </div>
