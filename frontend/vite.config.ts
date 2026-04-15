@@ -18,6 +18,10 @@ export default defineConfig({
         target: process.env.VITE_BACKEND_URL || 'http://localhost:8109',
         changeOrigin: true,
       },
+      '/media': {
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:8109',
+        changeOrigin: true,
+      },
       '/ws': {
         target: process.env.VITE_BACKEND_WS_URL || 'ws://localhost:8109',
         ws: true,
