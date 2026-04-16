@@ -586,7 +586,10 @@ def _synthesize_narrative(*, result, origin, destination, departure_date,
             dur_str = f"{dur // 60}h {dur % 60}m" if dur else 'N/A'
         except (TypeError, ValueError):
             dur_str = str(dur) if dur else 'N/A'
-        flight_url = f.get('bookingUrl') or f.get('booking_url') or f.get('link') or ''
+        flight_url = f.get('bookingUrl') or f.get('booking_url') or f.get('link') or (
+            f"https://www.google.com/travel/flights/booking?token={f['booking_token']}"
+            if f.get('booking_token') else ''
+        )
         flight_summary = (
             f"BOOKED FLIGHT:\n"
             f"  Airline: {f.get('airline', 'Unknown')}\n"
