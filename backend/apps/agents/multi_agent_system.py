@@ -1011,7 +1011,12 @@ class MultiAgentTravelSystem:
         # Include rental search for groups of 4+ or when explicitly requested
         passengers = state.get('passengers', 1)
         accom_pref = state.get('accommodation_preference', '')
-        if passengers >= 4 or accom_pref in ('rental', 'both', 'all'):
+
+        # When staying with friend/family, skip hotel and rental agents entirely
+        if accom_pref == 'friend_family':
+            agents.pop("hotel", None)
+            logger.info("Skipping hotel/rental agents (staying with friend/family)")
+        elif passengers >= 4 or accom_pref in ('rental', 'both', 'all'):
             agents["rental"] = self.rental_agent
             logger.info(f"Including rental search (passengers={passengers}, pref={accom_pref})")
 

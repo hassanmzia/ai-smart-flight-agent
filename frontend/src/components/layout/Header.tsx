@@ -124,6 +124,7 @@ const communityItems: DropdownItem[] = [
   { to: ROUTES.TRAVEL_STORIES, icon: '📖', label: 'Travel Stories' },
   { to: ROUTES.TRIP_GALLERY, icon: '🗺️', label: 'Trip Gallery' },
   { to: ROUTES.CONTENT_HUB, icon: '📸', label: 'Content Hub' },
+  { to: ROUTES.FRIENDS, icon: '👥', label: 'Friends & Family' },
 ];
 
 const myTripsItems: DropdownItem[] = [

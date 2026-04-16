@@ -1263,7 +1263,8 @@ def plan_travel(request):
         cuisine = request.data.get('cuisine')
         travel_style = request.data.get('travel_style')
         interests = request.data.get('interests')
-        accommodation_preference = request.data.get('accommodation_preference', '')  # 'hotel', 'rental', 'both', or ''
+        accommodation_preference = request.data.get('accommodation_preference', '')  # 'hotel', 'rental', 'both', 'friend_family', or ''
+        friend_stay = request.data.get('friend_stay')  # dict with friend_name, friend_address, etc.
 
         # Resolve origin: prefer city/country, fall back to legacy airport code
         origin_city = request.data.get('origin_city', '')
@@ -1311,6 +1312,20 @@ def plan_travel(request):
         if user_context.get('signals'):
             enriched_query += "\nTraveler profile signals: " + "; ".join(user_context['signals'])
 
+        # When staying with friend/family, inject context so the AI uses
+        # their address as the home base and skips hotel recommendations.
+        if accommodation_preference == 'friend_family' and friend_stay:
+            friend_name = friend_stay.get('friend_name', 'a friend')
+            friend_address = friend_stay.get('friend_address', '')
+            friend_rel = friend_stay.get('friend_relationship', 'friend')
+            enriched_query += (
+                f"\n\nACCOMMODATION: The traveler is staying at their {friend_rel}'s house "
+                f"({friend_name}) at {friend_address}. "
+                f"Do NOT recommend hotels or vacation rentals. "
+                f"Set accommodation cost to $0. "
+                f"Use this address as the home base for all daily itinerary routes."
+            )
+
         # Run the multi-agent system
         result = travel_system.run(
             user_query=enriched_query,
@@ -1340,6 +1355,10 @@ def plan_travel(request):
                 result['enhanced_data'] = enhanced_data
             except Exception as e:
                 logger.warning(f"Enhanced agent data gathering failed: {e}")
+
+        # Pass friend_stay through so the frontend can render the tab
+        if friend_stay and result.get('success'):
+            result['friend_stay'] = friend_stay
 
         # Generate LLM day-by-day narrative itinerary using ALL agent data
         if result.get('success') and settings.OPENAI_API_KEY and settings.OPENAI_API_KEY not in ('your_openai_api_key_here', ''):
