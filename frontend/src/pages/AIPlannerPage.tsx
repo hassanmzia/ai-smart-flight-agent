@@ -63,7 +63,14 @@ const getBookingUrl = (item: any): string | null => {
     item.reservation_url ||
     item.source_url ||
     null;
-  return typeof url === 'string' && url.trim() ? url : null;
+  if (typeof url === 'string' && url.trim()) return url;
+  // Fallback: SerpAPI flights expose a booking_token that maps to a
+  // Google Flights booking page. Build the URL client-side when the
+  // backend hasn't already done so.
+  if (item.booking_token && typeof item.booking_token === 'string' && item.booking_token.trim()) {
+    return `https://www.google.com/travel/flights/booking?token=${item.booking_token}`;
+  }
+  return null;
 };
 
 /**
@@ -76,13 +83,20 @@ const BookingLinkButton = ({
   label = 'Book on Partner Site',
   tone = 'blue',
   size = 'md',
+  fallbackQuery,
 }: {
   item: any;
   label?: string;
   tone?: 'blue' | 'green' | 'teal' | 'orange' | 'rose' | 'indigo';
   size?: 'sm' | 'md';
+  fallbackQuery?: string;
 }) => {
-  const url = getBookingUrl(item);
+  let url = getBookingUrl(item);
+  let displayLabel = label;
+  if (!url && fallbackQuery) {
+    url = `https://www.google.com/search?q=${encodeURIComponent(fallbackQuery)}`;
+    displayLabel = size === 'sm' ? 'Search' : 'Search Online';
+  }
   if (!url) return null;
   const toneClasses: Record<string, string> = {
     blue: 'border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20',
@@ -104,7 +118,7 @@ const BookingLinkButton = ({
       className={`inline-flex items-center gap-1.5 rounded-lg border font-semibold whitespace-nowrap transition-colors ${toneClasses[tone]} ${sizeClasses}`}
       title="Opens the partner booking site in a new tab"
     >
-      <span>🔗</span> {label}
+      <span>🔗</span> {displayLabel}
     </a>
   );
 };
@@ -1092,11 +1106,9 @@ const AIPlannerPage = () => {
                       </div>
                     )}
                     {/* Partner booking link */}
-                    {getBookingUrl(rec.recommended_flight) && (
-                      <div className="mt-4 flex justify-end">
-                        <BookingLinkButton item={rec.recommended_flight} tone="blue" label="Book on Partner Site" />
-                      </div>
-                    )}
+                    <div className="mt-4 flex justify-end">
+                      <BookingLinkButton item={rec.recommended_flight} tone="blue" label="Book on Partner Site" fallbackQuery={`book ${rec.recommended_flight?.airline || ''} flight ${rec.recommended_flight?.flight_number || ''}`} />
+                    </div>
                   </div>
                 </div>
               )}
@@ -1143,7 +1155,7 @@ const AIPlannerPage = () => {
                             </td>
                             <td className="px-3 md:px-4 py-2.5 text-right font-bold text-primary-600 dark:text-primary-400 text-xs md:text-sm">${f.price}</td>
                             <td className="px-3 md:px-4 py-2.5 text-center">
-                              <BookingLinkButton item={f} tone="blue" label="Book" size="sm" />
+                              <BookingLinkButton item={f} tone="blue" label="Book" size="sm" fallbackQuery={`book ${f.airline || ''} flight ${f.flight_number || ''} ${f.departure_airport_code || ''} to ${f.arrival_airport_code || ''}`} />
                             </td>
                           </tr>
                         ))}
@@ -1250,11 +1262,9 @@ const AIPlannerPage = () => {
                               {h.recommendation}
                             </div>
                           )}
-                          {getBookingUrl(h) && (
-                            <div className="flex justify-end">
-                              <BookingLinkButton item={h} tone="green" label="Visit / Book Direct" />
-                            </div>
-                          )}
+                          <div className="flex justify-end">
+                            <BookingLinkButton item={h} tone="green" label="Visit / Book Direct" fallbackQuery={`book ${h.hotel_name || h.name || 'hotel'} ${destinationLabel}`} />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1308,7 +1318,7 @@ const AIPlannerPage = () => {
                               {(h.price || h.price_per_night) && numNights > 0 ? `$${((h.price || h.price_per_night) * numNights).toFixed(0)}` : '-'}
                             </td>
                             <td className="px-3 md:px-4 py-2.5 text-center">
-                              <BookingLinkButton item={h} tone="green" label="Book" size="sm" />
+                              <BookingLinkButton item={h} tone="green" label="Book" size="sm" fallbackQuery={`book ${h.hotel_name || h.name || 'hotel'} ${destinationLabel}`} />
                             </td>
                           </tr>
                         ))}
@@ -1375,11 +1385,9 @@ const AIPlannerPage = () => {
                           ))}
                         </div>
                       )}
-                      {getBookingUrl(r) && (
-                        <div className="flex justify-end mt-4">
-                          <BookingLinkButton item={r} tone="teal" label="View Listing" />
-                        </div>
-                      )}
+                      <div className="flex justify-end mt-4">
+                        <BookingLinkButton item={r} tone="teal" label="View Listing" fallbackQuery={`${r.hotel_name || r.name || 'vacation rental'} ${destinationLabel}`} />
+                      </div>
                     </div>
                   </div>
                 );
@@ -1406,11 +1414,9 @@ const AIPlannerPage = () => {
                                 <span className="text-gray-500">{r.guest_rating} rating</span>
                               )}
                             </div>
-                            {getBookingUrl(r) && (
-                              <div className="mt-3">
-                                <BookingLinkButton item={r} tone="teal" label="View Listing" size="sm" />
-                              </div>
-                            )}
+                            <div className="mt-3">
+                              <BookingLinkButton item={r} tone="teal" label="View Listing" size="sm" fallbackQuery={`${r.hotel_name || r.name || 'vacation rental'} ${destinationLabel}`} />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1488,11 +1494,9 @@ const AIPlannerPage = () => {
                       {c.recommendation && (
                         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">{c.recommendation}</div>
                       )}
-                      {getBookingUrl(c) && (
-                        <div className="flex justify-end">
-                          <BookingLinkButton item={c} tone="orange" label="Reserve on Partner Site" />
-                        </div>
-                      )}
+                      <div className="flex justify-end">
+                        <BookingLinkButton item={c} tone="orange" label="Reserve on Partner Site" fallbackQuery={`rent car ${c.rental_company || ''} ${destinationLabel}`} />
+                      </div>
                     </div>
                   </div>
                 );
@@ -1535,7 +1539,7 @@ const AIPlannerPage = () => {
                             <td className="px-4 py-3 text-right font-bold text-primary-600 dark:text-primary-400">${c.price_per_day}</td>
                             <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">${c.total_price}</td>
                             <td className="px-4 py-3 text-center">
-                              <BookingLinkButton item={c} tone="orange" label="Book" size="sm" />
+                              <BookingLinkButton item={c} tone="orange" label="Book" size="sm" fallbackQuery={`rent car ${c.rental_company || ''} ${destinationLabel}`} />
                             </td>
                           </tr>
                         ))}
@@ -1612,7 +1616,7 @@ const AIPlannerPage = () => {
                           <div className="flex gap-4 text-sm items-center flex-wrap">
                             {r.phone && <a href={`tel:${r.phone}`} className="text-primary-600 dark:text-primary-400 hover:underline">{r.phone}</a>}
                             {r.website && <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline">Website</a>}
-                            <BookingLinkButton item={r} tone="rose" label={r.has_reservation ? 'Reserve Table' : 'Visit / Order'} size="sm" />
+                            <BookingLinkButton item={r} tone="rose" label={r.has_reservation ? 'Reserve Table' : 'Visit / Order'} size="sm" fallbackQuery={`${r.name || 'restaurant'} ${r.address || destinationLabel}`} />
                           </div>
                           {r.recommendation && (
                             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">{r.recommendation}</div>
@@ -1666,7 +1670,7 @@ const AIPlannerPage = () => {
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-primary-600 dark:text-primary-400">${r.average_cost_per_person}</td>
                             <td className="px-4 py-3 text-center">
-                              <BookingLinkButton item={r} tone="rose" label="Visit" size="sm" />
+                              <BookingLinkButton item={r} tone="rose" label="Visit" size="sm" fallbackQuery={`${r.name || 'restaurant'} ${r.address || destinationLabel}`} />
                             </td>
                           </tr>
                         ))}
