@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'apps.safety',
     'apps.commute',
     'apps.community',
+    'apps.social',
 ]
 
 MIDDLEWARE = [

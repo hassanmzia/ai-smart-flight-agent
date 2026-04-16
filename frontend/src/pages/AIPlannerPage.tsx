@@ -13,11 +13,12 @@ import {
 } from '@/utils/aiItinerarySaver';
 import TravelChat from '@/components/TravelChat';
 import AirportAutocomplete from '@/components/common/AirportAutocomplete';
+import socialService, { UserContact } from '@/services/socialService';
 import SmartTripPreview from '@/components/SmartTripPreview';
 import { ROUTES } from '@/utils/constants';
 
 type OrderMode = 'form' | 'chat' | 'voice';
-type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'intelligence';
+type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'friends_family' | 'intelligence';
 
 // Parser/saver helpers (parseItineraryNarrative, extractPlaceName, guessItemType,
 // saveAiPlanAsItinerary) live in @/utils/aiItinerarySaver so the Collaborate
@@ -38,6 +39,7 @@ const TAB_CONFIG: { key: ResultTab; label: string; icon: string }[] = [
   { key: 'flights', label: 'Flights', icon: '✈️' },
   { key: 'hotels', label: 'Hotels', icon: '🏨' },
   { key: 'rentals', label: 'Rentals', icon: '🏡' },
+  { key: 'friends_family', label: 'Friends & Family', icon: '👥' },
   { key: 'cars', label: 'Cars', icon: '🚗' },
   { key: 'dining', label: 'Dining', icon: '🍽️' },
   { key: 'intelligence', label: 'Intelligence', icon: '🧠' },
@@ -144,7 +146,20 @@ const AIPlannerPage = () => {
   const [travelStyle, setTravelStyle] = useState<string>('');
   const [interests, setInterests] = useState<string>('');
   const [accommodationPref, setAccommodationPref] = useState<string>('');
+  const [friendContacts, setFriendContacts] = useState<UserContact[]>([]);
+  const [selectedFriendId, setSelectedFriendId] = useState<number | null>(null);
   const [chatParams, setChatParams] = useState<any>({});
+
+  // Load user's contacts when "friend_family" accommodation is selected
+  useEffect(() => {
+    if (accommodationPref === 'friend_family') {
+      socialService.listContacts().then(setFriendContacts).catch(() => setFriendContacts([]));
+    } else {
+      setSelectedFriendId(null);
+    }
+  }, [accommodationPref]);
+
+  const selectedFriend = friendContacts.find((c) => c.id === selectedFriendId) || null;
 
   // Compose display labels from city/country
   const originLabel = originCountry ? `${originCity}, ${originCountry}` : originCity;
@@ -155,6 +170,16 @@ const AIPlannerPage = () => {
     setLoading(true);
     setResult(null);
     try {
+      // Build friend/family stay info when that accommodation type is chosen
+      const friendStay = accommodationPref === 'friend_family' && selectedFriend ? {
+        friend_name: selectedFriend.name,
+        friend_city: selectedFriend.city,
+        friend_address: selectedFriend.address || selectedFriend.city,
+        friend_relationship: selectedFriend.relationship,
+        friend_latitude: selectedFriend.latitude,
+        friend_longitude: selectedFriend.longitude,
+      } : undefined;
+
       const response = await api.post('/api/agents/plan', {
         query: `Plan a trip from ${originLabel} to ${destinationLabel}`,
         origin_city: originCity,
@@ -169,6 +194,7 @@ const AIPlannerPage = () => {
         travel_style: travelStyle || undefined,
         interests: interests || undefined,
         accommodation_preference: accommodationPref || undefined,
+        friend_stay: friendStay,
       }, { timeout: 300000 });
       const data = response.data;
       if (data.success) {
@@ -417,8 +443,40 @@ const AIPlannerPage = () => {
                     <option value="hotel">Hotels Only</option>
                     <option value="rental">Vacation Rentals Only</option>
                     <option value="both">Both Hotels & Rentals</option>
+                    <option value="friend_family">Friend / Family House</option>
                   </select>
                 </div>
+                {accommodationPref === 'friend_family' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Stay with</label>
+                    {friendContacts.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        No contacts yet.{' '}
+                        <a href="/friends" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                          Add friends & family first
+                        </a>
+                      </p>
+                    ) : (
+                      <select
+                        value={selectedFriendId ?? ''}
+                        onChange={(e) => setSelectedFriendId(e.target.value ? Number(e.target.value) : null)}
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                      >
+                        <option value="">-- Select a contact --</option>
+                        {friendContacts.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} — {c.city}{c.country ? `, ${c.country}` : ''} ({c.relationship})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {selectedFriend && selectedFriend.address && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {'\u{1F4CD}'} {selectedFriend.address}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Your Interests (Optional)</label>
@@ -1622,6 +1680,84 @@ const AIPlannerPage = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-gray-500">
                   <p className="text-lg">No restaurant data available</p>
                   <p className="text-sm mt-1">Try adjusting your cuisine preferences</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══════ TAB: FRIENDS & FAMILY ══════ */}
+          {activeTab === 'friends_family' && (
+            <div className="space-y-4">
+              {selectedFriend ? (
+                <>
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-5">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
+                      <span className="text-2xl">{'\u{1F3E0}'}</span> Staying with {selectedFriend.name}
+                    </h3>
+                    <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Relationship:</span>{' '}
+                        <span className="font-medium text-gray-900 dark:text-white capitalize">{selectedFriend.relationship}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">City:</span>{' '}
+                        <span className="font-medium text-gray-900 dark:text-white">{selectedFriend.city}{selectedFriend.country ? `, ${selectedFriend.country}` : ''}</span>
+                      </div>
+                      {selectedFriend.address && (
+                        <div className="sm:col-span-2">
+                          <span className="text-gray-500 dark:text-gray-400">{'\u{1F4CD}'} Address:</span>{' '}
+                          <span className="font-medium text-gray-900 dark:text-white">{selectedFriend.address}</span>
+                        </div>
+                      )}
+                      {selectedFriend.phone && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">{'\u{1F4DE}'} Phone:</span>{' '}
+                          <a href={`tel:${selectedFriend.phone}`} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">{selectedFriend.phone}</a>
+                        </div>
+                      )}
+                      {selectedFriend.email && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">{'\u{2709}\uFE0F'} Email:</span>{' '}
+                          <a href={`mailto:${selectedFriend.email}`} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">{selectedFriend.email}</a>
+                        </div>
+                      )}
+                      {selectedFriend.notes && (
+                        <div className="sm:col-span-2">
+                          <span className="text-gray-500 dark:text-gray-400">Notes:</span>{' '}
+                          <span className="italic text-gray-700 dark:text-gray-300">{selectedFriend.notes}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <p className="text-sm text-green-800 dark:text-green-200">
+                        <span className="font-semibold">{'\u{1F4B0}'} Accommodation cost: $0</span> — You&apos;re staying with {selectedFriend.name}! The AI itinerary uses their address as your home base for this trip.
+                      </p>
+                    </div>
+                  </div>
+                  {/* Map */}
+                  {selectedFriend.latitude && selectedFriend.longitude && (
+                    <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700" style={{ height: 320 }}>
+                      <iframe
+                        title="Friend location"
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedFriend.longitude - 0.03},${selectedFriend.latitude - 0.02},${selectedFriend.longitude + 0.03},${selectedFriend.latitude + 0.02}&layer=mapnik&marker=${selectedFriend.latitude},${selectedFriend.longitude}`}
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <span className="text-5xl block mb-3">{'\u{1F465}'}</span>
+                  <p className="text-lg font-medium mb-2">No friend or family stay selected</p>
+                  <p className="text-sm mb-4">
+                    To stay with a friend or family member, choose <strong>"Friend / Family House"</strong> in the Accommodation dropdown above and select a contact.
+                  </p>
+                  <a href="/friends" className="inline-flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                    {'\u{2795}'} Manage Your Contacts
+                  </a>
                 </div>
               )}
             </div>
