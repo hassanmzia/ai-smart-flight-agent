@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 import logging
 from datetime import datetime, timedelta
+from urllib.parse import quote_plus
 import random
 
 logger = logging.getLogger(__name__)
@@ -224,7 +225,7 @@ def generate_sample_events(city: str, start_date: datetime, end_date: datetime, 
             'ticket_price': ticket_price,
             'expected_attendance': random.randint(100, 10000),
             'organizer': f"{city} Events Committee",
-            'website': f"https://events.{city.lower().replace(' ', '')}.com",
+            'website': f"https://www.google.com/search?q={quote_plus(city + ' ' + template['name'] + ' tickets ' + event_date.strftime('%Y'))}",
             'tags': get_event_tags(event_category),
             'rating': round(random.uniform(3.5, 5.0), 1),
             'review_count': random.randint(10, 500)
