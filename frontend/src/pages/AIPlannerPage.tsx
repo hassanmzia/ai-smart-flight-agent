@@ -496,14 +496,21 @@ const AIPlannerPage = () => {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Your Interests (Optional)</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {[
-                    { tag: 'birding', icon: '🐦' }, { tag: 'hiking', icon: '🥾' },
-                    { tag: 'boating', icon: '⛵' }, { tag: 'camping', icon: '⛺' },
-                    { tag: 'picnic', icon: '🧺' }, { tag: 'fishing', icon: '🎣' },
-                    { tag: 'golfing', icon: '⛳' }, { tag: 'scouting', icon: '🏕️' },
+                    { tag: 'hiking', icon: '🥾' }, { tag: 'beach', icon: '🏖️' },
+                    { tag: 'nightlife', icon: '🌃' }, { tag: 'casino', icon: '🎰' },
+                    { tag: 'camping', icon: '⛺' }, { tag: 'birding', icon: '🐦' },
+                    { tag: 'boating', icon: '⛵' }, { tag: 'fishing', icon: '🎣' },
+                    { tag: 'golfing', icon: '⛳' }, { tag: 'water sports', icon: '🏄' },
+                    { tag: 'skiing', icon: '⛷️' }, { tag: 'wine tasting', icon: '🍷' },
+                    { tag: 'theme parks', icon: '🎢' }, { tag: 'spa & wellness', icon: '💆' },
+                    { tag: 'museums', icon: '🏛️' }, { tag: 'photography', icon: '📷' },
+                    { tag: 'food tours', icon: '🍜' }, { tag: 'shopping', icon: '🛍️' },
+                    { tag: 'cycling', icon: '🚴' }, { tag: 'yoga', icon: '🧘' },
+                    { tag: 'rock climbing', icon: '🧗' }, { tag: 'horseback riding', icon: '🐴' },
+                    { tag: 'ziplining', icon: '🤸' }, { tag: 'stargazing', icon: '🌌' },
+                    { tag: 'wildlife safari', icon: '🦁' }, { tag: 'kayaking', icon: '🛶' },
                     { tag: 'road trip', icon: '🚗' }, { tag: 'student travel', icon: '🎓' },
-                    { tag: 'museums', icon: '🏛️' }, { tag: 'nightlife', icon: '🌙' },
-                    { tag: 'photography', icon: '📷' }, { tag: 'beach', icon: '🏖️' },
-                    { tag: 'food & dining', icon: '🍜' }, { tag: 'adventure sports', icon: '🧗' },
+                    { tag: 'scouting', icon: '🏕️' }, { tag: 'picnic', icon: '🧺' },
                   ].map(({ tag, icon }) => {
                     const active = interests.toLowerCase().includes(tag);
                     return (
