@@ -103,6 +103,7 @@ const exploreItems: DropdownItem[] = [
   { to: '/shopping', icon: '🛍️', label: 'Shopping' },
   { to: '/events', icon: '🎉', label: 'Events' },
   { to: ROUTES.DEALS, icon: '🏷️', label: 'Deals & Coupons' },
+  { to: ROUTES.ACTIVITIES, icon: '🏕️', label: 'Activities & Interests' },
 ];
 
 const travelInfoItems: DropdownItem[] = [
