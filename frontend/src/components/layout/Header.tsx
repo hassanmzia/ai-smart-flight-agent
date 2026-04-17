@@ -103,6 +103,7 @@ const exploreItems: DropdownItem[] = [
   { to: '/shopping', icon: '🛍️', label: 'Shopping' },
   { to: '/events', icon: '🎉', label: 'Events' },
   { to: ROUTES.DEALS, icon: '🏷️', label: 'Deals & Coupons' },
+  { to: ROUTES.ACTIVITIES, icon: '🏕️', label: 'Activities & Interests' },
 ];
 
 const travelInfoItems: DropdownItem[] = [
@@ -124,6 +125,7 @@ const communityItems: DropdownItem[] = [
   { to: ROUTES.TRAVEL_STORIES, icon: '📖', label: 'Travel Stories' },
   { to: ROUTES.TRIP_GALLERY, icon: '🗺️', label: 'Trip Gallery' },
   { to: ROUTES.CONTENT_HUB, icon: '📸', label: 'Content Hub' },
+  { to: ROUTES.FRIENDS, icon: '👥', label: 'Friends & Family' },
 ];
 
 const myTripsItems: DropdownItem[] = [

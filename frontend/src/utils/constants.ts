@@ -46,6 +46,8 @@ export const ROUTES = {
   HEALTH_TRAVEL: '/health-travel',
   RENTAL_SEARCH: '/rentals/search',
   RENTAL_RESULTS: '/rentals',
+  FRIENDS: '/friends',
+  ACTIVITIES: '/activities',
 } as const;
 
 // Local storage keys

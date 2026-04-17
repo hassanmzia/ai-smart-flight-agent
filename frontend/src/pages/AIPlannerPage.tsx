@@ -13,11 +13,12 @@ import {
 } from '@/utils/aiItinerarySaver';
 import TravelChat from '@/components/TravelChat';
 import AirportAutocomplete from '@/components/common/AirportAutocomplete';
+import socialService, { UserContact } from '@/services/socialService';
 import SmartTripPreview from '@/components/SmartTripPreview';
 import { ROUTES } from '@/utils/constants';
 
 type OrderMode = 'form' | 'chat' | 'voice';
-type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'intelligence';
+type ResultTab = 'itinerary' | 'flights' | 'hotels' | 'rentals' | 'cars' | 'dining' | 'friends_family' | 'intelligence';
 
 // Parser/saver helpers (parseItineraryNarrative, extractPlaceName, guessItemType,
 // saveAiPlanAsItinerary) live in @/utils/aiItinerarySaver so the Collaborate
@@ -38,6 +39,7 @@ const TAB_CONFIG: { key: ResultTab; label: string; icon: string }[] = [
   { key: 'flights', label: 'Flights', icon: '✈️' },
   { key: 'hotels', label: 'Hotels', icon: '🏨' },
   { key: 'rentals', label: 'Rentals', icon: '🏡' },
+  { key: 'friends_family', label: 'Friends & Family', icon: '👥' },
   { key: 'cars', label: 'Cars', icon: '🚗' },
   { key: 'dining', label: 'Dining', icon: '🍽️' },
   { key: 'intelligence', label: 'Intelligence', icon: '🧠' },
@@ -61,7 +63,14 @@ const getBookingUrl = (item: any): string | null => {
     item.reservation_url ||
     item.source_url ||
     null;
-  return typeof url === 'string' && url.trim() ? url : null;
+  if (typeof url === 'string' && url.trim()) return url;
+  // Fallback: SerpAPI flights expose a booking_token that maps to a
+  // Google Flights booking page. Build the URL client-side when the
+  // backend hasn't already done so.
+  if (item.booking_token && typeof item.booking_token === 'string' && item.booking_token.trim()) {
+    return `https://www.google.com/travel/flights/booking?token=${item.booking_token}`;
+  }
+  return null;
 };
 
 /**
@@ -74,13 +83,20 @@ const BookingLinkButton = ({
   label = 'Book on Partner Site',
   tone = 'blue',
   size = 'md',
+  fallbackQuery,
 }: {
   item: any;
   label?: string;
   tone?: 'blue' | 'green' | 'teal' | 'orange' | 'rose' | 'indigo';
   size?: 'sm' | 'md';
+  fallbackQuery?: string;
 }) => {
-  const url = getBookingUrl(item);
+  let url = getBookingUrl(item);
+  let displayLabel = label;
+  if (!url && fallbackQuery) {
+    url = `https://www.google.com/search?q=${encodeURIComponent(fallbackQuery)}`;
+    displayLabel = size === 'sm' ? 'Search' : 'Search Online';
+  }
   if (!url) return null;
   const toneClasses: Record<string, string> = {
     blue: 'border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20',
@@ -102,7 +118,7 @@ const BookingLinkButton = ({
       className={`inline-flex items-center gap-1.5 rounded-lg border font-semibold whitespace-nowrap transition-colors ${toneClasses[tone]} ${sizeClasses}`}
       title="Opens the partner booking site in a new tab"
     >
-      <span>🔗</span> {label}
+      <span>🔗</span> {displayLabel}
     </a>
   );
 };
@@ -144,7 +160,20 @@ const AIPlannerPage = () => {
   const [travelStyle, setTravelStyle] = useState<string>('');
   const [interests, setInterests] = useState<string>('');
   const [accommodationPref, setAccommodationPref] = useState<string>('');
+  const [friendContacts, setFriendContacts] = useState<UserContact[]>([]);
+  const [selectedFriendId, setSelectedFriendId] = useState<number | null>(null);
   const [chatParams, setChatParams] = useState<any>({});
+
+  // Load user's contacts when "friend_family" accommodation is selected
+  useEffect(() => {
+    if (accommodationPref === 'friend_family') {
+      socialService.listContacts().then(setFriendContacts).catch(() => setFriendContacts([]));
+    } else {
+      setSelectedFriendId(null);
+    }
+  }, [accommodationPref]);
+
+  const selectedFriend = friendContacts.find((c) => c.id === selectedFriendId) || null;
 
   // Compose display labels from city/country
   const originLabel = originCountry ? `${originCity}, ${originCountry}` : originCity;
@@ -155,6 +184,16 @@ const AIPlannerPage = () => {
     setLoading(true);
     setResult(null);
     try {
+      // Build friend/family stay info when that accommodation type is chosen
+      const friendStay = accommodationPref === 'friend_family' && selectedFriend ? {
+        friend_name: selectedFriend.name,
+        friend_city: selectedFriend.city,
+        friend_address: selectedFriend.address || selectedFriend.city,
+        friend_relationship: selectedFriend.relationship,
+        friend_latitude: selectedFriend.latitude,
+        friend_longitude: selectedFriend.longitude,
+      } : undefined;
+
       const response = await api.post('/api/agents/plan', {
         query: `Plan a trip from ${originLabel} to ${destinationLabel}`,
         origin_city: originCity,
@@ -169,6 +208,7 @@ const AIPlannerPage = () => {
         travel_style: travelStyle || undefined,
         interests: interests || undefined,
         accommodation_preference: accommodationPref || undefined,
+        friend_stay: friendStay,
       }, { timeout: 300000 });
       const data = response.data;
       if (data.success) {
@@ -417,20 +457,93 @@ const AIPlannerPage = () => {
                     <option value="hotel">Hotels Only</option>
                     <option value="rental">Vacation Rentals Only</option>
                     <option value="both">Both Hotels & Rentals</option>
+                    <option value="friend_family">Friend / Family House</option>
                   </select>
                 </div>
+                {accommodationPref === 'friend_family' && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Stay with</label>
+                    {friendContacts.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        No contacts yet.{' '}
+                        <a href="/friends" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                          Add friends & family first
+                        </a>
+                      </p>
+                    ) : (
+                      <select
+                        value={selectedFriendId ?? ''}
+                        onChange={(e) => setSelectedFriendId(e.target.value ? Number(e.target.value) : null)}
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                      >
+                        <option value="">-- Select a contact --</option>
+                        {friendContacts.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} — {c.city}{c.country ? `, ${c.country}` : ''} ({c.relationship})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {selectedFriend && selectedFriend.address && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {'\u{1F4CD}'} {selectedFriend.address}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Your Interests (Optional)</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    { tag: 'hiking', icon: '🥾' }, { tag: 'beach', icon: '🏖️' },
+                    { tag: 'nightlife', icon: '🌃' }, { tag: 'casino', icon: '🎰' },
+                    { tag: 'camping', icon: '⛺' }, { tag: 'birding', icon: '🐦' },
+                    { tag: 'boating', icon: '⛵' }, { tag: 'fishing', icon: '🎣' },
+                    { tag: 'golfing', icon: '⛳' }, { tag: 'water sports', icon: '🏄' },
+                    { tag: 'skiing', icon: '⛷️' }, { tag: 'wine tasting', icon: '🍷' },
+                    { tag: 'theme parks', icon: '🎢' }, { tag: 'spa & wellness', icon: '💆' },
+                    { tag: 'museums', icon: '🏛️' }, { tag: 'photography', icon: '📷' },
+                    { tag: 'food tours', icon: '🍜' }, { tag: 'shopping', icon: '🛍️' },
+                    { tag: 'cycling', icon: '🚴' }, { tag: 'yoga', icon: '🧘' },
+                    { tag: 'rock climbing', icon: '🧗' }, { tag: 'horseback riding', icon: '🐴' },
+                    { tag: 'ziplining', icon: '🤸' }, { tag: 'stargazing', icon: '🌌' },
+                    { tag: 'wildlife safari', icon: '🦁' }, { tag: 'kayaking', icon: '🛶' },
+                    { tag: 'road trip', icon: '🚗' }, { tag: 'student travel', icon: '🎓' },
+                    { tag: 'scouting', icon: '🏕️' }, { tag: 'picnic', icon: '🧺' },
+                  ].map(({ tag, icon }) => {
+                    const active = interests.toLowerCase().includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          if (active) {
+                            setInterests((prev) => prev.replace(new RegExp(`,?\\s*${tag}`, 'gi'), '').replace(/^,\\s*/, '').trim());
+                          } else {
+                            setInterests((prev) => (prev.trim() ? `${prev.trim()}, ${tag}` : tag));
+                          }
+                        }}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-all ${
+                          active
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                        }`}
+                      >
+                        <span>{icon}</span> {tag}
+                      </button>
+                    );
+                  })}
+                </div>
                 <textarea
                   value={interests}
                   onChange={(e) => setInterests(e.target.value)}
                   rows={3}
-                  placeholder="Tell us what you enjoy: e.g., historical sites, museums, local street food, hiking, beach activities, nightlife, photography, art galleries, natural beauty, adventure sports..."
+                  placeholder="Click tags above or type your own: e.g., historical sites, museums, local street food, hiking, beach activities, nightlife, photography..."
                   className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                  AI will personalize your itinerary based on your interests.
+                  AI will personalize your itinerary based on your interests. Click tags or type freely.
                 </p>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -1034,11 +1147,9 @@ const AIPlannerPage = () => {
                       </div>
                     )}
                     {/* Partner booking link */}
-                    {getBookingUrl(rec.recommended_flight) && (
-                      <div className="mt-4 flex justify-end">
-                        <BookingLinkButton item={rec.recommended_flight} tone="blue" label="Book on Partner Site" />
-                      </div>
-                    )}
+                    <div className="mt-4 flex justify-end">
+                      <BookingLinkButton item={rec.recommended_flight} tone="blue" label="Book on Partner Site" fallbackQuery={`book ${rec.recommended_flight?.airline || ''} flight ${rec.recommended_flight?.flight_number || ''}`} />
+                    </div>
                   </div>
                 </div>
               )}
@@ -1085,7 +1196,7 @@ const AIPlannerPage = () => {
                             </td>
                             <td className="px-3 md:px-4 py-2.5 text-right font-bold text-primary-600 dark:text-primary-400 text-xs md:text-sm">${f.price}</td>
                             <td className="px-3 md:px-4 py-2.5 text-center">
-                              <BookingLinkButton item={f} tone="blue" label="Book" size="sm" />
+                              <BookingLinkButton item={f} tone="blue" label="Book" size="sm" fallbackQuery={`book ${f.airline || ''} flight ${f.flight_number || ''} ${f.departure_airport_code || ''} to ${f.arrival_airport_code || ''}`} />
                             </td>
                           </tr>
                         ))}
@@ -1192,11 +1303,9 @@ const AIPlannerPage = () => {
                               {h.recommendation}
                             </div>
                           )}
-                          {getBookingUrl(h) && (
-                            <div className="flex justify-end">
-                              <BookingLinkButton item={h} tone="green" label="Visit / Book Direct" />
-                            </div>
-                          )}
+                          <div className="flex justify-end">
+                            <BookingLinkButton item={h} tone="green" label="Visit / Book Direct" fallbackQuery={`book ${h.hotel_name || h.name || 'hotel'} ${destinationLabel}`} />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1250,7 +1359,7 @@ const AIPlannerPage = () => {
                               {(h.price || h.price_per_night) && numNights > 0 ? `$${((h.price || h.price_per_night) * numNights).toFixed(0)}` : '-'}
                             </td>
                             <td className="px-3 md:px-4 py-2.5 text-center">
-                              <BookingLinkButton item={h} tone="green" label="Book" size="sm" />
+                              <BookingLinkButton item={h} tone="green" label="Book" size="sm" fallbackQuery={`book ${h.hotel_name || h.name || 'hotel'} ${destinationLabel}`} />
                             </td>
                           </tr>
                         ))}
@@ -1317,11 +1426,9 @@ const AIPlannerPage = () => {
                           ))}
                         </div>
                       )}
-                      {getBookingUrl(r) && (
-                        <div className="flex justify-end mt-4">
-                          <BookingLinkButton item={r} tone="teal" label="View Listing" />
-                        </div>
-                      )}
+                      <div className="flex justify-end mt-4">
+                        <BookingLinkButton item={r} tone="teal" label="View Listing" fallbackQuery={`${r.hotel_name || r.name || 'vacation rental'} ${destinationLabel}`} />
+                      </div>
                     </div>
                   </div>
                 );
@@ -1348,11 +1455,9 @@ const AIPlannerPage = () => {
                                 <span className="text-gray-500">{r.guest_rating} rating</span>
                               )}
                             </div>
-                            {getBookingUrl(r) && (
-                              <div className="mt-3">
-                                <BookingLinkButton item={r} tone="teal" label="View Listing" size="sm" />
-                              </div>
-                            )}
+                            <div className="mt-3">
+                              <BookingLinkButton item={r} tone="teal" label="View Listing" size="sm" fallbackQuery={`${r.hotel_name || r.name || 'vacation rental'} ${destinationLabel}`} />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1575,7 +1680,7 @@ const AIPlannerPage = () => {
                           <div className="flex gap-4 text-sm items-center flex-wrap">
                             {r.phone && <a href={`tel:${r.phone}`} className="text-primary-600 dark:text-primary-400 hover:underline">{r.phone}</a>}
                             {r.website && <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline">Website</a>}
-                            <BookingLinkButton item={r} tone="rose" label={r.has_reservation ? 'Reserve Table' : 'Visit / Order'} size="sm" />
+                            <BookingLinkButton item={r} tone="rose" label={r.has_reservation ? 'Reserve Table' : 'Visit / Order'} size="sm" fallbackQuery={`${r.name || 'restaurant'} ${r.address || destinationLabel}`} />
                           </div>
                           {r.recommendation && (
                             <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">{r.recommendation}</div>
@@ -1629,7 +1734,7 @@ const AIPlannerPage = () => {
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-primary-600 dark:text-primary-400">${r.average_cost_per_person}</td>
                             <td className="px-4 py-3 text-center">
-                              <BookingLinkButton item={r} tone="rose" label="Visit" size="sm" />
+                              <BookingLinkButton item={r} tone="rose" label="Visit" size="sm" fallbackQuery={`${r.name || 'restaurant'} ${r.address || destinationLabel}`} />
                             </td>
                           </tr>
                         ))}
@@ -1643,6 +1748,84 @@ const AIPlannerPage = () => {
                 <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 text-center text-gray-500">
                   <p className="text-lg">No restaurant data available</p>
                   <p className="text-sm mt-1">Try adjusting your cuisine preferences</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══════ TAB: FRIENDS & FAMILY ══════ */}
+          {activeTab === 'friends_family' && (
+            <div className="space-y-4">
+              {selectedFriend ? (
+                <>
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-5">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
+                      <span className="text-2xl">{'\u{1F3E0}'}</span> Staying with {selectedFriend.name}
+                    </h3>
+                    <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">Relationship:</span>{' '}
+                        <span className="font-medium text-gray-900 dark:text-white capitalize">{selectedFriend.relationship}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-500 dark:text-gray-400">City:</span>{' '}
+                        <span className="font-medium text-gray-900 dark:text-white">{selectedFriend.city}{selectedFriend.country ? `, ${selectedFriend.country}` : ''}</span>
+                      </div>
+                      {selectedFriend.address && (
+                        <div className="sm:col-span-2">
+                          <span className="text-gray-500 dark:text-gray-400">{'\u{1F4CD}'} Address:</span>{' '}
+                          <span className="font-medium text-gray-900 dark:text-white">{selectedFriend.address}</span>
+                        </div>
+                      )}
+                      {selectedFriend.phone && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">{'\u{1F4DE}'} Phone:</span>{' '}
+                          <a href={`tel:${selectedFriend.phone}`} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">{selectedFriend.phone}</a>
+                        </div>
+                      )}
+                      {selectedFriend.email && (
+                        <div>
+                          <span className="text-gray-500 dark:text-gray-400">{'\u{2709}\uFE0F'} Email:</span>{' '}
+                          <a href={`mailto:${selectedFriend.email}`} className="font-medium text-blue-600 dark:text-blue-400 hover:underline">{selectedFriend.email}</a>
+                        </div>
+                      )}
+                      {selectedFriend.notes && (
+                        <div className="sm:col-span-2">
+                          <span className="text-gray-500 dark:text-gray-400">Notes:</span>{' '}
+                          <span className="italic text-gray-700 dark:text-gray-300">{selectedFriend.notes}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <p className="text-sm text-green-800 dark:text-green-200">
+                        <span className="font-semibold">{'\u{1F4B0}'} Accommodation cost: $0</span> — You&apos;re staying with {selectedFriend.name}! The AI itinerary uses their address as your home base for this trip.
+                      </p>
+                    </div>
+                  </div>
+                  {/* Map */}
+                  {selectedFriend.latitude && selectedFriend.longitude && (
+                    <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700" style={{ height: 320 }}>
+                      <iframe
+                        title="Friend location"
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${selectedFriend.longitude - 0.03},${selectedFriend.latitude - 0.02},${selectedFriend.longitude + 0.03},${selectedFriend.latitude + 0.02}&layer=mapnik&marker=${selectedFriend.latitude},${selectedFriend.longitude}`}
+                        allowFullScreen
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <span className="text-5xl block mb-3">{'\u{1F465}'}</span>
+                  <p className="text-lg font-medium mb-2">No friend or family stay selected</p>
+                  <p className="text-sm mb-4">
+                    To stay with a friend or family member, choose <strong>"Friend / Family House"</strong> in the Accommodation dropdown above and select a contact.
+                  </p>
+                  <a href="/friends" className="inline-flex items-center gap-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                    {'\u{2795}'} Manage Your Contacts
+                  </a>
                 </div>
               )}
             </div>

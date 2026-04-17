@@ -210,6 +210,11 @@ class FlightSearchTool:
                 "currency": "USD",
                 "carbon_emissions": flight_data.get('carbon_emissions', {}),
                 "booking_token": flight_data.get('booking_token', ''),
+                "booking_url": (
+                    f"https://www.google.com/travel/flights/booking?token={flight_data['booking_token']}"
+                    if flight_data.get('booking_token')
+                    else ''
+                ),
             }
         except Exception as e:
             logger.error(f"Error parsing flight: {str(e)}", exc_info=True)
