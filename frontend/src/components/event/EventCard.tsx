@@ -130,18 +130,16 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             )}
 
             {/* Action */}
-            {event.website && (
-              <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                <a
-                  href={event.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
-                >
-                  🎫 Get Tickets / More Info
-                </a>
-              </div>
-            )}
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <a
+                href={event.website || `https://www.google.com/search?q=${encodeURIComponent(event.name + ' tickets')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+              >
+                🎫 Get Tickets / More Info
+              </a>
+            </div>
           </div>
         </div>
       </CardContent>

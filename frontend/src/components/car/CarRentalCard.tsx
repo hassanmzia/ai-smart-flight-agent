@@ -188,9 +188,9 @@ const CarRentalCard: React.FC<CarRentalCardProps> = ({ car, onSelect, showUtilit
               e.stopPropagation();
               onSelect(car);
             }}
-            className="w-full mt-4 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+            className="w-full mt-4 bg-primary-600 hover:bg-primary-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
-            Select This Car
+            🔗 Book Online
           </button>
         )}
       </CardContent>

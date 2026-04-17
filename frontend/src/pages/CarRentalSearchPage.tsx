@@ -3,6 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/common';
 import CarRentalCard from '../components/car/CarRentalCard';
 import carRentalService, { CarRental, CarRentalSearchParams } from '../services/carRentalService';
 
+const getCarBookingUrl = (car: CarRental): string => {
+  if (car.website && car.website.trim()) return car.website;
+  const q = encodeURIComponent(`${car.rental_company} ${car.vehicle || car.car_type} car rental ${car.pickup_location}`);
+  return `https://www.google.com/search?q=${q}`;
+};
+
 const CarRentalSearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useState<CarRentalSearchParams>({
     pickup_location: '',
@@ -58,10 +64,7 @@ const CarRentalSearchPage: React.FC = () => {
   };
 
   const handleSelectCar = (car: CarRental) => {
-    // Navigate to booking page or show booking modal
-    console.log('Selected car:', car);
-    // TODO: Implement booking flow
-    alert(`Selected: ${car.rental_company} - ${car.vehicle}\nPrice: $${car.total_price} total`);
+    window.open(getCarBookingUrl(car), '_blank', 'noopener,noreferrer');
   };
 
   // Get min dates for date inputs

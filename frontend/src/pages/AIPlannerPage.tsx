@@ -1430,11 +1430,20 @@ const AIPlannerPage = () => {
                       {c.recommendation && (
                         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">{c.recommendation}</div>
                       )}
-                      {getBookingUrl(c) && (
-                        <div className="flex justify-end">
+                      <div className="flex justify-end">
+                        {getBookingUrl(c) ? (
                           <BookingLinkButton item={c} tone="orange" label="Reserve on Partner Site" />
-                        </div>
-                      )}
+                        ) : (
+                          <a
+                            href={`https://www.google.com/search?q=${encodeURIComponent((c.rental_company || '') + ' ' + (c.vehicle || c.car_type || '') + ' car rental')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                          >
+                            <span>🔍</span> Search Online
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -1477,7 +1486,19 @@ const AIPlannerPage = () => {
                             <td className="px-4 py-3 text-right font-bold text-primary-600 dark:text-primary-400">${c.price_per_day}</td>
                             <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">${c.total_price}</td>
                             <td className="px-4 py-3 text-center">
-                              <BookingLinkButton item={c} tone="orange" label="Book" size="sm" />
+                              {getBookingUrl(c) ? (
+                                <BookingLinkButton item={c} tone="orange" label="Book" size="sm" />
+                              ) : (
+                                <a
+                                  href={`https://www.google.com/search?q=${encodeURIComponent((c.rental_company || '') + ' ' + (c.vehicle || c.car_type || '') + ' car rental')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold whitespace-nowrap transition-colors border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                                >
+                                  🔍 Search
+                                </a>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -1778,9 +1799,18 @@ const AIPlannerPage = () => {
                                   <span className="text-xs text-gray-500 flex-shrink-0">{event.date}</span>
                                 </div>
                                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{event.description}</p>
-                                <div className="flex gap-2 mt-1">
+                                <div className="flex items-center gap-2 mt-1">
                                   <span className="text-xs bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded">{event.type}</span>
                                   <span className="text-xs text-gray-500">{event.cost}</span>
+                                  <a
+                                    href={event.url || event.website || `https://www.google.com/search?q=${encodeURIComponent(event.name + ' ' + (event.location || '') + ' tickets')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="ml-auto text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1"
+                                  >
+                                    🔗 Details
+                                  </a>
                                 </div>
                               </div>
                             </div>
