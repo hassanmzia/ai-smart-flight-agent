@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'apps.commute',
     'apps.community',
     'apps.social',
+    'apps.activities',
 ]
 
 MIDDLEWARE = [

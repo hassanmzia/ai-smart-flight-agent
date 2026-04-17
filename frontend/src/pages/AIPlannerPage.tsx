@@ -494,15 +494,49 @@ const AIPlannerPage = () => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Your Interests (Optional)</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {[
+                    { tag: 'birding', icon: '🐦' }, { tag: 'hiking', icon: '🥾' },
+                    { tag: 'boating', icon: '⛵' }, { tag: 'camping', icon: '⛺' },
+                    { tag: 'picnic', icon: '🧺' }, { tag: 'fishing', icon: '🎣' },
+                    { tag: 'golfing', icon: '⛳' }, { tag: 'scouting', icon: '🏕️' },
+                    { tag: 'road trip', icon: '🚗' }, { tag: 'student travel', icon: '🎓' },
+                    { tag: 'museums', icon: '🏛️' }, { tag: 'nightlife', icon: '🌙' },
+                    { tag: 'photography', icon: '📷' }, { tag: 'beach', icon: '🏖️' },
+                    { tag: 'food & dining', icon: '🍜' }, { tag: 'adventure sports', icon: '🧗' },
+                  ].map(({ tag, icon }) => {
+                    const active = interests.toLowerCase().includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          if (active) {
+                            setInterests((prev) => prev.replace(new RegExp(`,?\\s*${tag}`, 'gi'), '').replace(/^,\\s*/, '').trim());
+                          } else {
+                            setInterests((prev) => (prev.trim() ? `${prev.trim()}, ${tag}` : tag));
+                          }
+                        }}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border transition-all ${
+                          active
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                            : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                        }`}
+                      >
+                        <span>{icon}</span> {tag}
+                      </button>
+                    );
+                  })}
+                </div>
                 <textarea
                   value={interests}
                   onChange={(e) => setInterests(e.target.value)}
                   rows={3}
-                  placeholder="Tell us what you enjoy: e.g., historical sites, museums, local street food, hiking, beach activities, nightlife, photography, art galleries, natural beauty, adventure sports..."
+                  placeholder="Click tags above or type your own: e.g., historical sites, museums, local street food, hiking, beach activities, nightlife, photography..."
                   className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                  AI will personalize your itinerary based on your interests.
+                  AI will personalize your itinerary based on your interests. Click tags or type freely.
                 </p>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400">

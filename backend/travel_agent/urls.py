@@ -239,6 +239,7 @@ urlpatterns = [
     path('api/commute/', include('apps.commute.urls')),
     path('api/community/', include('apps.community.urls')),
     path('api/social/', include('apps.social.urls')),
+    path('api/activities/', include('apps.activities.urls')),
 ]
 
 # Serve media files in development
